@@ -1,0 +1,22 @@
+{
+  "name": "docker-haptic-player",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bookworm",
+  // disables SELinux relabeling of the bind mount, needed on Fedora/RHEL hosts running SELinux enforcing
+  "runArgs": ["--security-opt", "label=disable"],
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "HAPPY"
+    }
+  },
+  "postCreateCommand": "mkdir -p media config; npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+    }
+  },
+  "updateRemoteUserUID": true,
+  "features": {
+    "ghcr.io/postfinance/devcontainer-features/git-lfs:1": {}
+  }
+}

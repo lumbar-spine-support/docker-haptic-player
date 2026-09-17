@@ -1,0 +1,9 @@
+{
+  "features": {
+    "ghcr.io/postfinance/devcontainer-features/git-lfs:1": {
+      "version": "1.1.0",
+      "resolved": "ghcr.io/postfinance/devcontainer-features/git-lfs@sha256:405eb8c09f66031785fd22f2f4f0683a9033e98a05f4ba78744644cb169ffce5",
+      "integrity": "sha256:405eb8c09f66031785fd22f2f4f0683a9033e98a05f4ba78744644cb169ffce5"
+    }
+  }
+}

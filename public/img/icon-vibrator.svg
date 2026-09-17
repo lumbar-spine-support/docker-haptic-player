@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="1em"
+   height="1em"
+   viewBox="0 0 12.7 12.7"
+   version="1.1"
+   id="svg5"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="0.79375"
+   stroke-linecap="round"
+   class="bi"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs2" />
+  <g
+     id="layer1"
+   style="fill:none;fill-opacity:1;stroke:currentColor;stroke-opacity:1">
+    <circle
+      style="fill:currentColor;fill-opacity:1;stroke:currentColor;stroke-opacity:1;stroke-width:0.79375;stroke-linecap:round;paint-order:markers stroke fill;stop-color:#000000"
+       id="path8479"
+       cx="6.7677569"
+       cy="4.5924029"
+       r="2.2607331"
+       transform="translate(-0.41775684,1.7575969)" />
+    <path
+       id="path8479-8"
+      style="fill:none;fill-opacity:1;stroke:currentColor;stroke-opacity:1;stroke-width:0.79375;stroke-linecap:round;stroke-dasharray:none;paint-order:markers stroke fill;stop-color:#000000"
+       d="M 3.9367683,7.4233916 C 3.1859434,6.6725667 2.7641344,5.6542296 2.7641344,4.5924029 c 0,-1.0618267 0.421809,-2.0801637 1.1726339,-2.8309886 m 5.661977,1e-7 C 10.34957,2.5122393 10.771379,3.5305763 10.771379,4.5924029 v 0 c 0,1.0618266 -0.421809,2.0801636 -1.1726337,2.8309885"
+       transform="translate(-0.41775684,1.7575969)" />
+    <path
+       id="path8479-8-8"
+      style="fill:none;fill-opacity:1;stroke:currentColor;stroke-opacity:1;stroke-width:0.79375;stroke-linecap:round;paint-order:markers stroke fill;stop-color:#000000"
+       d="M 2.7689118,8.591248 C 1.7083522,7.5306883 1.112536,6.0922607 1.112536,4.5924029 c 0,-1.4998578 0.5958162,-2.9382854 1.6563758,-3.99884508"
+       transform="translate(-0.41775684,1.7575969)" />
+    <path
+       id="path12662"
+      style="fill:none;fill-opacity:1;stroke:currentColor;stroke-opacity:1;stroke-width:0.79375;stroke-linecap:round;paint-order:markers stroke fill;stop-color:#000000"
+       d="M 2.7689118,8.591248"
+       transform="translate(-0.41775684,1.7575969)" />
+    <path
+       id="path13412"
+      style="fill:none;fill-opacity:1;stroke:currentColor;stroke-opacity:1;stroke-width:0.79375;stroke-linecap:round;paint-order:markers stroke fill;stop-color:#000000"
+       d="m 10.766602,0.59355775 a 5.655221,5.655221 0 0 1 1.656376,3.99884515 v 0 a 5.655221,5.655221 0 0 1 -1.656376,3.9988452"
+       transform="translate(-0.41775684,1.7575969)" />
+  </g>
+</svg>

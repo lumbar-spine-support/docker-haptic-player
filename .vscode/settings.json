@@ -1,0 +1,10 @@
+{
+  "json.schemaDownload.trustedDomains": {
+    "https://ui.shadcn.com/": true
+  },
+  "chat.agent.sandbox.enabled": "off",
+  "chat.agent.sandbox.allowAutoApprove": true,
+  "chat.permissions.default": "autoApprove",
+  "chat.agent.maxRequests": 100,
+  "chat.sessionSync.enabled": true
+}

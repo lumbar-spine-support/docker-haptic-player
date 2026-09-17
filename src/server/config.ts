@@ -1,0 +1,211 @@
+import fs from 'fs';
+import path from 'path';
+import yaml from 'js-yaml';
+
+export namespace Config {
+
+  export const TAG = '[config]';
+
+  export const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv'];
+  export const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'wav', 'flac'];
+
+  export type ConfigEntry = number | string | string[];
+
+  /** Stores the application configuration. Can be loaded from YAML or environment variables. */
+  export interface ServerConfig {
+    [key: string]: ConfigEntry;
+    port: number;
+    mediaDir: string;
+    ignoreExt: string[];
+    password: string;
+    funscriptSuffixSeparator: string;
+    funscriptSuffixStroker: string;
+    funscriptSuffixButtplug: string;
+    funscriptSuffixVibrator: string;
+    funscriptSuffixEstim: string;
+    funscriptSuffixMachine: string;
+  }
+
+  /** Stores the client-side configuration. Can be loaded from YAML or environment variables. */
+  export interface ClientConfig {
+    [key: string]: ConfigEntry;
+    videoSeekInterval: number;
+  }
+
+  export interface Config {
+    server: ServerConfig;
+    client: ClientConfig;
+  }
+
+  export const DEFAULT_MOUNT = '/config';
+
+  export const DEFAULT_FILE_NAME = 'settings.yaml';
+
+  export const DEFAULT_FILE_PATH = path.join(DEFAULT_MOUNT, DEFAULT_FILE_NAME);
+
+  export const DEFAULT_SERVER_CONFIG: ServerConfig = {
+    port: 3000,
+    mediaDir: '/media',
+    ignoreExt: [],
+    password: 'happy',
+    funscriptSuffixSeparator: '.',
+    funscriptSuffixStroker: 'stroker',
+    funscriptSuffixButtplug: 'buttplug',
+    funscriptSuffixVibrator: 'vibrator',
+    funscriptSuffixEstim: 'estim',
+    funscriptSuffixMachine: 'machine',
+  };
+
+  export const DEFAULT_CLIENT_CONFIG: ClientConfig = {
+    videoSeekInterval: 10,
+  };
+
+  export const DEFAULTS = { ...DEFAULT_SERVER_CONFIG, ...DEFAULT_CLIENT_CONFIG };
+
+  export const DESCRIPTIONS: Record<string, string> = {
+    port: 'HTTP port of the web interface',
+    mediaDir: 'Directory that contains media files',
+    ignoreExt: 'File extensions to ignore (without leading dot)',
+    password: 'Web interface access password (TODO: authentication not implemented yet)',
+    videoSeekInterval: 'Default skip interval in seconds for the seek buttons (TODO: unused)',
+    funscriptSuffixSeparator: 'Character that separates filename from funscript suffix',
+    funscriptSuffixStroker: 'Suffix for stroker funscript files',
+    funscriptSuffixButtplug: 'Suffix for buttplug funscript files',
+    funscriptSuffixVibrator: 'Suffix for vibrator funscript files',
+    funscriptSuffixEstim: 'Suffix for estim funscript files',
+    funscriptSuffixMachine: 'Suffix for machine funscript files',
+  };
+
+  export const ENV_NAMES: Record<string, string> = {
+    port: 'PORT',
+    mediaDir: 'MEDIA_DIR',
+    ignoreExt: 'IGNORE_EXT',
+    password: 'PASSWORD',
+    videoSeekInterval: 'VIDEO_SEEK_INTERVAL',
+    funscriptSuffixSeparator: 'FUNSCRIPT_SUFFIX_SEPARATOR',
+    funscriptSuffixStroker: 'FUNSCRIPT_SUFFIX_STROKER',
+    funscriptSuffixButtplug: 'FUNSCRIPT_SUFFIX_BUTTPLUG',
+    funscriptSuffixVibrator: 'FUNSCRIPT_SUFFIX_VIBRATOR',
+    funscriptSuffixEstim: 'FUNSCRIPT_SUFFIX_ESTIM',
+    funscriptSuffixMachine: 'FUNSCRIPT_SUFFIX_MACHINE',
+  };
+
+  // Infer which env vars belong to which config from the default config objects
+  const SERVER_KEYS = new Set(Object.keys(DEFAULT_SERVER_CONFIG));
+  const CLIENT_KEYS = new Set(Object.keys(DEFAULT_CLIENT_CONFIG));
+
+  /** Convert a string value to the appropriate type based on the target object's property type. */
+  function applyConfigValue(config: ServerConfig | ClientConfig, key: string, stringValue: string): void {
+    const currentType = typeof config[key];
+
+    switch (currentType) {
+      case 'string':
+        config[key] = stringValue;
+        break;
+      case 'number':
+        config[key] = Number(stringValue);
+        break;
+      case 'object':
+        if (Array.isArray(config[key])) {
+          config[key] = stringValue.split(',').map(s => s.trim()) as ConfigEntry;
+        }
+        break;
+    }
+  }
+
+  /** Environment variables are loaded into configuration, overriding existing settings. */
+  function loadEnv(serverConfig: ServerConfig, clientConfig: ClientConfig): { server: ServerConfig; client: ClientConfig } {
+    const resultServer = { ...serverConfig };
+    const resultClient = { ...clientConfig };
+
+    for (const key in ENV_NAMES) {
+      const tag = ENV_NAMES[key];
+      const val = process.env[tag];
+
+      if (val == undefined) {
+        continue;
+      }
+
+      if (SERVER_KEYS.has(key)) {
+        applyConfigValue(resultServer, key, val);
+      } else if (CLIENT_KEYS.has(key)) {
+        applyConfigValue(resultClient, key, val);
+      }
+    }
+
+    return { server: resultServer, client: resultClient };
+  }
+
+  /** Load configuration settings from YAML file */
+  function loadYml(serverConfig: ServerConfig, clientConfig: ClientConfig, configPath: string): { server: ServerConfig; client: ClientConfig } {
+    let loaded;
+    try {
+      const raw = fs.readFileSync(configPath, 'utf-8')
+      loaded = yaml.load(raw) as Record<string, any>;
+    } catch (err) {
+      console.warn(`${TAG} Could not load configuration from ${configPath}:`, err);
+      return { server: serverConfig, client: clientConfig };
+    }
+
+    const resultServer = { ...serverConfig };
+    const resultClient = { ...clientConfig };
+
+    for (const envKey in loaded) {
+      const key = Object.keys(ENV_NAMES).find(k => ENV_NAMES[k] === envKey);
+      const val = loaded[envKey];
+
+      if (val !== undefined && key) {
+        if (SERVER_KEYS.has(key)) {
+          resultServer[key] = val;
+        } else if (CLIENT_KEYS.has(key)) {
+          resultClient[key] = val;
+        }
+      }
+    }
+
+    return { server: resultServer, client: resultClient };
+  }
+
+  /** Create default settings.yaml content with descriptions */
+  function getDefaultSettingsYaml(): string {
+    let yamlContent = '';
+    for (const key in DEFAULTS) {
+      const name = ENV_NAMES[key];
+      const desc = DESCRIPTIONS[key] ?? '';
+      const value = DEFAULTS[key];
+      yamlContent += `# ${desc}\n${name}: ${JSON.stringify(value)}\n\n`;
+    }
+    return yamlContent;
+  }
+
+  /** Ensure a configuration file exists by creating it if necessary. */
+  function createIfNotExists(configPath: string): void {
+    if (fs.existsSync(configPath)) {
+      console.debug(`${TAG} Configuration file found at ${configPath}.`);
+      return;
+    }
+
+    try {
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      fs.writeFileSync(configPath, getDefaultSettingsYaml(), 'utf-8');
+      console.debug(`${TAG} Created default configuration file at ${configPath}`);
+      return;
+    } catch (err) {
+      console.warn(`${TAG} Could not create default settings file at ${configPath} (mount may be read-only):`, err);
+      return;
+    }
+  }
+
+  /** Load and merge settings.yaml with built-in defaults. */
+  export function load(): Config {
+    const configPath = process.env.CONFIG_PATH ?? DEFAULT_FILE_PATH;
+    createIfNotExists(configPath);
+    const loaded = loadYml({ ...DEFAULT_SERVER_CONFIG }, { ...DEFAULT_CLIENT_CONFIG }, configPath);
+    const envOverridden = loadEnv(loaded.server, loaded.client);
+    return {
+      server: envOverridden.server,
+      client: envOverridden.client,
+    };
+  }
+
+}

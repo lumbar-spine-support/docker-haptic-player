@@ -1,0 +1,47 @@
+{
+  "name": "docker-haptic-player",
+  "version": "1.0.0",
+  "description": "HAPPY is a self-hosted haptic player for audio and video files.",
+  "main": "dist/server/index.js",
+  "scripts": {
+    "build:server": "tsc --project tsconfig.server.json",
+    "build:client": "npm run build:css && NODE_ENV=production node scripts/build-client.js --minify --sourcemap",
+    "build:vendor": "node scripts/copy-vendor-assets.js",
+    "build": "npm run build:server && npm run build:client && npm run build:vendor",
+    "start": "node dist/server/index.js",
+    "clean": "rm -rf dist public/js public/vendor",
+    "build:css": "npx sass public/css/app.scss:public/css/app.css --style=compressed --quiet-deps --silence-deprecation=import,global-builtin,if-function,color-functions",
+    "test": "NODE_ENV=test node --import tsx --test $(find test/server test/client -name '*.test.ts')",
+    "test:watch": "NODE_ENV=test node --import tsx --test --watch $(find test/server test/client -name '*.test.ts')",
+    "screenshot": "node scripts/screenshot-app.js"
+  },
+  "dependencies": {
+    "@videojs/html": "^10.0.0-rc.2",
+    "express": "^5.1.0",
+    "js-yaml": "^4.1.0",
+    "markdown-it": "^15.0.2",
+    "music-metadata": "^11.14.0",
+    "playwright": "^1.63.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.19.43",
+    "bootstrap": "^5.3.3",
+    "bootstrap-icons": "^1.11.3",
+    "buttplug": "^3.2.2",
+    "esbuild": "^0.28.1",
+    "esbuild-plugin-tsconfig-paths": "^1.0.2",
+    "nodemon": "^3.0.3",
+    "sass": "^1.89.2",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.23.13",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  }
+}

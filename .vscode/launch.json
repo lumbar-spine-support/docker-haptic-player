@@ -1,0 +1,48 @@
+{
+  "configurations": [
+    {
+      "name": "NPM Tests",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["test"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Client",
+      "request": "launch",
+      "type": "chrome",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/public",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "http://localhost:3000/src/*": "${workspaceFolder}/src/*"
+      },
+      "preLaunchTask": "npm: build:client"
+    },
+    {
+      "name": "Server",
+      "request": "launch",
+      "type": "node",
+      "program": "${workspaceFolder}/dist/server/index.js",
+      "preLaunchTask": "npm: build:server",
+      "cwd": "${workspaceFolder}",
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**"],
+      "runtimeArgs": ["--enable-source-maps"],
+      "env": {
+        "CONFIG_PATH": "${workspaceFolder}/config/settings.yaml",
+        "MEDIA_DIR": "${workspaceFolder}/test/fixtures/media/"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Debug",
+      "configurations": ["Server", "Client"]
+    }
+  ]
+}

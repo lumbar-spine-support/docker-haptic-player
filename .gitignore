@@ -1,0 +1,15 @@
+node_modules/
+dist/
+public/js/
+public/vendor/
+public/css/*.css
+*.log
+.env
+.DS_Store
+*.css.map
+config/
+/media
+
+# Note: Test fixtures (test/fixtures/media/) ARE intentionally committed to the repository
+# for reproducible testing. Media files are tracked via Git LFS (.gitattributes).
+# See LICENSES.md and test/fixtures/media/ATTRIBUTION.md for license information.

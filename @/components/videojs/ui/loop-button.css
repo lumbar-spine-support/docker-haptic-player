@@ -1,0 +1,12 @@
+@layer components {
+  @scope (.media-skin) {
+    .media-loop-button-icon {
+      opacity: 0.55;
+      transition: opacity var(--media-duration) cubic-bezier(0, 0, 0.2, 1);
+    }
+
+    .media-loop-button[data-active] .media-loop-button-icon {
+      opacity: 1;
+    }
+  }
+}

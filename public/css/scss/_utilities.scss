@@ -1,0 +1,225 @@
+@use 'variables' as *;
+
+.dual-range-input-first {
+  &::-webkit-slider-runnable-track {
+    background-color: transparent !important;
+    border-color: transparent !important;
+  }
+
+  &::-moz-range-track {
+    background-color: transparent !important;
+    border-color: transparent !important;
+  }
+
+  &::-moz-range-progress {
+    background-color: transparent !important;
+  }
+}
+
+.dual-range-input-second {
+  &::-webkit-slider-runnable-track {
+    background-color: transparent !important;
+    border-color: transparent !important;
+  }
+
+  &::-moz-range-track {
+    background-color: transparent !important;
+    border-color: transparent !important;
+  }
+
+  &::-moz-range-progress {
+    background-color: transparent !important;
+  }
+}
+
+.handle-only-range,
+.dual-range-input {
+  cursor: pointer;
+  touch-action: none;
+}
+
+// Compound with .form-range to out-specificity Bootstrap's form-range track/thumb rules
+.handle-only-range.form-range {
+  --range-progress: 0%;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  height: 1.5rem;
+  margin: 0;
+
+  &::-webkit-slider-runnable-track {
+    height: $track-height;
+    border-radius: var(--app-radius-pill);
+    background: linear-gradient(to right,
+        var(--bs-primary) 0%,
+        var(--bs-primary) var(--range-progress),
+        var(--bs-secondary) var(--range-progress),
+        var(--bs-secondary) 100%);
+  }
+
+  &::-moz-range-track {
+    height: $track-height;
+    border-radius: var(--app-radius-pill);
+    background: linear-gradient(to right,
+        var(--bs-primary) 0%,
+        var(--bs-primary) var(--range-progress),
+        var(--bs-secondary) var(--range-progress),
+        var(--bs-secondary) 100%);
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: $thumb-size;
+    height: $thumb-size;
+    border-radius: 50%;
+    background: var(--bs-primary);
+    border: 0;
+    box-shadow: 0 0 0 0.125rem rgba(var(--bs-primary-rgb), 0.18);
+    margin-top: -0.3125rem;
+  }
+
+  &::-moz-range-thumb {
+    width: $thumb-size;
+    height: $thumb-size;
+    border-radius: 50%;
+    background: var(--bs-primary);
+    border: 0;
+    box-shadow: 0 0 0 0.125rem rgba(var(--bs-primary-rgb), 0.18);
+  }
+
+  &::-moz-range-progress {
+    background: var(--bs-primary);
+    border-radius: var(--app-radius-pill);
+    height: $track-height;
+  }
+}
+
+.zero-centered-range.form-range {
+  --zero-position: 50%;
+  --fill-start: 50%;
+  --fill-end: 50%;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  height: 1.5rem;
+  margin: 0;
+
+  &::-webkit-slider-runnable-track {
+    height: $track-height;
+    border-radius: var(--app-radius-pill);
+    background: linear-gradient(to right,
+        var(--bs-secondary) 0%,
+        var(--bs-secondary) var(--fill-start),
+        var(--bs-primary) var(--fill-start),
+        var(--bs-primary) var(--fill-end),
+        var(--bs-secondary) var(--fill-end),
+        var(--bs-secondary) 100%);
+  }
+
+  &::-moz-range-track {
+    height: $track-height;
+    border-radius: var(--app-radius-pill);
+    background: linear-gradient(to right,
+        var(--bs-secondary) 0%,
+        var(--bs-secondary) var(--fill-start),
+        var(--bs-primary) var(--fill-start),
+        var(--bs-primary) var(--fill-end),
+        var(--bs-secondary) var(--fill-end),
+        var(--bs-secondary) 100%);
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: $thumb-size;
+    height: $thumb-size;
+    border-radius: 50%;
+    background: var(--bs-primary);
+    border: 0;
+    box-shadow: 0 0 0 0.125rem rgba(var(--bs-primary-rgb), 0.18);
+    margin-top: -0.3125rem;
+  }
+
+  &::-moz-range-thumb {
+    width: $thumb-size;
+    height: $thumb-size;
+    border-radius: 50%;
+    background: var(--bs-primary);
+    border: 0;
+    box-shadow: 0 0 0 0.125rem rgba(var(--bs-primary-rgb), 0.18);
+  }
+}
+
+.dual-range {
+  position: relative;
+  height: 1.5rem;
+  padding: 0;
+  touch-action: none;
+  z-index: 0;
+}
+
+.dual-range-track,
+.dual-range-fill {
+  position: absolute;
+  top: 50%;
+  height: $track-height;
+  border-radius: var(--app-radius-pill);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.dual-range-track {
+  left: 0;
+  right: 0;
+  background: var(--bs-secondary);
+  z-index: 0;
+}
+
+.dual-range-fill {
+  background: var(--bs-primary);
+  box-shadow: 0 0 0 1px rgba(var(--bs-primary-rgb), 0.25);
+  z-index: 1;
+}
+
+.dual-range-input.form-range {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  pointer-events: none;
+  z-index: 2;
+  background: transparent;
+  --range-progress: 0%;
+
+  &::-webkit-slider-runnable-track {
+    background: transparent !important;
+  }
+
+  &::-moz-range-track {
+    background: transparent !important;
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: auto;
+    width: $thumb-size;
+    height: $thumb-size;
+    border-radius: 50%;
+    background: var(--bs-primary);
+    border: 0;
+    box-shadow: 0 0 0 0.125rem rgba(var(--bs-primary-rgb), 0.18);
+    margin-top: -0.3125rem;
+  }
+
+  &::-moz-range-thumb {
+    pointer-events: auto;
+    width: $thumb-size;
+    height: $thumb-size;
+    border-radius: 50%;
+    background: var(--bs-primary);
+    border: 0;
+    box-shadow: 0 0 0 0.125rem rgba(var(--bs-primary-rgb), 0.18);
+  }
+}

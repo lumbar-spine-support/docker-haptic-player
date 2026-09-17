@@ -1,0 +1,60 @@
+ :root {
+     --media-accent-color: var(--bs-primary);
+     --media-accent-text-color: var(--bs-primary-text);
+     --media-font-family: var(--bs-body-font-family);
+     --media-scale-unit: 1rem;
+     --media-border-radius: var(--bs-border-radius);
+ }
+
+ #player-slot-a,
+ #player-slot-b {
+     display: flex;
+     justify-content: center;
+     width: 100%;
+     min-height: 200px;
+ }
+
+ video-player,
+ video-minimal-skin {
+     display: contents;
+ }
+
+ media-container.video-skin {
+     display: grid;
+     width: min(100%, 960px);
+     aspect-ratio: 16 / 9;
+ }
+
+ media-title {
+     position: absolute;
+     inset-inline: 0;
+     top: 0;
+     padding: 16px 20px 48px;
+     color: var(--bs-body-color);
+     font-size: 16px;
+     font-weight: 500;
+     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+     pointer-events: none;
+     background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
+     opacity: 0;
+     transition: opacity 150ms ease-out;
+ }
+
+ media-controls[data-visible]~media-title {
+     opacity: 1;
+ }
+
+ /* Audio has no frames, so the artwork stays up for the whole session as a pseudo-video surface. */
+ video-player.audio-only .media-poster {
+     opacity: 1 !important;
+ }
+
+ @layer components {
+     @scope (.media-skin) {
+
+         /* Audio-only sources render no frames, so the artwork stays up instead of hiding once playback starts. */
+         :scope[data-media-kind="track"] .media-poster {
+             opacity: 1;
+         }
+     }
+ }

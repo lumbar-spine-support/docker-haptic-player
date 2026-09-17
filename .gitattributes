@@ -1,0 +1,2 @@
+test/fixtures/media/**/*.{mp3,m4a,wav,flac,mp4,mkv,webm} filter=lfs diff=lfs merge=lfs -text
+docs/**/*.{webm,jpg,jpeg,png} filter=lfs diff=lfs merge=lfs -text
