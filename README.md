@@ -119,7 +119,7 @@ Create a `docker-compose.yml`. If you have one media directory with multiple sub
 ```yaml
 services:
   app:
-    image: ghcr.io/ewr023/happy:latest
+    image: ghcr.io/lumbar-spine-support/docker-haptic-player:latest
     ports:
       - "8069:3000"
     volumes:
