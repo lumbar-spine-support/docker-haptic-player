@@ -150,6 +150,17 @@ a.card:hover,
   }
 }
 
+// Tinted with the navbar text colour, so the theme-aware /icon.svg colours are ignored here.
+.navbar-brand-icon {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  background-color: currentColor;
+  -webkit-mask: url('/icon.svg') no-repeat center / contain;
+  mask: url('/icon.svg') no-repeat center / contain;
+  vertical-align: middle;
+}
+
 .device-role-icon {
   display: inline-block;
   width: 1.25rem;
