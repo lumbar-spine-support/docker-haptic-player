@@ -12,6 +12,13 @@ export const loopFeature = definePlayerFeature({
     name: 'loop',
     state: ({ target, set }) => ({
         loop: false,
+        setLoop(value: boolean) {
+            const { media } = target();
+            if (!('loop' in media)) return false;
+            media.loop = value;
+            set({ loop: value });
+            return value;
+        },
         toggleLoop() {
             const { media } = target();
             if (!('loop' in media)) return false;

@@ -9,12 +9,7 @@
       "label": "HAPPY"
     }
   },
-  "postCreateCommand": "mkdir -p media config; npm install",
-  "customizations": {
-    "vscode": {
-      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
-    }
-  },
+  "postCreateCommand": "npm install",
   "updateRemoteUserUID": true,
   "features": {
     "ghcr.io/postfinance/devcontainer-features/git-lfs:1": {}

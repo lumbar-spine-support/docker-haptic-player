@@ -551,6 +551,11 @@ class App {
     this.syncEngine.clearScripts();
     if (!track) return;
     this.applyMediaSessionMetadata(track);
+    // A queue step swaps the media under the file page, so the page (URL, tags,
+    // description) has to follow it. Only when a file page is what's on screen.
+    if (this.currentTrackId && this.currentTrackId !== track.id) {
+      await this.openTrack(track.id, true, this.queue.source);
+    }
     const scripts = await this.fetchTrackScripts(track);
     if (this.session.activeTrackId !== track.id) return;
     this.syncEngine.loadScripts(scripts);

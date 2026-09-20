@@ -1,0 +1,10 @@
+@layer components {
+    @scope (.media-skin) {
+
+        /* The button is removed from the bar when the queue has no neighbour,
+           so whenever it is on screen it is fully usable. */
+        .media-skip-button[data-hidden] {
+            display: none;
+        }
+    }
+}

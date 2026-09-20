@@ -30,6 +30,16 @@
         <media-controls-content class="video-controls video-controls-content video-controls-wrap">
             <media-tooltip-group>
                 <media-controls-group class="video-controls-start">
+                    <media-skip-button direction="backward" class="media-button media-skip-button"
+                        id="vjs-{{iid}}-ov-hMuXH-0-skip-back-trigger">
+                        <media-icon family="minimal" name="skip-backward"
+                            class="media-button-icon media-skip-button-icon">
+                        </media-icon>
+                    </media-skip-button>
+                    <media-tooltip trigger="vjs-{{iid}}-ov-hMuXH-0-skip-back-trigger" side="top"
+                        class="media-popup media-popup-safe-area media-popup-transition media-popup-surface media-tooltip">
+                        Previous
+                    </media-tooltip>
                     <media-play-button class="media-button media-play-button" id="vjs-{{iid}}-ov-hMuXH-0-trigger">
                         <media-icon family="minimal" name="restart"
                             class="media-button-icon media-play-button-restart-icon">
@@ -46,6 +56,16 @@
                         </media-tooltip-label>
                         <media-tooltip-shortcut class="media-tooltip-shortcut">
                         </media-tooltip-shortcut>
+                    </media-tooltip>
+                    <media-skip-button direction="forward" class="media-button media-skip-button"
+                        id="vjs-{{iid}}-ov-hMuXH-0-skip-fwd-trigger">
+                        <media-icon family="minimal" name="skip-forward"
+                            class="media-button-icon media-skip-button-icon">
+                        </media-icon>
+                    </media-skip-button>
+                    <media-tooltip trigger="vjs-{{iid}}-ov-hMuXH-0-skip-fwd-trigger" side="top"
+                        class="media-popup media-popup-safe-area media-popup-transition media-popup-surface media-tooltip">
+                        Next
                     </media-tooltip>
                     <media-mute-button commandfor="vjs-{{iid}}-YSh1x6Ch-0-popup" class="media-button media-mute-button"
                         id="vjs-{{iid}}-ov-hMuXH-0-2-trigger">
@@ -306,7 +326,7 @@
                         </media-loop-button>
                         <media-tooltip trigger="vjs-{{iid}}-ov-hMuXH-0-9-trigger" side="top"
                             class="media-popup media-popup-safe-area media-popup-transition media-popup-surface media-tooltip">
-                            Loop
+                            Repeat
                         </media-tooltip>
                         <media-cast-button class="media-button media-cast-button" id="vjs-{{iid}}-ov-hMuXH-0-5-trigger">
                             <media-icon family="minimal" name="cast-enter"

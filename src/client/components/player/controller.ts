@@ -3,6 +3,10 @@ import type { PlaybackQueue } from './queue';
 import type { PlaybackSession } from './session';
 import type { PlaybackRequest, QueueSource, TrackInfo } from '../../../shared/types';
 import { artworkUrl, mediaUrl, FALLBACK_ART_DATA_URI } from '../../utils';
+import { notifySkipChanged, setSkipTarget } from '@/components/videojs/features/skip';
+import { getRepeatMode, subscribeRepeat } from '@/components/videojs/features/repeat';
+
+const SINGLE: QueueSource = { type: 'single' };
 
 /**
  * Translates library intent ("browse this track", "skip forward") into session
@@ -14,6 +18,7 @@ export class PlaybackController {
     private wasEnded = false;
     /** Queue context the browsed page hands over once its player is started. */
     private pendingSource: QueueSource | null = null;
+    private lastCanStep = { prev: false, next: false };
 
     constructor(
         private readonly library: Library,
@@ -21,6 +26,8 @@ export class PlaybackController {
         private readonly session: PlaybackSession,
     ) {
         this.session.onChange(() => this.onSessionChange());
+        setSkipTarget(this);
+        subscribeRepeat(() => this.applyRepeat());
     }
 
     /** Entered a file page: show the track stopped, never touch playback. */
@@ -35,9 +42,11 @@ export class PlaybackController {
     async activate(trackId: string, source?: QueueSource): Promise<void> {
         const track = this.library.getTrack(trackId);
         if (!track) return;
-        this.queue.load(this.contextFor(track, source), trackId, source ?? this.sourceFor(track));
-        this.session.loadActive(this.toRequest(track));
-        await this.session.play(0);
+        const from = source ?? SINGLE;
+        this.queue.load(this.contextFor(track, from), trackId, from);
+        this.applyRepeat();
+        this.publishCanStep();
+        await this.session.start(this.toRequest(track));
     }
 
     async step(direction: -1 | 1): Promise<void> {
@@ -60,7 +69,7 @@ export class PlaybackController {
             this.lastActiveTrackId = activeId;
             const track = activeId ? this.library.getTrack(activeId) ?? null : null;
             if (track && this.queue.currentId !== track.id) {
-                const source = this.pendingSource ?? this.sourceFor(track);
+                const source = this.pendingSource ?? SINGLE;
                 this.queue.load(this.contextFor(track, source), track.id, source);
             }
             this.pendingSource = null;
@@ -68,31 +77,52 @@ export class PlaybackController {
         }
 
         const ended = this.session.activeStore.state.ended;
-        if (ended && !this.wasEnded && this.queue.autoplay) void this.step(1);
+        // Loading the next track emits synchronously, so the edge has to be
+        // consumed before advancing or that nested emit advances again.
+        const justEnded = ended && !this.wasEnded;
         this.wasEnded = ended;
+        if (justEnded && this.queue.autoplay) void this.advance();
+        this.publishCanStep();
     }
 
-    /** Queue membership comes from the catalog, not from the queue itself. */
-    private contextFor(track: TrackInfo, source?: QueueSource): string[] {
-        if (source?.type === 'playlist') {
+    /** End of a track: next in the queue, or back to the top when repeating it. */
+    private async advance(): Promise<void> {
+        if (this.queue.hasNext) {
+            await this.step(1);
+            return;
+        }
+        if (getRepeatMode() !== 'queue') return;
+        const id = this.queue.restart();
+        if (id) await this.activate(id, this.queue.source);
+    }
+
+    /** Repeat-one is the media element's own loop; the other modes leave it off. */
+    private applyRepeat(): void {
+        this.session.setLoop(getRepeatMode() === 'one');
+    }
+
+    private publishCanStep(): void {
+        const { prev, next } = this.canStep;
+        if (prev === this.lastCanStep.prev && next === this.lastCanStep.next) return;
+        this.lastCanStep = { prev, next };
+        notifySkipChanged();
+    }
+
+    /**
+     * Queue membership comes from the catalog, but only for the collection the
+     * track was opened from — a track opened on its own never gains neighbours
+     * just because it happens to belong to an album.
+     */
+    private contextFor(track: TrackInfo, source: QueueSource): string[] {
+        if (source.type === 'playlist') {
             const playlist = this.library.getPlaylist(source.id);
             if (playlist) return playlist.entries.map((entry) => entry.trackId);
         }
-        if (source?.type === 'album') {
+        if (source.type === 'album') {
             const album = this.library.getAlbum(source.id);
             if (album) return album.trackIds;
         }
-        const playlist = this.library.findPlaylistForTrack(track.id);
-        if (playlist) return playlist.entries.map((entry) => entry.trackId);
-        return this.library.findAlbumForTrack(track.id)?.trackIds ?? [track.id];
-    }
-
-    private sourceFor(track: TrackInfo): QueueSource {
-        const playlist = this.library.findPlaylistForTrack(track.id);
-        if (playlist) return { type: 'playlist', id: playlist.id };
-        const album = this.library.findAlbumForTrack(track.id);
-        if (album) return { type: 'album', id: album.id };
-        return { type: 'single' };
+        return [track.id];
     }
 
     private toRequest(track: TrackInfo): PlaybackRequest {

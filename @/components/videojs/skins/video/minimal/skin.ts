@@ -81,6 +81,9 @@ import pauseFillIconSource from 'bootstrap-icons/icons/pause-fill.svg';
 import pipIconSource from 'bootstrap-icons/icons/pip.svg';
 import playFillIconSource from 'bootstrap-icons/icons/play-fill.svg';
 import repeatIconSource from 'bootstrap-icons/icons/repeat.svg';
+import repeatOneIconSource from 'bootstrap-icons/icons/repeat-1.svg';
+import skipBackwardFillIconSource from 'bootstrap-icons/icons/skip-backward-fill.svg';
+import skipForwardFillIconSource from 'bootstrap-icons/icons/skip-forward-fill.svg';
 import speedometerIconSource from 'bootstrap-icons/icons/speedometer.svg';
 import togglesIconSource from 'bootstrap-icons/icons/toggles.svg';
 import volumeDownFillIconSource from 'bootstrap-icons/icons/volume-down-fill.svg';
@@ -106,7 +109,10 @@ registerIcons('minimal', {
   'pip-enter': stripBootstrapClassesFromSource(pipIconSource),
   'pip-exit': stripBootstrapClassesFromSource(pipIconSource),
   play: stripBootstrapClassesFromSource(playFillIconSource),
+  'repeat-one': stripBootstrapClassesFromSource(repeatOneIconSource),
   restart: stripBootstrapClassesFromSource(arrowClockwiseIconSource),
+  'skip-backward': stripBootstrapClassesFromSource(skipBackwardFillIconSource),
+  'skip-forward': stripBootstrapClassesFromSource(skipForwardFillIconSource),
   speech: stripBootstrapClassesFromSource(chatDotsIconSource),
   speed: stripBootstrapClassesFromSource(speedometerIconSource),
   spinner: stripBootstrapClassesFromSource(arrowClockwiseIconSource),

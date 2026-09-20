@@ -43,6 +43,7 @@ export class PlayerFooterElement extends UIElement {
         return this.querySelector<T>(`[data-footer="${name}"]`);
     }
 
+
     #bindControls(): void {
         this.#part('info')?.addEventListener('click', () => {
             const trackId = this.#session?.activeTrackId;
@@ -72,8 +73,9 @@ export class PlayerFooterElement extends UIElement {
         super.update(changed);
         const session = this.#session;
         const request = session?.activeRequest ?? null;
-        this.classList.toggle('d-none', !request);
-        if (!request) return;
+        const hideFooter = !request || session?.focusedIsActive;
+        this.classList.toggle('d-none', hideFooter);
+        if (hideFooter) return;
 
         const art = this.#part<HTMLImageElement>('art');
         if (art && art.src !== request.poster) art.src = request.poster;

@@ -26,4 +26,11 @@ export class PlaybackQueue {
         this.index = next;
         return this.trackIds[next];
     }
+
+    /** Re-points at the first track, for repeat-queue. */
+    restart(): string | null {
+        if (!this.trackIds.length) return null;
+        this.index = 0;
+        return this.trackIds[0];
+    }
 }

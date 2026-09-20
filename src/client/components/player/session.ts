@@ -1,6 +1,7 @@
 import type { VideoPlayerStore } from '@videojs/html';
 import type { VideoPlayerElement } from '@videojs/html/video';
 import type { PlaybackRequest } from '../../../shared/types';
+import { selectLoop } from '@/components/videojs/features/loop';
 
 interface PlayerSlot {
     readonly el: VideoPlayerElement;
@@ -21,8 +22,10 @@ export class PlaybackSession {
     private readonly slots: [PlayerSlot, PlayerSlot];
     private activeIndex = 0;
     private focusIndex = 0;
+    private focusedVisible = false;
     private readonly listeners = new Set<() => void>();
     private readonly storeAbort = new AbortController();
+    private readonly visibilityObserver: MutationObserver;
 
     /** Waits for the custom elements to upgrade so `store` is available. */
     static async create(hosts: [HTMLElement, HTMLElement]): Promise<PlaybackSession> {
@@ -47,7 +50,17 @@ export class PlaybackSession {
             }, { signal: this.storeAbort.signal });
         }
 
+        // Watches each host's actual ancestor chain, so a hidden container anywhere
+        // above it (however the page is routed) is picked up without naming it.
+        this.visibilityObserver = new MutationObserver(() => this.syncFocusedVisible());
+        for (const slot of this.slots) {
+            for (let node: HTMLElement | null = slot.host; node; node = node.parentElement) {
+                this.visibilityObserver.observe(node, { attributes: true, attributeFilter: ['class'] });
+            }
+        }
+
         this.applyVisibility();
+        this.syncFocusedVisible();
     }
 
     /** Store of the slot that owns playback — what the footer bar and haptics follow. */
@@ -85,7 +98,7 @@ export class PlaybackSession {
 
     /** Whether the browsed page shows the playing track itself. */
     get focusedIsActive(): boolean {
-        return this.focusIndex === this.activeIndex;
+        return this.focusedVisible && this.focusIndex === this.activeIndex;
     }
 
     /**
@@ -101,21 +114,31 @@ export class PlaybackSession {
             this.loadSlot(this.focusIndex, request);
         }
         this.applyVisibility();
+        this.syncFocusedVisible();
         this.emit();
     }
 
-    /** Replaces the track in the active slot, e.g. when the queue advances. */
-    loadActive(request: PlaybackRequest): void {
-        this.loadSlot(this.activeIndex, request);
-        this.applyVisibility();
+    /**
+     * Explicit play request. The slot on screen takes it over when it is already
+     * showing that track, so starting an album from its page plays the player
+     * the user is looking at instead of the hidden one; anything else (a queue
+     * step while browsing elsewhere) stays with the slot that owns playback.
+     */
+    async start(request: PlaybackRequest): Promise<void> {
+        const index = this.slots[this.focusIndex].request?.id === request.id ? this.focusIndex : this.activeIndex;
+        const reused = this.slots[index].request?.id === request.id;
+        this.loadSlot(index, request);
         this.emit();
-    }
-
-    /** Starts the active slot, optionally from a given offset. */
-    async play(at?: number): Promise<void> {
-        const store = this.activeStore;
-        if (at !== undefined) await store.seek(at);
+        const store = this.slots[index].el.store;
+        // A freshly loaded source already starts at zero, and seeking it would
+        // block on metadata that has not arrived yet.
+        if (reused) await store.seek(0);
         await store.play();
+    }
+
+    /** Applies native looping to both slots, so a handoff keeps repeat-one on. */
+    setLoop(value: boolean): void {
+        for (const slot of this.slots) selectLoop(slot.el.store.state)?.setLoop(value);
     }
 
     onChange(listener: () => void): () => void {
@@ -125,6 +148,7 @@ export class PlaybackSession {
 
     destroy(): void {
         this.storeAbort.abort();
+        this.visibilityObserver.disconnect();
         this.listeners.clear();
     }
 
@@ -134,6 +158,14 @@ export class PlaybackSession {
         this.slots[this.activeIndex].el.store.pause();
         this.activeIndex = index;
         this.applyVisibility();
+        this.syncFocusedVisible();
+        this.emit();
+    }
+
+    private syncFocusedVisible(): void {
+        const visible = this.slots[this.focusIndex].host.offsetParent !== null;
+        if (visible === this.focusedVisible) return;
+        this.focusedVisible = visible;
         this.emit();
     }
 
