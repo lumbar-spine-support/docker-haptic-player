@@ -1,5 +1,7 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+# Build output is arch-independent JS/CSS, so force this stage onto the host
+# arch instead of letting buildx emulate the whole tsc/esbuild/sass build.
+FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -15,7 +17,7 @@ COPY public/ ./public/
 RUN npm run build
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
-FROM node:20-alpine AS runtime
+FROM node:24-alpine AS runtime
 
 WORKDIR /app
 
@@ -30,6 +32,8 @@ VOLUME ["/media", "/config"]
 
 EXPOSE 3000
 
+ARG APP_VERSION=0.0.0-dev
 ENV NODE_ENV=production
+ENV APP_VERSION=$APP_VERSION
 
 CMD ["node", "dist/server/index.js"]
