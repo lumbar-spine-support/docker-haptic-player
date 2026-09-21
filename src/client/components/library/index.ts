@@ -18,7 +18,6 @@ import type { AlbumInfo, LibraryResponse, PlaylistInfo, TrackInfo, FunscriptType
 import {
     cardHtml,
     playlistCardHtml,
-    sectionHeadingHtml,
     trackRowHtml,
     sectionRowHtml,
     albumRowHtml,
@@ -40,6 +39,7 @@ export interface LibraryCallbacks {
 
 const VIEW_KEY = 'happy-view-mode';
 const LIBRARY_FILTERS_KEY = 'happy-library-filters';
+const CARD_GRID_CLASSES = 'col-4 col-sm-3 col-lg-2 col-xl-1';
 
 export class Library {
     private readonly callbacks: LibraryCallbacks;
@@ -129,29 +129,10 @@ export class Library {
             return;
         }
 
-        if (isSearching) {
-            this.appendAlbumCards(visibleAlbums, tracksById);
-            this.appendPlaylistCards(visiblePlaylists, tracksById);
-            this.appendTrackCards(tracks, tracksById);
-            this.appendVideoCards(videos, tracksById);
-        } else {
-            if (visibleAlbums.length > 0) {
-                this.prependSectionHeading('Albums');
-                this.appendAlbumCards(visibleAlbums, tracksById);
-            }
-            if (visiblePlaylists.length > 0) {
-                this.prependSectionHeading('Playlists');
-                this.appendPlaylistCards(visiblePlaylists, tracksById);
-            }
-            if (tracks.length > 0) {
-                this.prependSectionHeading('Audio');
-                this.appendTrackCards(tracks, tracksById);
-            }
-            if (videos.length > 0) {
-                this.prependSectionHeading('Videos');
-                this.appendVideoCards(videos, tracksById);
-            }
-        }
+        this.appendAlbumCards(visibleAlbums, tracksById);
+        this.appendPlaylistCards(visiblePlaylists, tracksById);
+        this.appendTrackCards(tracks, tracksById);
+        this.appendVideoCards(videos, tracksById);
 
         if (visibleAlbums.length > 0) {
             this.list.appendChild(this.createSectionRow('Albums'));
@@ -627,14 +608,6 @@ export class Library {
 
     // ── DOM builders ───────────────────────────────────────────────────────────
 
-    private prependSectionHeading(title: string): void {
-        if (!this.grid) return;
-        const div = document.createElement('div');
-        div.className = 'col-12';
-        div.innerHTML = sectionHeadingHtml({ title: escapeHtml(title) });
-        this.grid.appendChild(div);
-    }
-
     private appendAlbumCards(albums: AlbumInfo[], tracksById: Map<string, TrackInfo>): void {
         if (!this.grid) return;
         for (const album of albums) {
@@ -665,7 +638,7 @@ export class Library {
 
     private createAlbumCard(album: AlbumInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
         const col = document.createElement('div');
-        col.className = 'col-6 col-sm-4 col-lg-3 col-xl-2';
+        col.className = CARD_GRID_CLASSES;
         const artSrc = renderTrackArt(album.coverTrackId);
         const subtitle = `${this.appendYear(album.artist || 'Unknown artist', album.year)} • ${album.trackCount} media`;
         const meta = this.buildCardMeta('album', album.durationSeconds);
@@ -689,7 +662,7 @@ export class Library {
 
     private createTrackCard(track: TrackInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
         const col = document.createElement('div');
-        col.className = 'col-6 col-sm-4 col-lg-3 col-xl-2';
+        col.className = CARD_GRID_CLASSES;
         const artSrc = track.hasArtwork ? artworkUrl(track.id) : FALLBACK_ART_DATA_URI;
         const subtitle = this.appendYear(track.artist, track.year);
         const meta = this.buildCardMeta(track.type, track.durationSeconds);
@@ -719,7 +692,7 @@ export class Library {
         const artSrc = firstTrack?.hasArtwork ? artworkUrl(firstTrack.id) : FALLBACK_ART_DATA_URI;
         const meta = this.buildCardMeta('playlist', playlist.durationSeconds);
         const col = document.createElement('div');
-        col.className = 'col-6 col-sm-4 col-lg-3 col-xl-2';
+        col.className = CARD_GRID_CLASSES;
         col.innerHTML = playlistCardHtml({
             href: detailHref('playlist', playlist.id),
             artSrc,
