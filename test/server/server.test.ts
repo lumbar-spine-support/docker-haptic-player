@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { TAG } from '../../src/server/index';
 import { startTestServer, httpGet, httpGetBuffer } from '../helpers/index';
 import type { LibraryResponse } from '../../src/shared/types';
+import pkg from '../../package.json';
 
 let testServer: Awaited<ReturnType<typeof startTestServer>>;
 
@@ -129,6 +130,14 @@ test(`${TAG} GET /api/media with path traversal returns 404`, async () => {
 test(`${TAG} GET /api/media/:invalidId returns 404 for malformed ID`, async () => {
     const { status } = await httpGet(testServer.port, '/api/media/not-valid-base64!!!');
     assert.ok(status === 400 || status === 404, 'Should reject malformed ID');
+});
+
+test(`${TAG} GET /api/version returns the package version by default`, async () => {
+    const { status, body } = await httpGet(testServer.port, '/api/version');
+    assert.equal(status, 200);
+    assert.equal(body.version, pkg.version);
+    assert.equal(body.commit, null);
+    assert.equal(body.builtAt, null);
 });
 
 test.after(async () => {

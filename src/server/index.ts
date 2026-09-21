@@ -6,6 +6,7 @@ import { createLibraryRouter } from './routes/library';
 import { createMediaRouter } from './routes/media';
 import { createArtworkRouter } from './routes/artwork';
 import { createFunscriptRouter } from './routes/funscript';
+import { createVersionRouter } from './routes/version';
 
 export const TAG = '[server]';
 
@@ -20,6 +21,7 @@ export function createApp(serverConfig?: Config.ServerConfig): express.Express {
   app.use('/api/media', createMediaRouter(serverConfig));
   app.use('/api/artwork', createArtworkRouter(serverConfig));
   app.use('/api/funscript', createFunscriptRouter(serverConfig));
+  app.use('/api/version', createVersionRouter());
   app.use(errorMiddleware);
   return app;
 }
