@@ -15,9 +15,8 @@ export function cardHtml(values: {
     fallbackArt: string;
     altText: string;
     title: string;
-    subtitle: string;
+    artist: string;
     meta: string;
-    hapticIcons: string;
 }): string {
     return renderTemplate(cardTemplate, values);
 }
@@ -27,7 +26,7 @@ export function playlistCardHtml(values: {
     artSrc: string;
     fallbackArt: string;
     name: string;
-    subtitle: string;
+    artist: string;
     meta: string;
 }): string {
     return renderTemplate(playlistCardTemplate, values);

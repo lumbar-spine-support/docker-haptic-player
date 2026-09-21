@@ -39,7 +39,7 @@ export interface LibraryCallbacks {
 
 const VIEW_KEY = 'happy-view-mode';
 const LIBRARY_FILTERS_KEY = 'happy-library-filters';
-const CARD_GRID_CLASSES = 'col-4 col-sm-3 col-lg-2 col-xl-1';
+const CARD_GRID_CLASSES = 'col-6 col-sm-4 col-lg-2 col-xl-2';
 
 export class Library {
     private readonly callbacks: LibraryCallbacks;
@@ -640,18 +640,16 @@ export class Library {
         const col = document.createElement('div');
         col.className = CARD_GRID_CLASSES;
         const artSrc = renderTrackArt(album.coverTrackId);
-        const subtitle = `${this.appendYear(album.artist || 'Unknown artist', album.year)} • ${album.trackCount} media`;
-        const meta = this.buildCardMeta('album', album.durationSeconds);
-        const hapticTypes = this.albumFunscriptTypes(album, tracksById);
+        const artist = `${album.artist || 'Unknown'}`;
+        const meta = this.prependYear(this.buildCardMeta('album', album.durationSeconds), album.year);
         col.innerHTML = cardHtml({
             href: detailHref('album', album.id),
             artSrc,
             fallbackArt: FALLBACK_ART_DATA_URI,
             altText: 'Album art',
             title: album.title,
-            subtitle,
-            meta,
-            hapticIcons: renderHapticIcons(hapticTypes),
+            artist,
+            meta
         });
         col.querySelector('a')?.addEventListener('click', (event) => {
             event.preventDefault();
@@ -664,17 +662,16 @@ export class Library {
         const col = document.createElement('div');
         col.className = CARD_GRID_CLASSES;
         const artSrc = track.hasArtwork ? artworkUrl(track.id) : FALLBACK_ART_DATA_URI;
-        const subtitle = this.appendYear(track.artist, track.year);
-        const meta = this.buildCardMeta(track.type, track.durationSeconds);
+        const artist = track.artist || 'Unknown';
+        const meta = this.prependYear(this.buildCardMeta(track.type, track.durationSeconds), track.year);
         col.innerHTML = cardHtml({
             href: trackHref(track.id),
             artSrc,
             fallbackArt: FALLBACK_ART_DATA_URI,
             altText: 'Album art',
             title: track.title,
-            subtitle,
-            meta,
-            hapticIcons: renderHapticIcons(track.funscripts.map((f) => f.type)),
+            artist: artist,
+            meta
         });
         col.querySelector('a')?.addEventListener('click', (event) => {
             event.preventDefault();
@@ -690,6 +687,7 @@ export class Library {
     private createPlaylistCard(playlist: PlaylistInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
         const firstTrack = tracksById.get(playlist.entries[0]?.trackId ?? '');
         const artSrc = firstTrack?.hasArtwork ? artworkUrl(firstTrack.id) : FALLBACK_ART_DATA_URI;
+        const artists = this.playlistArtists(playlist);
         const meta = this.buildCardMeta('playlist', playlist.durationSeconds);
         const col = document.createElement('div');
         col.className = CARD_GRID_CLASSES;
@@ -698,7 +696,7 @@ export class Library {
             artSrc,
             fallbackArt: FALLBACK_ART_DATA_URI,
             name: playlist.name,
-            subtitle: this.appendYear(this.playlistArtists(playlist), playlist.year),
+            artist: artists,
             meta,
         });
         col.querySelector('a')?.addEventListener('click', (event) => {
@@ -776,11 +774,11 @@ export class Library {
         return `${type.toUpperCase()} • ${formatHoursMinutes(durationSeconds)}`;
     }
 
-    private appendYear(label: string, year: string): string {
+    private prependYear(label: string, year: string): string {
         const trimmedLabel = label.trim();
         const trimmedYear = year.trim();
         if (!trimmedYear) return trimmedLabel;
-        return trimmedLabel ? `${trimmedLabel} • ${trimmedYear}` : trimmedYear;
+        return trimmedLabel ? `${trimmedYear} • ${trimmedLabel}` : trimmedYear;
     }
 
     private playlistArtists(playlist: PlaylistInfo): string {
