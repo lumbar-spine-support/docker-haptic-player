@@ -36,7 +36,7 @@ export interface LibraryCallbacks {
 
 const VIEW_KEY = 'happy-view-mode';
 const LIBRARY_FILTERS_KEY = 'happy-library-filters';
-const CARD_GRID_CLASSES = 'col-6 col-sm-4 col-lg-2 col-xl-2';
+const CARD_GRID_CLASSES = 'col-6 col-sm-3 col-lg-2 col-xl-2';
 
 export class Library {
     private readonly callbacks: LibraryCallbacks;
