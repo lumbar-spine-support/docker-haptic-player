@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.3.1...docker-haptic-player-v0.4.0) (2026-09-22)
+
+
+### Features
+
+* generic funscripts can be read (without suffix) ([8e99cb4](https://github.com/lumbar-spine-support/docker-haptic-player/commit/8e99cb4bdca925faace1f8603427e40fb5f3ed98))
+* version badge in offcanvas element ([3d49676](https://github.com/lumbar-spine-support/docker-haptic-player/commit/3d4967648a2bde58f9d1c01b87a7820be667ecad))
+
 ## [0.3.1](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.3.0...docker-haptic-player-v0.3.1) (2026-09-22)
 
 
