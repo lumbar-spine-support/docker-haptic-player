@@ -132,6 +132,7 @@ export class PlaybackController {
             src: mediaUrl(track.id),
             title: track.title,
             artist: track.artist || track.filename,
+            year: track.year,
             poster: track.hasArtwork ? artworkUrl(track.id) : FALLBACK_ART_DATA_URI,
         };
     }

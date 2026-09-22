@@ -114,5 +114,6 @@ export interface PlaybackRequest {
   src: string;
   title: string;
   artist: string;
+  year: string;
   poster: string;
 }

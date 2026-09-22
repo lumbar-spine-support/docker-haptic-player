@@ -6,6 +6,8 @@ import { selectLoop } from '@/components/videojs/features/loop';
 interface PlayerSlot {
     readonly el: VideoPlayerElement;
     readonly host: HTMLElement;
+    readonly artistEl: HTMLElement | null;
+    readonly yearEl: HTMLElement | null;
     request: PlaybackRequest | null;
 }
 
@@ -37,7 +39,13 @@ export class PlaybackSession {
         this.slots = hosts.map((host) => {
             const el = host.querySelector<VideoPlayerElement>('video-player');
             if (!el) throw new Error('PlaybackSession requires a <video-player> inside each host element');
-            return { el, host, request: null };
+            return {
+                el,
+                host,
+                artistEl: host.querySelector<HTMLElement>('.player-artist'),
+                yearEl: host.querySelector<HTMLElement>('.player-year'),
+                request: null,
+            };
         }) as [PlayerSlot, PlayerSlot];
 
         for (const [index, slot] of this.slots.entries()) {
@@ -176,7 +184,16 @@ export class PlaybackSession {
             slot.el.store.loadSource(request.src);
         }
         const artist = request.artist.trim();
-        slot.el.setAttribute('content-title', artist ? `${request.title} - ${artist}` : request.title);
+        const year = request.year.trim();
+        slot.el.setAttribute('content-title', request.title);
+        if (slot.artistEl) {
+            slot.artistEl.textContent = artist;
+            slot.artistEl.classList.toggle('d-none', !artist);
+        }
+        if (slot.yearEl) {
+            slot.yearEl.textContent = year;
+            slot.yearEl.classList.toggle('d-none', !year);
+        }
         slot.el.setAttribute('poster', request.poster);
         // Audio has no frames, so the skin keeps the poster up as a pseudo-video surface.
         slot.el.classList.toggle('audio-only', request.type === 'audio');
