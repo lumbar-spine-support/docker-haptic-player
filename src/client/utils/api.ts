@@ -1,4 +1,4 @@
-import type { LibraryResponse, Funscript } from '../../shared/types';
+import type { LibraryResponse, Funscript, VersionInfo } from '../../shared/types';
 
 const BASE = new URL('.', window.location.href).pathname;
 
@@ -35,4 +35,11 @@ export async function fetchTrackDescription(trackId: string): Promise<string> {
 /** Builds the artwork URL for a track's embedded cover image. */
 export function artworkUrl(trackId: string): string {
   return `${BASE}api/artwork/${trackId}`;
+}
+
+/** Fetches the running server/app version info. */
+export async function fetchVersion(): Promise<VersionInfo> {
+  const res = await fetch(`${BASE}api/version`);
+  if (!res.ok) throw new Error(`Version fetch failed: ${res.status}`);
+  return res.json() as Promise<VersionInfo>;
 }

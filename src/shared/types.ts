@@ -101,6 +101,15 @@ export interface LibraryResponse {
   playlists: PlaylistInfo[];
 }
 
+/** Response shape of GET /api/version */
+export interface VersionInfo {
+  version: string;
+  /** Release channel of the running build: `stable`, `preview`, or `dev`. */
+  channel: string;
+  commit: string | null;
+  builtAt: string | null;
+}
+
 export type QueueSource =
   | { type: Single }
   | { type: Album; id: string }

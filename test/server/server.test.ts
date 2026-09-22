@@ -136,6 +136,7 @@ test(`${TAG} GET /api/version returns the package version by default`, async () 
     const { status, body } = await httpGet(testServer.port, '/api/version');
     assert.equal(status, 200);
     assert.equal(body.version, pkg.version);
+    assert.equal(body.channel, 'stable');
     assert.equal(body.commit, null);
     assert.equal(body.builtAt, null);
 });

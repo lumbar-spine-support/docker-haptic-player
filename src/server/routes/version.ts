@@ -14,14 +14,24 @@ function resolveVersion(): string {
   }
 }
 
+// Release channel of the running image; inferred from the version when not stamped in.
+function resolveChannel(version: string): string {
+  const explicit = process.env.APP_CHANNEL?.trim();
+  if (explicit) return explicit;
+  if (/-preview\b/.test(version)) return 'preview';
+  if (version.includes('-')) return 'dev';
+  return 'stable';
+}
+
 export function createVersionRouter(): Router {
   const router = Router();
   const version = resolveVersion();
+  const channel = resolveChannel(version);
   const commit = process.env.GIT_COMMIT ?? null;
   const builtAt = process.env.BUILD_DATE ?? null;
 
   router.get('/', (_req, res) => {
-    res.json({ version, commit, builtAt });
+    res.json({ version, channel, commit, builtAt });
   });
 
   return router;

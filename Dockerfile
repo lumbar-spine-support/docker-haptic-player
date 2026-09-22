@@ -33,7 +33,9 @@ VOLUME ["/media", "/config"]
 EXPOSE 3000
 
 ARG APP_VERSION=0.0.0-dev
+ARG APP_CHANNEL=dev
 ENV NODE_ENV=production
 ENV APP_VERSION=$APP_VERSION
+ENV APP_CHANNEL=$APP_CHANNEL
 
 CMD ["node", "dist/server/index.js"]
