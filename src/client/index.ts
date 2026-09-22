@@ -1,4 +1,4 @@
-import { fetchFunscript, fetchTrackDescription, fetchVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
+import { fetchFunscript, fetchTrackDescription, fetchVersion, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
 import { bindDragOnlyRange, syncRangeFill } from './utils/rangeSlider';
 import { resetScrollPosition } from '../shared/scroll';
 import { PlaybackSession, PlaybackQueue, PlaybackController } from './components/player';
@@ -48,11 +48,6 @@ function formatIntifaceHost(rawAddress: string): string {
   return normalizeIntifaceAddress(rawAddress).replace(/^ws:\/\//i, '');
 }
 
-/** Trims the commit sha in prerelease versions (e.g. `1.2.3-preview.<sha>`) down to 7 chars. */
-function shortenVersion(version: string): string {
-  return version.replace(/\b([0-9a-f]{7})[0-9a-f]{9,}\b/i, '$1');
-}
-
 class App {
   private readonly libraryView = qs<HTMLElement>('#library-view');
   private readonly playerView = qs<HTMLElement>('#player-view');
@@ -94,7 +89,6 @@ class App {
   private readonly footer = qs<PlayerFooterElement>('#player-footer');
   private readonly blurContentToggle = qs<HTMLInputElement>('#blur-content-toggle');
   private readonly versionBadge = qs<HTMLElement>('#app-version');
-  private readonly channelBadge = qs<HTMLElement>('#app-channel');
 
   private readonly buttplug = new ButtplugClientManager();
   /** Owns the two interchangeable players; one of them is always the playing one. */
@@ -225,12 +219,8 @@ class App {
     if (!this.versionBadge) return;
     try {
       const info = await fetchVersion();
-      this.versionBadge.textContent = `v${shortenVersion(info.version)}`;
+      this.versionBadge.textContent = `v${formatVersion(info.version)}`;
       this.versionBadge.title = info.commit ? `${info.version} (commit ${info.commit})` : info.version;
-      if (this.channelBadge && info.channel !== 'stable') {
-        this.channelBadge.textContent = info.channel;
-        this.channelBadge.classList.remove('d-none');
-      }
     } catch {
       this.versionBadge.classList.add('d-none');
     }
