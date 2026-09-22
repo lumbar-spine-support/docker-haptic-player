@@ -74,6 +74,7 @@ export class Library {
     private filterShowHapticEstim = false;
     private filterShowHapticMachine = false;
     private currentViewMode: LibraryViewMode = 'grid';
+    private loaded = false;
 
     constructor(callbacks: LibraryCallbacks) {
         this.callbacks = callbacks;
@@ -90,6 +91,8 @@ export class Library {
             this.albums = data.albums;
             this.playlists = data.playlists;
             this.render();
+            this.loaded = true;
+            this.applyViewModeVisibility();
             this.loading?.remove();
         } catch (err) {
             this.loading?.remove();
@@ -165,8 +168,8 @@ export class Library {
             this.currentViewMode = mode;
             localStorage.setItem(VIEW_KEY, mode);
 
-            this.grid?.classList.toggle('d-none', mode !== 'grid');
-            this.table?.classList.toggle('d-none', mode !== 'list');
+            this.grid?.classList.toggle('d-none', !this.loaded || mode !== 'grid');
+            this.table?.classList.toggle('d-none', !this.loaded || mode !== 'list');
             this.btnGrid?.classList.toggle('active', mode === 'grid');
             this.btnList?.classList.toggle('active', mode === 'list');
         };
@@ -332,8 +335,8 @@ export class Library {
     }
 
     applyViewModeVisibility(): void {
-        this.grid?.classList.toggle('d-none', this.currentViewMode !== 'grid');
-        this.table?.classList.toggle('d-none', this.currentViewMode !== 'list');
+        this.grid?.classList.toggle('d-none', !this.loaded || this.currentViewMode !== 'grid');
+        this.table?.classList.toggle('d-none', !this.loaded || this.currentViewMode !== 'list');
     }
 
     setControlsVisible(visible: boolean): void {
