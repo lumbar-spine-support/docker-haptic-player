@@ -2,6 +2,10 @@
 
 **HAPPY** is a self-hosted **hap**tic **p**la**y**er for audio and video files.
 
+![Preview](./docs/screenshots/library-landscape.jpg)
+
+Key features:
+
 - Minimally intrusive: no internet required, only read-access to your media volume.
 - No SQL database; everything is stored in the media files themselves and optionally markdown files.
 - [Intiface Central](https://intiface.com/) as robust hardware bridge to your haptic toys.

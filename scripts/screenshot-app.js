@@ -3,6 +3,18 @@ import { once } from 'node:events';
 import { chromium, devices } from 'playwright';
 
 const SERVER_URL = 'http://localhost:3000';
+const LANDSCAPE_VIEWPORT = { width: 412, height: 915 };
+const SCREENSHOT_FULL_PAGE = false;
+
+async function capture(page, path) {
+    // avoid focus/hover/selection styling leaking into the screenshot
+    await page.evaluate(() => {
+        document.activeElement?.blur?.();
+        window.getSelection?.()?.removeAllRanges();
+    });
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path, fullPage: SCREENSHOT_FULL_PAGE });
+}
 
 async function run(command, args, options = {}) {
     const child = spawn(command, args, {
@@ -60,13 +72,7 @@ async function applyMediaFilter(page, filterName) {
         return;
     }
 
-    const id = await input.getAttribute('id');
-
-    if (id) {
-        await page.locator(`label[for="${id}"]`).click();
-        return;
-    }
-
+    // set directly instead of clicking so no hover/focus styling remains for screenshots
     await input.evaluate((element) => {
         element.checked = true;
         element.dispatchEvent(new Event('input', { bubbles: true }));
@@ -148,14 +154,8 @@ try {
 
     const context = await browser.newContext({
         ...devices['Pixel 9'],
-        viewport: {
-            width: 412,
-            height: 915,
-        },
-        screen: {
-            width: 412,
-            height: 915,
-        },
+        viewport: LANDSCAPE_VIEWPORT,
+        screen: LANDSCAPE_VIEWPORT,
         isMobile: true,
     });
 
@@ -170,20 +170,25 @@ try {
 
     await waitForJavaScriptToSettle(page);
 
-    await page.screenshot({
-        path: 'docs/screenshots/library.jpg',
-        fullPage: true,
+    await capture(page, 'docs/screenshots/library.jpg');
+
+    await page.setViewportSize({
+        width: LANDSCAPE_VIEWPORT.height,
+        height: LANDSCAPE_VIEWPORT.width,
     });
+    await waitForJavaScriptToSettle(page);
+
+    await capture(page, 'docs/screenshots/library-landscape.jpg');
+
+    await page.setViewportSize(LANDSCAPE_VIEWPORT);
+    await waitForJavaScriptToSettle(page);
 
     await clickLastLibraryResult(page);
     await page.locator('#player-view:not(.d-none)').waitFor();
     await page.locator('#viz-toggle').click();
     await waitForJavaScriptToSettle(page);
 
-    await page.screenshot({
-        path: 'docs/screenshots/player.jpg',
-        fullPage: true,
-    });
+    await capture(page, 'docs/screenshots/player.jpg');
 } finally {
     if (browser) {
         await browser.close();

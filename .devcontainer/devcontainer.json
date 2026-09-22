@@ -17,7 +17,7 @@
   "mounts": [
     "type=bind,source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,readonly"
   ],
-  "postCreateCommand": "mkdir -p media config; npm install -g npm@12.0.2; npm install",
+  "postCreateCommand": "mkdir -p media config; npm install -g npm@12.0.2; npm install; sudo npx --yes playwright install-deps chromium; npx --yes playwright install chromium",
   "customizations": {
     "vscode": {
       "extensions": []
