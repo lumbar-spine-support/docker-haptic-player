@@ -185,7 +185,7 @@ try {
 
     await clickLastLibraryResult(page);
     await page.locator('#player-view:not(.d-none)').waitFor();
-    await page.locator('#viz-toggle').click();
+    // await page.locator('#viz-toggle').click();
     await waitForJavaScriptToSettle(page);
 
     await capture(page, 'docs/screenshots/player.jpg');
