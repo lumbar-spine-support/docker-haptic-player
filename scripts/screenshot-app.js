@@ -81,7 +81,7 @@ async function applyMediaFilter(page, filterName) {
 }
 
 async function clickLastLibraryResult(page) {
-    const playableGridResults = page.locator('#track-grid a.track-card[href*="view=player"]');
+    const playableGridResults = page.locator('#track-grid a.track-art-link[href*="view=player"]');
     const playableListResults = page.locator('#track-list tr').filter({ hasNot: page.locator('th') });
     const gridCount = await playableGridResults.count();
 

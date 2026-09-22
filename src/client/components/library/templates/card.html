@@ -1,6 +1,8 @@
-<a href="{{href}}" class="card shadow track-card bg-dark text-light border-secondary text-decoration-none h-100">
-    <img src="{{artSrc}}" class="card-img-top track-art" alt="{{altText}}"
-        onerror="this.onerror=null;this.src='{{{fallbackArt}}}'">
+<div class="card track-card bg-dark text-light border-0 text-decoration-none h-100">
+    <a href="{{href}}" class="d-block track-art-link">
+        <img src="{{artSrc}}" class="rounded track-art" alt="{{altText}}"
+            onerror="this.onerror=null;this.src='{{{fallbackArt}}}'">
+    </a>
     <div class="card-body p-2 d-flex flex-column">
         <div class="card-title mb-0 fw-semibold text-truncate small">{{title}}</div>
         <div class="text-muted text-truncate" style="font-size:.75rem">{{artist}}</div>
@@ -8,4 +10,4 @@
             <span class="text-muted text-uppercase text-truncate" style="font-size:.65rem">{{meta}}</span>
         </div>
     </div>
-</a>
+</div>

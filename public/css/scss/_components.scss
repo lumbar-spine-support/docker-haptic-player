@@ -61,10 +61,15 @@
   font-size: 1.25rem;
 }
 
-a.card:hover,
 .playlist-summary:hover,
 .playlist-summary:focus-visible {
   border-color: $color-primary !important;
+}
+
+.track-art-link:hover .track-art,
+.track-art-link:focus-visible .track-art {
+  outline: 2px solid $color-primary;
+  outline-offset: -2px; // Keep outline inside the clipped card
 }
 
 .sort-header:hover {
