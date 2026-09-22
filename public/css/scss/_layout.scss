@@ -17,19 +17,6 @@ body.blur-content media-container {
   filter: blur(20px);
 }
 
-.offcanvas-end {
-  padding-right: max(0.75rem, env(safe-area-inset-right));
-}
-
-.offcanvas-header,
-.offcanvas-body {
-  padding-right: calc(var(--bs-offcanvas-padding-x) + 0.75rem);
-}
-
-.offcanvas-body {
-  padding-top: 0;
-}
-
 .settings-section {
   margin-bottom: var(--bs-offcanvas-padding-y);
 }
