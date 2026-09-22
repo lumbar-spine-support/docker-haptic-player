@@ -17,11 +17,8 @@ import {
 import type { AlbumInfo, LibraryResponse, PlaylistInfo, TrackInfo, FunscriptType } from '../../../shared/types';
 import {
     cardHtml,
-    playlistCardHtml,
-    trackRowHtml,
+    mediaRowHtml,
     sectionRowHtml,
-    albumRowHtml,
-    playlistRowHtml,
     emptyStateHtml,
     tagChipActiveHtml,
 } from './templates';
@@ -691,11 +688,12 @@ export class Library {
         const meta = this.buildCardMeta('playlist', playlist.durationSeconds);
         const col = document.createElement('div');
         col.className = CARD_GRID_CLASSES;
-        col.innerHTML = playlistCardHtml({
+        col.innerHTML = cardHtml({
             href: detailHref('playlist', playlist.id),
             artSrc,
             fallbackArt: FALLBACK_ART_DATA_URI,
-            name: playlist.name,
+            altText: 'Playlist cover',
+            title: playlist.name,
             artist: artists,
             meta,
         });
@@ -716,11 +714,12 @@ export class Library {
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
         tr.addEventListener('click', () => this.callbacks.openAlbum(album.id));
-        tr.innerHTML = albumRowHtml({
+        tr.innerHTML = mediaRowHtml({
             artSrc: renderTrackArt(album.coverTrackId),
             fallbackArt: FALLBACK_ART_DATA_URI,
             title: album.title,
             artist: album.artist || 'Unknown artist',
+            album: '',
             year: album.year,
             duration: formatHoursMinutes(album.durationSeconds),
             hapticIcons: renderHapticIcons(this.albumFunscriptTypes(album, tracksById)),
@@ -734,12 +733,15 @@ export class Library {
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
         tr.addEventListener('click', () => this.callbacks.openPlaylist(playlist.id));
-        tr.innerHTML = playlistRowHtml({
+        tr.innerHTML = mediaRowHtml({
             artSrc,
             fallbackArt: FALLBACK_ART_DATA_URI,
-            name: playlist.name,
-            artists: this.playlistArtists(playlist),
+            title: playlist.name,
+            artist: this.playlistArtists(playlist),
+            album: '',
+            year: '',
             duration: formatHoursMinutes(playlist.durationSeconds),
+            hapticIcons: renderHapticIcons(this.playlistFunscriptTypes(playlist, tracksById)),
         });
         return tr;
     }
@@ -749,7 +751,7 @@ export class Library {
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
         tr.addEventListener('click', () => this.callbacks.openTrack(track.id));
-        tr.innerHTML = trackRowHtml({
+        tr.innerHTML = mediaRowHtml({
             artSrc,
             fallbackArt: FALLBACK_ART_DATA_URI,
             title: track.title,
@@ -766,6 +768,14 @@ export class Library {
         const types = new Set<FunscriptType>();
         for (const trackId of album.trackIds) {
             for (const f of tracksById.get(trackId)?.funscripts ?? []) types.add(f.type);
+        }
+        return Array.from(types);
+    }
+
+    private playlistFunscriptTypes(playlist: PlaylistInfo, tracksById: Map<string, TrackInfo>): FunscriptType[] {
+        const types = new Set<FunscriptType>();
+        for (const entry of playlist.entries) {
+            for (const f of tracksById.get(entry.trackId)?.funscripts ?? []) types.add(f.type);
         }
         return Array.from(types);
     }
