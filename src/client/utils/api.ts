@@ -1,4 +1,4 @@
-import type { LibraryResponse, Funscript, VersionInfo } from '../../shared/types';
+import type { LibraryResponse, Funscript, VersionInfo, ClientSettings } from '../../shared/types';
 
 const BASE = new URL('.', window.location.href).pathname;
 
@@ -76,22 +76,6 @@ export async function fetchVersion(): Promise<VersionInfo> {
   return res.json() as Promise<VersionInfo>;
 }
 
-/** Client-visible half of the server configuration. */
-export interface ClientConfig {
-  videoSeekInterval: number;
-  dglabEnabled: boolean;
-}
-
-/** Fetches the client-facing configuration; server-only settings are never exposed. */
-export async function fetchClientConfig(): Promise<ClientConfig> {
-  const res = await fetch(`${BASE}api/config`);
-  if (!res.ok) {
-    handleUnauthorized(res, 'Config fetch');
-    throw new Error(`Config fetch failed: ${res.status}`);
-  }
-  return res.json() as Promise<ClientConfig>;
-}
-
 /** Reports whether authentication is enabled and whether the current token is still valid. */
 export async function fetchAuthStatus(): Promise<{ required: boolean; authenticated: boolean }> {
   const res = await fetch(`${BASE}api/auth/status`);
@@ -107,4 +91,14 @@ export async function logout(): Promise<void> {
     console.error('[auth] Logout request failed', err);
   }
   window.location.replace(`${BASE}auth/`);
+}
+
+/** Fetches the server-configured defaults for client-side settings. */
+export async function fetchClientSettings(): Promise<ClientSettings> {
+  const res = await fetch(`${BASE}api/config`);
+  if (!res.ok) {
+    handleUnauthorized(res, 'Config fetch');
+    throw new Error(`Config fetch failed: ${res.status}`);
+  }
+  return res.json() as Promise<ClientSettings>;
 }

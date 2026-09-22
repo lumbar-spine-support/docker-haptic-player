@@ -36,6 +36,10 @@ export namespace Config {
   export interface ClientConfig {
     [key: string]: ConfigEntry;
     videoSeekInterval: number;
+    blurContent: boolean;
+    hapticFrequency: number;
+    hapticMasterStrength: number;
+    hapticDelay: number;
     dglabEnabled: boolean;
   }
 
@@ -99,6 +103,10 @@ export namespace Config {
 
   export const DEFAULT_CLIENT_CONFIG: ClientConfig = {
     videoSeekInterval: 10,
+    blurContent: false,
+    hapticFrequency: 30,
+    hapticMasterStrength: 100,
+    hapticDelay: 0,
     dglabEnabled: false,
   };
 
@@ -112,6 +120,10 @@ export namespace Config {
     trustProxy: 'Number of reverse proxy hops to trust for X-Forwarded-* headers. 0 for direct LAN access, 1 behind nginx/Traefik',
     logLevel: `Verbosity of the console log: ${LOG_LEVELS.join(', ')}`,
     videoSeekInterval: 'Default skip interval in seconds for the seek buttons (TODO: unused)',
+    blurContent: 'Default setting for blurring of images and videos. Can be changed in client.',
+    hapticFrequency: 'Default haptic update frequency in Hz. Can be changed in client.',
+    hapticMasterStrength: 'Default haptic master strength in percent. Can be changed in client.',
+    hapticDelay: 'Default haptic delay in milliseconds to sync video and haptics. Can be changed in client.',
     dglabEnabled: '(EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control',
     funscriptSuffixSeparator: 'Character that separates filename from funscript suffix',
     funscriptSuffixStroker: 'Suffix for stroker funscript files',
@@ -129,6 +141,10 @@ export namespace Config {
     trustProxy: 'TRUST_PROXY',
     logLevel: 'LOG_LEVEL',
     videoSeekInterval: 'VIDEO_SEEK_INTERVAL',
+    blurContent: 'DEFAULT_BLUR_CONTENT',
+    hapticFrequency: 'DEFAULT_HAPTIC_FREQUENCY',
+    hapticMasterStrength: 'DEFAULT_HAPTIC_MASTER_STRENGTH',
+    hapticDelay: 'DEFAULT_HAPTIC_DELAY',
     dglabEnabled: 'DGLAB_ENABLED',
     funscriptSuffixSeparator: 'FUNSCRIPT_SUFFIX_SEPARATOR',
     funscriptSuffixStroker: 'FUNSCRIPT_SUFFIX_STROKER',
@@ -154,7 +170,7 @@ export namespace Config {
         config[key] = Number(stringValue);
         break;
       case 'boolean':
-        config[key] = ['1', 'true', 'yes', 'on'].includes(stringValue.trim().toLowerCase());
+        config[key] = ['true', '1', 'yes', 'on'].includes(stringValue.trim().toLowerCase());
         break;
       case 'object':
         if (Array.isArray(config[key])) {
@@ -234,6 +250,52 @@ export namespace Config {
     return yamlContent;
   }
 
+  const DEPRECATED_MARKER = '# (DEPRECATED) This setting is not used anymore';
+
+  /** Rewrite an existing settings.yaml so it lists all current settings with up-to-date descriptions, keeping user values and commenting out unknown keys. */
+  export function updateSettingsFile(configPath: string): void {
+    let raw: string;
+    let loaded: Record<string, unknown>;
+    try {
+      raw = fs.readFileSync(configPath, 'utf-8');
+      loaded = (yaml.load(raw) as Record<string, unknown> | null) ?? {};
+      if (typeof loaded !== 'object' || Array.isArray(loaded)) return;
+    } catch (err) {
+      log.warn(`Could not read configuration from ${configPath} for update:`, err);
+      return;
+    }
+
+    const knownNames = new Set(Object.values(ENV_NAMES));
+    let content = '';
+    for (const key in DEFAULTS) {
+      const name = ENV_NAMES[key];
+      if (!name) continue;
+      const value = name in loaded ? loaded[name] : DEFAULTS[key];
+      content += `# ${DESCRIPTIONS[key] ?? ''}\n${name}: ${JSON.stringify(value)}\n\n`;
+    }
+
+    // Carry over entries deprecated by earlier updates, since they are comments and invisible to the parser.
+    const lines = raw.split(/\r?\n/);
+    for (let i = 0; i < lines.length - 1; i++) {
+      if (lines[i].trim() === DEPRECATED_MARKER) {
+        content += `${DEPRECATED_MARKER}\n${lines[i + 1]}\n\n`;
+      }
+    }
+
+    for (const name in loaded) {
+      if (knownNames.has(name)) continue;
+      content += `${DEPRECATED_MARKER}\n# ${name}: ${JSON.stringify(loaded[name])}\n\n`;
+    }
+
+    if (content === raw) return;
+    try {
+      fs.writeFileSync(configPath, content, 'utf-8');
+      log.info(`Updated configuration file at ${configPath}`);
+    } catch (err) {
+      log.warn(`Could not update settings file at ${configPath} (mount may be read-only):`, err);
+    }
+  }
+
   /** Ensure a configuration file exists by creating it if necessary. */
   function createIfNotExists(configPath: string): void {
     if (fs.existsSync(configPath)) {
@@ -276,6 +338,7 @@ export namespace Config {
     const configPath = settingsFilePath(configDir);
     createIfNotExists(configPath);
     const loaded = loadYml({ ...DEFAULT_SERVER_CONFIG }, { ...DEFAULT_CLIENT_CONFIG }, configPath);
+    if (fs.existsSync(configPath)) updateSettingsFile(configPath);
     const envOverridden = loadEnv(loaded.server, loaded.client);
     const server = { ...envOverridden.server, configDir };
     if (!isLogLevel(server.logLevel)) {

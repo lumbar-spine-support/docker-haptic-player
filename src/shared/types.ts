@@ -114,6 +114,16 @@ export interface VersionInfo {
   builtAt: string | null;
 }
 
+/** Response shape of GET /api/config: server-side defaults used when the client has no stored setting. */
+export interface ClientSettings {
+  videoSeekInterval: number;
+  blurContent: boolean;
+  hapticFrequency: number;
+  hapticMasterStrength: number;
+  hapticDelay: number;
+  dglabEnabled: boolean;
+}
+
 export type QueueSource =
   | { type: Single }
   | { type: Album; id: string }

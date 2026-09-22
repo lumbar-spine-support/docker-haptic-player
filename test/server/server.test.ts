@@ -161,7 +161,8 @@ test(`${TAG} GET /api/media/:invalidId returns 404 for malformed ID`, async () =
 });
 
 test(`${TAG} GET /api/version returns the package version by default`, async () => {
-    const { status, body } = await httpGet(testServer.port, '/api/version');
+    const { status, body: raw } = await httpGet(testServer.port, '/api/version');
+    const body = raw as Record<string, unknown>;
     assert.equal(status, 200);
     assert.equal(body.version, pkg.version);
     assert.equal(body.channel, 'stable');
@@ -170,7 +171,8 @@ test(`${TAG} GET /api/version returns the package version by default`, async () 
 });
 
 test(`${TAG} GET /api/config exposes the client config and nothing from the server config`, async () => {
-    const { status, body } = await httpGet(testServer.port, '/api/config');
+    const { status, body: raw } = await httpGet(testServer.port, '/api/config');
+    const body = raw as Record<string, unknown>;
     assert.equal(status, 200);
     assert.equal(body.dglabEnabled, false);
     assert.equal(body.videoSeekInterval, 10);

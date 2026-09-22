@@ -1,4 +1,4 @@
-import { fetchFunscript, fetchTrackDescription, fetchVersion, fetchAuthStatus, fetchClientConfig, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
+import { fetchFunscript, fetchTrackDescription, fetchVersion, fetchAuthStatus, fetchClientSettings, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
 import { bindDragOnlyRange, syncRangeFill } from './utils/rangeSlider';
 import { resetScrollPosition } from '../shared/scroll';
 import { PlaybackSession, PlaybackQueue, PlaybackController } from './components/player';
@@ -14,7 +14,7 @@ import type { HapticBackend } from './components/haptic/backend';
 import { Visualization } from './components/visualization';
 import { Markdown } from './components/markdown';
 import { Library } from './components/library';
-import type { TrackInfo, QueueSource, FunscriptInfo } from '../shared/types';
+import type { TrackInfo, QueueSource, FunscriptInfo, ClientSettings } from '../shared/types';
 import type { HapticChannel } from '../shared/haptics';
 
 import '@videojs/html/ui/title';
@@ -34,6 +34,16 @@ const DELAY_LIMIT_MS = 500;
 const HAPTIC_UPDATE_RATE_KEY = 'happy-haptic-update-rate-hz';
 const AUTOPLAY_KEY = 'happy-autoplay';
 const BLUR_CONTENT_KEY = 'happy-blur-content';
+
+/** Used when the server config cannot be reached. */
+const FALLBACK_SETTINGS: ClientSettings = {
+  videoSeekInterval: 10,
+  blurContent: false,
+  hapticFrequency: 30,
+  hapticMasterStrength: 100,
+  hapticDelay: 0,
+  dglabEnabled: false,
+};
 
 type DetailContext =
   | { type: 'playlist'; playlistId: string }
@@ -116,6 +126,8 @@ class App {
   private readonly scriptCache = new Map<string, Promise<LoadedScript[]>>();
   /** Scroll position to restore when returning to library view */
   private savedLibraryScrollPosition = 0;
+  /** Server-provided defaults, applied only where localStorage has no stored value. */
+  private settings: ClientSettings = FALLBACK_SETTINGS;
 
   /** Waits for the `<video-player>` elements to upgrade before wiring the app. */
   static async create(playerHosts: [HTMLElement, HTMLElement]): Promise<App> {
@@ -147,7 +159,24 @@ class App {
     return this.library.allMedia();
   }
 
+  /** The seek indicator shows whatever step the triggering hotkey/gesture carries, so the interval goes there. */
+  private applySeekInterval(): void {
+    const step = this.settings.videoSeekInterval;
+    document.querySelectorAll<HTMLElement>('media-hotkey[action="seekStep"], media-gesture[action="seekStep"]').forEach((el) => {
+      const keys = el.getAttribute('keys')?.toLowerCase();
+      const backward = keys === 'arrowleft' || keys === 'j' || el.getAttribute('region') === 'left';
+      // An attribute survives custom-element upgrade; a property set beforehand is reset by the constructor.
+      el.setAttribute('value', String(backward ? -step : step));
+    });
+  }
+
   async init(): Promise<void> {
+    try {
+      this.settings = await fetchClientSettings();
+    } catch (err) {
+      console.warn('Falling back to built-in client settings:', err);
+    }
+    this.applySeekInterval();
     this.library.bindControls();
     this.bindDetailControls();
     this.bindSidebarControls();
@@ -410,9 +439,34 @@ class App {
   }
 
   private initHapticControls(): void {
-    this.bindDelaySlider(this.intifaceSync, 'haptic-delay', INTIFACE_DELAY_KEY);
+    if (!this.hapticSlider) return;
+    const savedStrength = Number(localStorage.getItem(HAPTIC_STRENGTH_KEY) ?? this.settings.hapticMasterStrength);
+    const initialStrength = Number.isFinite(savedStrength)
+      ? Math.max(0, Math.min(100, savedStrength))
+      : 100;
+    bindDragOnlyRange(this.hapticSlider);
+    this.hapticControls.init(this.hapticSlider, this.hapticLabel, initialStrength);
+    syncRangeFill(this.hapticSlider);
+    this.hapticSlider.addEventListener('input', () => {
+      localStorage.setItem(HAPTIC_STRENGTH_KEY, this.hapticSlider?.value ?? String(initialStrength));
+      this.syncEngine.resyncNow();
+    });
+    if (!this.hapticDelaySlider) return;
+    const savedDelay = Number(localStorage.getItem(HAPTIC_DELAY_KEY) ?? this.settings.hapticDelay);
+    const initialDelay = Number.isFinite(savedDelay) ? Math.max(-200, Math.min(200, savedDelay)) : 0;
+    bindDragOnlyRange(this.hapticDelaySlider);
+    this.hapticDelaySlider.value = String(initialDelay);
+    syncRangeFill(this.hapticDelaySlider);
+    this.updateDelayLabel(initialDelay);
+    this.syncEngine.setDelayMs(initialDelay);
+    this.hapticDelaySlider.addEventListener('input', () => {
+      const delay = Number(this.hapticDelaySlider?.value ?? 0);
+      localStorage.setItem(HAPTIC_DELAY_KEY, String(delay));
+      this.updateDelayLabel(delay);
+      this.syncEngine.setDelayMs(delay);
+    });
     if (!this.hapticUpdateRateSlider) return;
-    const savedRate = Number(localStorage.getItem(HAPTIC_UPDATE_RATE_KEY) ?? 30);
+    const savedRate = Number(localStorage.getItem(HAPTIC_UPDATE_RATE_KEY) ?? this.settings.hapticFrequency);
     const initialRate = Number.isFinite(savedRate) ? Math.max(10, Math.min(240, savedRate)) : 30;
     bindDragOnlyRange(this.hapticUpdateRateSlider);
     this.hapticUpdateRateSlider.value = String(initialRate);
@@ -435,14 +489,7 @@ class App {
    */
   private async initDglab(): Promise<void> {
     const section = document.getElementById('dglab-section');
-    let config: Awaited<ReturnType<typeof fetchClientConfig>> | null = null;
-    try {
-      config = await fetchClientConfig();
-    } catch {
-      config = null;
-    }
-
-    if (!config?.dglabEnabled) {
+    if (!this.settings.dglabEnabled) {
       section?.remove();
       return;
     }
@@ -518,7 +565,8 @@ class App {
   }
 
   private initBlurContent(): void {
-    const blurEnabled = localStorage.getItem(BLUR_CONTENT_KEY) === 'true';
+    const stored = localStorage.getItem(BLUR_CONTENT_KEY);
+    const blurEnabled = stored === null ? this.settings.blurContent : stored === 'true';
     if (this.blurContentToggle) {
       this.blurContentToggle.checked = blurEnabled;
       this.blurContentToggle.addEventListener('change', () => {
