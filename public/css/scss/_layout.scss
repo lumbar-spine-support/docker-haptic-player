@@ -70,6 +70,27 @@ body.blur-content media-container {
 }
 
 #visualization {
+  padding: var(--app-space-3);
+
+  .viz-canvas-wrap {
+    display: grid;
+    grid-template-rows: 1fr;
+    overflow: hidden;
+    opacity: 1;
+    transition:
+      grid-template-rows var(--app-transition-collapse-duration) var(--app-transition-collapse-easing),
+      opacity var(--app-transition-collapse-duration) var(--app-transition-collapse-easing);
+
+    > canvas {
+      min-height: 0;
+    }
+  }
+
+  &.viz-collapsed .viz-canvas-wrap {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+
   canvas {
     background-color: var(--app-color-surface);
     border-radius: var(--app-radius-sm);
@@ -78,6 +99,12 @@ body.blur-content media-container {
 
   &.canvas-locked canvas {
     cursor: not-allowed;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #visualization .viz-canvas-wrap {
+    transition: none;
   }
 }
 

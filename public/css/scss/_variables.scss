@@ -20,6 +20,9 @@ $player-bar-height: 4.75rem;
 $thumb-size: 1rem;
 $track-height: 0.375rem;
 $mobile-max: 575.98px;
+// mirrors Bootstrap's $transition-collapse timing
+$transition-collapse-duration: 0.35s;
+$transition-collapse-easing: ease;
 
 :root {
   --app-color-black: #{$color-black};
@@ -37,6 +40,8 @@ $mobile-max: 575.98px;
   --app-radius-sm: #{$radius-sm};
   --app-radius-pill: #{$radius-pill};
   --app-player-bar-height: #{$player-bar-height};
+  --app-transition-collapse-duration: #{$transition-collapse-duration};
+  --app-transition-collapse-easing: #{$transition-collapse-easing};
 }
 
 @mixin mobile-only {

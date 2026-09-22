@@ -17,6 +17,7 @@ interface ScriptRenderer {
  */
 export class Visualization {
   private renderers: ScriptRenderer[] = [];
+  private container: HTMLElement | null = null;
   private readonly session: PlaybackSession;
   private rafHandle = 0;
   private seekHandler: ((time: number) => void) | null = null;
@@ -51,6 +52,7 @@ export class Visualization {
   ): void {
     container.innerHTML = '';
     this.renderers = [];
+    this.container = container;
 
     if (scripts.length === 0) {
       const empty = document.createElement('p');
@@ -93,10 +95,15 @@ export class Visualization {
       canvas.height = 60;
       canvas.addEventListener('pointerdown', (event) => this.handleSeek(event, canvas));
 
+      // Wrapper collapses via the grid 0fr technique while the header stays visible.
+      const canvasWrap = document.createElement('div');
+      canvasWrap.className = 'viz-canvas-wrap';
+      canvasWrap.appendChild(canvas);
+
       header.appendChild(label);
       header.appendChild(status);
       wrapper.appendChild(header);
-      wrapper.appendChild(canvas);
+      wrapper.appendChild(canvasWrap);
       container.appendChild(wrapper);
 
       this.renderers.push({ channel, canvas, wrapper, funscript });
@@ -130,8 +137,8 @@ export class Visualization {
 
   setVisible(visible: boolean): void {
     this.visible = visible;
+    this.container?.classList.toggle('viz-collapsed', !visible);
     for (const renderer of this.renderers) {
-      renderer.canvas.style.visibility = visible ? 'visible' : 'hidden';
       renderer.canvas.style.pointerEvents = visible ? 'auto' : 'none';
     }
   }
