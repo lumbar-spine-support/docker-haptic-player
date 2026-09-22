@@ -1,6 +1,6 @@
 {
   "name": "docker-haptic-player",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "HAPPY is a self-hosted haptic player for audio and video files.",
   "main": "dist/server/index.js",
   "scripts": {

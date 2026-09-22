@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.3.0...docker-haptic-player-v0.3.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* chromecast button vanished ([359deb3](https://github.com/lumbar-spine-support/docker-haptic-player/commit/359deb3c5889bcefd4a60b9b52ec2fbc50ff4134))
+
 ## [0.3.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.2.0...docker-haptic-player-v0.3.0) (2026-09-22)
 
 
