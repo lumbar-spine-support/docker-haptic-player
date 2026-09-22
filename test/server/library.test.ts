@@ -88,6 +88,18 @@ test(`${TAG}: detects different funscript types (stroker, buttplug, vibrator, es
     });
 });
 
+test(`${TAG}: falls back to the unknown type for funscripts without a suffix`, async () => {
+    await withMediaFixtures(async (_dir, config) => {
+        const library = await buildLibrary(config);
+        const allMedia = [...library.tracks, ...library.videos];
+        const bbMedia = allMedia.find((m) => m.filename.includes(EXAMPLE_TRACK));
+        const unknown = bbMedia?.funscripts?.filter((f) => f.type === 'unknown') ?? [];
+        assert.equal(unknown.length, 1, 'Suffix-less funscript should be associated with the media');
+        assert.equal(unknown[0]?.filename, `${EXAMPLE_TRACK}.funscript`);
+        assert.equal(unknown[0]?.sub, undefined, 'Unknown scripts have no subcategory');
+    });
+});
+
 test(`${TAG}: detects funscript subcategories (<stem>.<type>.<sub>.funscript)`, async () => {
     await withMediaFixtures(async (_dir, config) => {
         const library = await buildLibrary(config);
@@ -126,10 +138,14 @@ test(`${TAG}: regex-based funscript matching respects config patterns`, async ()
         const libraryRestricted = await buildLibrary(configRestricted);
         const allMediaRestricted = [...libraryRestricted.tracks, ...libraryRestricted.videos];
         const bbRestricted = allMediaRestricted.find((m) => m.filename.includes(EXAMPLE_TRACK));
-        const funscriptCountRestricted = bbRestricted?.funscripts?.length ?? 0;
-        assert.equal(funscriptCountRestricted, 0, 'Impossible suffix should find zero funscripts');
+        const restricted = bbRestricted?.funscripts ?? [];
+        assert.deepEqual(
+            restricted.map((f) => f.type),
+            ['unknown'],
+            'Impossible suffixes should leave only the suffix-less fallback script'
+        );
         assert.ok(
-            funscriptCountRestricted < funscriptCountDefault,
+            restricted.length < funscriptCountDefault,
             'Restrictive suffix should match fewer funscripts than default'
         );
     });

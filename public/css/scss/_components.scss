@@ -203,3 +203,16 @@ a.card:hover,
   -webkit-mask-image: url('/img/icon-machine.svg');
   mask-image: url('/img/icon-machine.svg');
 }
+
+// Drawn with the Bootstrap Icons font, so the masked background must be cleared.
+.device-role-icon-generic {
+  background-color: transparent;
+  font-size: 1.1rem;
+  line-height: 1.25rem;
+  text-align: center;
+
+  &.is-connected {
+    background-color: transparent;
+    color: var(--bs-success);
+  }
+}

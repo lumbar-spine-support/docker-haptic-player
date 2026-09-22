@@ -1,5 +1,6 @@
 import type { Funscript } from '../../shared/types';
 import { channelKey, channelLabel, type HapticChannel } from '../../shared/haptics';
+import { ROLE_ICON_CLASSES } from '../utils/hapticIcons';
 import type { PlaybackSession } from './player';
 
 interface ScriptRenderer {
@@ -75,7 +76,7 @@ export class Visualization {
       const text = channelLabel(channel);
 
       const icon = document.createElement('span');
-      icon.className = `device-role-icon device-role-icon-${channel.type}`;
+      icon.className = `device-role-icon ${ROLE_ICON_CLASSES[channel.type]}`;
       icon.title = text;
       icon.setAttribute('aria-hidden', 'true');
 

@@ -11,9 +11,11 @@ export type Buttplug = 'buttplug';
 export type Vibrator = 'vibrator';
 export type Estim = 'estim';
 export type Machine = 'machine';
+/** Funscript without a recognised type suffix; presented as "Generic". */
+export type Unknown = 'unknown';
 
 /** Identifies the role/channel of a Funscript file. */
-export type FunscriptType = Stroker | Buttplug | Vibrator | Estim | Machine;
+export type FunscriptType = Stroker | Buttplug | Vibrator | Estim | Machine | Unknown;
 
 /** Metadata for a single Funscript companion file. */
 export interface FunscriptInfo {

@@ -94,6 +94,9 @@ file.vibrator.cock.funscript
 file.vibrator.balls.funscript
 ```
 
+Funscripts without a recognised toy suffix (`file.funscript`) are still picked up and listed as
+**Generic**. They can be assigned to any device just like typed scripts.
+
 #### Markdown Descriptors
 
 For tagging and file descriptions to work, create a Markdown `<audio_or_video_name>.md` file that contains tagging frontmatter and text to show.

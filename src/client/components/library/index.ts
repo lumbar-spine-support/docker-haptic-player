@@ -73,6 +73,7 @@ export class Library {
     private filterShowHapticVibrator = false;
     private filterShowHapticEstim = false;
     private filterShowHapticMachine = false;
+    private filterShowHapticUnknown = false;
     private currentViewMode: LibraryViewMode = 'grid';
     private loaded = false;
 
@@ -210,6 +211,7 @@ export class Library {
         this.filterShowHapticVibrator = storedFilters.hapticVibrator;
         this.filterShowHapticEstim = storedFilters.hapticEstim;
         this.filterShowHapticMachine = storedFilters.hapticMachine;
+        this.filterShowHapticUnknown = storedFilters.hapticUnknown;
 
         document.querySelectorAll<HTMLInputElement>('[data-filter-type]').forEach((cb) => {
             const type = cb.dataset.filterType;
@@ -222,6 +224,7 @@ export class Library {
             else if (type === 'haptic-vibrator') cb.checked = storedFilters.hapticVibrator;
             else if (type === 'haptic-estim') cb.checked = storedFilters.hapticEstim;
             else if (type === 'haptic-machine') cb.checked = storedFilters.hapticMachine;
+            else if (type === 'haptic-unknown') cb.checked = storedFilters.hapticUnknown;
 
             cb.addEventListener('change', () => {
                 if (type === 'albums') this.filterShowAlbums = cb.checked;
@@ -233,6 +236,7 @@ export class Library {
                 else if (type === 'haptic-vibrator') this.filterShowHapticVibrator = cb.checked;
                 else if (type === 'haptic-estim') this.filterShowHapticEstim = cb.checked;
                 else if (type === 'haptic-machine') this.filterShowHapticMachine = cb.checked;
+                else if (type === 'haptic-unknown') this.filterShowHapticUnknown = cb.checked;
                 this.saveLibraryFilters();
                 this.render();
             });
@@ -405,6 +409,7 @@ export class Library {
         hapticVibrator: boolean;
         hapticEstim: boolean;
         hapticMachine: boolean;
+        hapticUnknown: boolean;
     } {
         const defaults = {
             albums: false,
@@ -416,11 +421,12 @@ export class Library {
             hapticVibrator: false,
             hapticEstim: false,
             hapticMachine: false,
+            hapticUnknown: false,
         };
         const raw = localStorage.getItem(LIBRARY_FILTERS_KEY);
         if (!raw) return defaults;
         try {
-            const parsed = JSON.parse(raw) as Partial<Record<'albums' | 'playlists' | 'tracks' | 'videos' | 'haptic-stroker' | 'haptic-buttplug' | 'haptic-vibrator' | 'haptic-estim' | 'haptic-machine' | 'hapticStroker' | 'hapticButtplug' | 'hapticVibrator' | 'hapticEstim' | 'hapticMachine', boolean>>;
+            const parsed = JSON.parse(raw) as Partial<Record<'albums' | 'playlists' | 'tracks' | 'videos' | 'haptic-stroker' | 'haptic-buttplug' | 'haptic-vibrator' | 'haptic-estim' | 'haptic-machine' | 'haptic-unknown' | 'hapticStroker' | 'hapticButtplug' | 'hapticVibrator' | 'hapticEstim' | 'hapticMachine' | 'hapticUnknown', boolean>>;
             return {
                 albums: typeof parsed.albums === 'boolean' ? parsed.albums : defaults.albums,
                 playlists: typeof parsed.playlists === 'boolean' ? parsed.playlists : defaults.playlists,
@@ -431,6 +437,7 @@ export class Library {
                 hapticVibrator: typeof parsed['haptic-vibrator'] === 'boolean' ? parsed['haptic-vibrator'] : (typeof parsed.hapticVibrator === 'boolean' ? parsed.hapticVibrator : defaults.hapticVibrator),
                 hapticEstim: typeof parsed['haptic-estim'] === 'boolean' ? parsed['haptic-estim'] : (typeof parsed.hapticEstim === 'boolean' ? parsed.hapticEstim : defaults.hapticEstim),
                 hapticMachine: typeof parsed['haptic-machine'] === 'boolean' ? parsed['haptic-machine'] : (typeof parsed.hapticMachine === 'boolean' ? parsed.hapticMachine : defaults.hapticMachine),
+                hapticUnknown: typeof parsed['haptic-unknown'] === 'boolean' ? parsed['haptic-unknown'] : (typeof parsed.hapticUnknown === 'boolean' ? parsed.hapticUnknown : defaults.hapticUnknown),
             };
         } catch {
             return defaults;
@@ -448,6 +455,7 @@ export class Library {
             'haptic-vibrator': this.filterShowHapticVibrator,
             'haptic-estim': this.filterShowHapticEstim,
             'haptic-machine': this.filterShowHapticMachine,
+            'haptic-unknown': this.filterShowHapticUnknown,
         }));
     }
 
@@ -477,6 +485,7 @@ export class Library {
         if (this.filterShowHapticVibrator) allowedHapticTypes.push('vibrator');
         if (this.filterShowHapticEstim) allowedHapticTypes.push('estim');
         if (this.filterShowHapticMachine) allowedHapticTypes.push('machine');
+        if (this.filterShowHapticUnknown) allowedHapticTypes.push('unknown');
         if (this.activeTags.length > 0) {
             tracks = tracks.filter((t) => trackMatchesActiveTags(t.tags, this.activeTags));
         }
@@ -513,6 +522,7 @@ export class Library {
         if (this.filterShowHapticVibrator) allowedHapticTypes.push('vibrator');
         if (this.filterShowHapticEstim) allowedHapticTypes.push('estim');
         if (this.filterShowHapticMachine) allowedHapticTypes.push('machine');
+        if (this.filterShowHapticUnknown) allowedHapticTypes.push('unknown');
         if (this.activeTags.length > 0) {
             albums = albums.filter((album) => albumMatchesActiveTags(album, tracksById, this.activeTags));
         }
@@ -554,6 +564,7 @@ export class Library {
         if (this.filterShowHapticVibrator) allowedHapticTypes.push('vibrator');
         if (this.filterShowHapticEstim) allowedHapticTypes.push('estim');
         if (this.filterShowHapticMachine) allowedHapticTypes.push('machine');
+        if (this.filterShowHapticUnknown) allowedHapticTypes.push('unknown');
         if (this.activeTags.length > 0) {
             playlists = playlists.filter((playlist) => playlistMatchesActiveTags(playlist, tracksById, this.activeTags));
         }

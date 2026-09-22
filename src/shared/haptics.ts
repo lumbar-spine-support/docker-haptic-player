@@ -1,6 +1,6 @@
 import type { FunscriptType } from './types';
 
-export const FUNSCRIPT_TYPES: readonly FunscriptType[] = ['stroker', 'buttplug', 'vibrator', 'estim', 'machine'];
+export const FUNSCRIPT_TYPES: readonly FunscriptType[] = ['stroker', 'buttplug', 'vibrator', 'estim', 'machine', 'unknown'];
 
 /**
  * One scriptable output channel.
@@ -33,6 +33,7 @@ export const CHANNEL_TYPE_LABELS: Record<FunscriptType, string> = {
     vibrator: 'Vibrator',
     estim: 'E-Stim',
     machine: 'Machine',
+    unknown: 'Generic',
 };
 
 /** Display names for commonly used subcategories, keyed by their lowercased filename token. */

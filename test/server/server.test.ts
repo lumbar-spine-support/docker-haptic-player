@@ -53,6 +53,7 @@ test(`${TAG} GET /api/library associates funscripts with media`, async () => {
     const funscriptTypes = new Set(bbMedia.funscripts?.map((f) => f.type) ?? []);
     assert.ok(funscriptTypes.has('buttplug'), 'Should detect buttplug funscript');
     assert.ok(funscriptTypes.has('vibrator'), 'Should detect vibrator funscript');
+    assert.ok(funscriptTypes.has('unknown'), 'Should detect suffix-less funscript as generic');
 });
 
 test(`${TAG} GET /api/media/:id streams audio file with Accept-Ranges header`, async () => {

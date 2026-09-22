@@ -23,6 +23,8 @@ const FUNSCRIPT_EXT = '.funscript';
  *
  * Accepts `<stem><sep><type>.funscript` and `<stem><sep><type><sep><sub>.funscript`,
  * so the same type can appear several times per track (e.g. estim for nipples and butt).
+ * Names without a recognised type suffix fall back to the `unknown` ("Generic") type,
+ * with the whole basename treated as the media stem.
  */
 export function parseFunscriptName(
   filename: string,
@@ -34,21 +36,22 @@ export function parseFunscriptName(
   if (!lower.endsWith(FUNSCRIPT_EXT)) return null;
 
   const body = lower.slice(0, lower.length - FUNSCRIPT_EXT.length);
+  const untyped = { stem: body, type: 'unknown' as FunscriptType };
   const typeBySuffix = new Map(
     patterns.map((p) => [p.suffix.slice(separator.length, p.suffix.length - FUNSCRIPT_EXT.length), p.type]),
   );
 
   const lastSep = body.lastIndexOf(separator);
-  if (lastSep <= 0) return null;
+  if (lastSep <= 0) return untyped;
 
   const lastToken = body.slice(lastSep + separator.length);
   const directType = typeBySuffix.get(lastToken);
   if (directType) return { stem: body.slice(0, lastSep), type: directType };
 
   const prevSep = body.lastIndexOf(separator, lastSep - 1);
-  if (prevSep <= 0) return null;
+  if (prevSep <= 0) return untyped;
   const type = typeBySuffix.get(body.slice(prevSep + separator.length, lastSep));
-  if (!type) return null;
+  if (!type) return untyped;
 
   // Keep the author's casing for the subcategory; it is user-facing.
   const sub = base.slice(lastSep + separator.length, base.length - FUNSCRIPT_EXT.length);

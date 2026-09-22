@@ -165,7 +165,8 @@ Buttplug device management lives in `src/client/components/buttplugClient.ts`.
 
 - A **channel** (`src/shared/haptics.ts`) is one scriptable output: a `FunscriptType`
   plus an optional subcategory parsed from `<stem>.<type>.<sub>.funscript`, keyed as
-  `estim` or `estim:nipples`
+  `estim` or `estim:nipples`. Files without a recognised type suffix become the
+  `unknown` type, shown as "Generic"
 - A **feature** is a single actuator of a device, identified by
   `<device name>#<scalar|rotate|linear>#<index>`
 - Each feature is assigned to at most one channel, so one toy can run its vibrator
