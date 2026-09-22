@@ -190,7 +190,8 @@
           <div id="player-slot-a">
             <video-player>
               <video-minimal-skin>
-                <video playsinline></video>
+                <!-- disableremoteplayback hides the browser's own cast overlay; the skin has its own cast button -->
+                <video playsinline disableremoteplayback controlslist="nodownload noremoteplayback"></video>
                 <div class="player-meta d-flex flex-column lh-sm">
                   <media-title class="d-block fw-semibold text-truncate"></media-title>
                   <span class="player-artist d-block small text-truncate"></span>
@@ -203,7 +204,7 @@
           <div id="player-slot-b" class="d-none">
             <video-player>
               <video-minimal-skin>
-                <video playsinline></video>
+                <video playsinline disableremoteplayback controlslist="nodownload noremoteplayback"></video>
                 <div class="player-meta d-flex flex-column lh-sm">
                   <media-title class="d-block fw-semibold text-truncate"></media-title>
                   <span class="player-artist d-block small text-truncate"></span>
