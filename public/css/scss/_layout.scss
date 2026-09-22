@@ -81,7 +81,7 @@ body.blur-content media-container {
       grid-template-rows var(--app-transition-collapse-duration) var(--app-transition-collapse-easing),
       opacity var(--app-transition-collapse-duration) var(--app-transition-collapse-easing);
 
-    > canvas {
+    >canvas {
       min-height: 0;
     }
   }
