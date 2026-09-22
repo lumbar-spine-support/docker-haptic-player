@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.2.0...docker-haptic-player-v0.3.0) (2026-09-22)
+
+
+### Features
+
+* behaviour change: no intiface auto-connect; user needs to trigger ([647a30c](https://github.com/lumbar-spine-support/docker-haptic-player/commit/647a30cd8cfb75faf40b17891d2f10af6ce0e8ea))
+* card visual cleanup; with haptic filters icons don't need to be shown on card, there is still tabular view for this. ([ef2dfde](https://github.com/lumbar-spine-support/docker-haptic-player/commit/ef2dfdee87725b3cf5163d90340c2518ed6a210e))
+* collapsible funscript timelines ([7198a27](https://github.com/lumbar-spine-support/docker-haptic-player/commit/7198a27cb0db463abd8b9d17f433ccfbea158278))
+* properly render artist, title and year in content title (while playback is paused/stopped) ([f41f40f](https://github.com/lumbar-spine-support/docker-haptic-player/commit/f41f40f2031dbe9d2157b92d79504bc899015aef))
+* remove sectioning of media into albums/audio/video/playlists for cleaner look ([5e426f8](https://github.com/lumbar-spine-support/docker-haptic-player/commit/5e426f8ff1937f40d1024902dfa2f893170a6d4c))
+
+
+### Bug Fixes
+
+* disableremoteplayback added because we don't need the browser native chromecast icon ([170bfc9](https://github.com/lumbar-spine-support/docker-haptic-player/commit/170bfc92dc0b55b5a8d379789c2432fbb0c82a2f))
+* when tag was already selected, pressing the tag again from player page didn't return back to library view ([c56c0dc](https://github.com/lumbar-spine-support/docker-haptic-player/commit/c56c0dc0466f675e12db917863c08236e16ab5fc))
+
 ## [0.2.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.1.0...docker-haptic-player-v0.2.0) (2026-09-21)
 
 
