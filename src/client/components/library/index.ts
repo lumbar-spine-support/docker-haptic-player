@@ -323,8 +323,10 @@ export class Library {
     }
 
     addTag(tag: string): void {
-        if (!tag || this.activeTags.some((t) => t.toLowerCase() === tag.toLowerCase())) return;
-        this.activeTags = [...this.activeTags, tag];
+        if (!tag) return;
+        if (!this.activeTags.some((t) => t.toLowerCase() === tag.toLowerCase())) {
+            this.activeTags = [...this.activeTags, tag];
+        }
         const url = buildUrl('library', undefined, this.activeTags);
         history.pushState({}, '', url);
         this.callbacks.showLibrary();
