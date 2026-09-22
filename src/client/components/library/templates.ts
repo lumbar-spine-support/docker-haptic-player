@@ -1,7 +1,6 @@
 import cardTemplate from './templates/card.html';
 import sectionHeadingTemplate from './templates/section-heading.html';
 import mediaRowTemplate from './templates/media-row.html';
-import sectionRowTemplate from './templates/section-row.html';
 import emptyStateTemplate from './templates/empty-state.html';
 import tagChipActiveTemplate from './templates/tag-chip-active.html';
 import { renderTemplate } from '../../utils/template';
@@ -27,16 +26,12 @@ export function mediaRowHtml(values: {
     fallbackArt: string;
     title: string;
     artist: string;
-    album: string;
+    type: string;
     year: string;
     duration: string;
     hapticIcons: string;
 }): string {
     return renderTemplate(mediaRowTemplate, values);
-}
-
-export function sectionRowHtml(values: { title: string }): string {
-    return renderTemplate(sectionRowTemplate, values);
 }
 
 export function emptyStateHtml(values: { message: string }): string {

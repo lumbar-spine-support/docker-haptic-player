@@ -1,4 +1,4 @@
-import { qs, escapeHtml } from '../../utils/html';
+import { qs } from '../../utils/html';
 import { fetchLibrary, artworkUrl } from '../../utils/api';
 import { buildUrl, trackHref, detailHref } from '../../utils/routes';
 import { renderHapticIcons } from '../../utils/hapticIcons';
@@ -18,12 +18,23 @@ import type { AlbumInfo, LibraryResponse, PlaylistInfo, TrackInfo, FunscriptType
 import {
     cardHtml,
     mediaRowHtml,
-    sectionRowHtml,
     emptyStateHtml,
     tagChipActiveHtml,
 } from './templates';
 
 type LibraryViewMode = 'grid' | 'list';
+
+type SortField = 'title' | 'artist' | 'type' | 'year' | 'duration';
+
+/** A single media entry in the unified library table. */
+interface LibraryRow {
+    typeLabel: string;
+    title: string;
+    artist: string;
+    year: string;
+    durationSeconds: number;
+    build(): HTMLElement;
+}
 
 export interface LibraryCallbacks {
     openTrack(trackId: string): void;
@@ -62,7 +73,7 @@ export class Library {
     private playlists: PlaylistInfo[] = [];
     private searchQuery = '';
     private activeTags: string[] = [];
-    private sortField: 'title' | 'artist' | 'album' | 'year' | 'duration' | null = null;
+    private sortField: SortField | null = null;
     private sortAsc = true;
     private filterShowAlbums = true;
     private filterShowPlaylists = true;
@@ -135,29 +146,35 @@ export class Library {
         this.appendTrackCards(tracks, tracksById);
         this.appendVideoCards(videos, tracksById);
 
-        if (visibleAlbums.length > 0) {
-            this.list.appendChild(this.createSectionRow('Albums'));
-            for (const album of visibleAlbums) {
-                this.list.appendChild(this.createAlbumRow(album, tracksById));
-            }
-        }
-        if (visiblePlaylists.length > 0) {
-            this.list.appendChild(this.createSectionRow('Playlists'));
-            for (const playlist of visiblePlaylists) {
-                this.list.appendChild(this.createPlaylistRow(playlist, tracksById));
-            }
-        }
-        if (tracks.length > 0) {
-            this.list.appendChild(this.createSectionRow('Audio'));
-            for (const track of tracks) {
-                this.list.appendChild(this.createTrackRow(track));
-            }
-        }
-        if (videos.length > 0) {
-            this.list.appendChild(this.createSectionRow('Videos'));
-            for (const video of videos) {
-                this.list.appendChild(this.createTrackRow(video));
-            }
+        const rows: LibraryRow[] = [
+            ...visibleAlbums.map((album) => ({
+                typeLabel: 'Album',
+                title: album.title,
+                artist: album.artist || 'Unknown artist',
+                year: album.year,
+                durationSeconds: album.durationSeconds,
+                build: () => this.createAlbumRow(album, tracksById),
+            })),
+            ...visiblePlaylists.map((playlist) => ({
+                typeLabel: 'Playlist',
+                title: playlist.name,
+                artist: this.playlistArtists(playlist),
+                year: '',
+                durationSeconds: playlist.durationSeconds,
+                build: () => this.createPlaylistRow(playlist, tracksById),
+            })),
+            ...[...tracks, ...videos].map((track) => ({
+                typeLabel: track.type === 'video' ? 'Video' : 'Audio',
+                title: track.title,
+                artist: track.artist,
+                year: track.year,
+                durationSeconds: track.durationSeconds,
+                build: () => this.createTrackRow(track),
+            })),
+        ];
+
+        for (const row of this.sortRows(rows)) {
+            this.list.appendChild(row.build());
         }
     }
 
@@ -244,7 +261,7 @@ export class Library {
 
         document.querySelectorAll<HTMLElement>('[data-sort-field]').forEach((th) => {
             th.addEventListener('click', () => {
-                const field = th.dataset.sortField as 'title' | 'artist' | 'album' | 'year' | 'duration';
+                const field = th.dataset.sortField as SortField;
                 if (this.sortField === field) {
                     this.sortAsc = !this.sortAsc;
                 } else {
@@ -469,6 +486,19 @@ export class Library {
         });
     }
 
+    private sortRows(rows: LibraryRow[]): LibraryRow[] {
+        const field = this.sortField ?? 'title';
+        const asc = this.sortField ? this.sortAsc : true;
+        return [...rows].sort((a, b) => {
+            const cmp = field === 'duration'
+                ? a.durationSeconds - b.durationSeconds
+                : field === 'type'
+                    ? a.typeLabel.localeCompare(b.typeLabel)
+                    : a[field].localeCompare(b[field]);
+            return asc ? cmp : -cmp;
+        });
+    }
+
     private getFilteredSortedTracks(): TrackInfo[] {
         return this.filterSortTrackList(this.tracks);
     }
@@ -541,7 +571,7 @@ export class Library {
             albums = [...albums].sort((a, b) => {
                 let valA = '';
                 let valB = '';
-                if (field === 'title' || field === 'album') { valA = a.title; valB = b.title; }
+                if (field === 'title') { valA = a.title; valB = b.title; }
                 else if (field === 'artist') { valA = a.artist ?? ''; valB = b.artist ?? ''; }
                 else if (field === 'year') { valA = a.year; valB = b.year; }
                 else if (field === 'duration') {
@@ -589,7 +619,7 @@ export class Library {
             playlists = [...playlists].sort((a, b) => {
                 let valA = '';
                 let valB = '';
-                if (field === 'title' || field === 'album') { valA = a.name; valB = b.name; }
+                if (field === 'title') { valA = a.name; valB = b.name; }
                 else if (field === 'artist') { valA = this.playlistArtists(a); valB = this.playlistArtists(b); }
                 else if (field === 'duration') {
                     const cmp = a.durationSeconds - b.durationSeconds;
@@ -720,12 +750,6 @@ export class Library {
         return col;
     }
 
-    private createSectionRow(title: string): HTMLElement {
-        const tr = document.createElement('tr');
-        tr.innerHTML = sectionRowHtml({ title: escapeHtml(title) });
-        return tr;
-    }
-
     private createAlbumRow(album: AlbumInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
@@ -735,7 +759,7 @@ export class Library {
             fallbackArt: FALLBACK_ART_DATA_URI,
             title: album.title,
             artist: album.artist || 'Unknown artist',
-            album: '',
+            type: 'Album',
             year: album.year,
             duration: formatHoursMinutes(album.durationSeconds),
             hapticIcons: renderHapticIcons(this.albumFunscriptTypes(album, tracksById)),
@@ -754,7 +778,7 @@ export class Library {
             fallbackArt: FALLBACK_ART_DATA_URI,
             title: playlist.name,
             artist: this.playlistArtists(playlist),
-            album: '',
+            type: 'Playlist',
             year: '',
             duration: formatHoursMinutes(playlist.durationSeconds),
             hapticIcons: renderHapticIcons(this.playlistFunscriptTypes(playlist, tracksById)),
@@ -772,7 +796,7 @@ export class Library {
             fallbackArt: FALLBACK_ART_DATA_URI,
             title: track.title,
             artist: track.artist,
-            album: track.album,
+            type: track.type === 'video' ? 'Video' : 'Audio',
             year: track.year,
             duration: formatHoursMinutes(track.durationSeconds),
             hapticIcons: renderHapticIcons(track.funscripts.map((f) => f.type)),
