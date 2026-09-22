@@ -58,10 +58,6 @@ export class DeviceAssignment {
     container.innerHTML = '';
 
     if (devices.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'text-muted small mb-0';
-      empty.textContent = 'No devices connected.';
-      container.appendChild(empty);
       return;
     }
 

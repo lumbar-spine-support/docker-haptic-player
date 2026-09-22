@@ -252,8 +252,6 @@ class App {
     });
     this.buttplug.onStateChange(() => syncConnectionButton());
     syncConnectionButton();
-    const address = normalizeIntifaceAddress(this.intifaceInput?.value ?? 'localhost:12345');
-    void this.buttplug.connect(address);
   }
 
   private bindZoomControls(): void {
