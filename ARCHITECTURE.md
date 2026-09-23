@@ -232,11 +232,14 @@ but the number of cover images a render puts into the DOM.
 
 Covers are requested lazily rather than eagerly:
 
-- `card.html` and `media-row.html` mark every cover `loading="lazy" decoding="async"` and declare
-  intrinsic `width`/`height`. The dimensions matter: without them the grid would collapse into the
-  viewport and the browser would consider every image visible, defeating the deferral.
-- `.track-art` additionally pins `aspect-ratio: 1 / 1` and `.track-art-thumb` a fixed 40px box, so
-  the placeholder occupies the final layout before the image arrives.
+- `card.html` and `media-row.html` mark every cover `loading="lazy" decoding="async"`.
+- Sizing is left entirely to CSS: `.track-art` pins `aspect-ratio: 1 / 1` and `.track-art-thumb` a
+  fixed 40px box, so the placeholder already occupies its final layout before the image arrives.
+  That reserved box is what lets the browser tell which covers are off-screen; without it the grid
+  would collapse into the viewport and every image would count as visible.
+  Do **not** add `width`/`height` attributes to these tags: they map to CSS presentational hints,
+  and since `.track-art` sets only `width`, the `height` hint would win and stretch square covers
+  into rectangles while suppressing `aspect-ratio`.
 - `renderTrackArt()` is the single place that decides between a real URL and the inline
   `FALLBACK_ART_DATA_URI` placeholder. It emits a request only when `hasArtwork` is true, so
   art-less media costs no round trip at all. Album covers point at `coverTrackId`, which the server
