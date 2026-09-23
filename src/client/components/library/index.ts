@@ -7,7 +7,10 @@ import { formatHoursMinutes } from '../../utils/formatTime';
 import {
     albumMatchesActiveTags,
     albumMatchesHapticFilters,
+    artistTagValue,
     displayMediaTypeFilters,
+    isArtistTag,
+    makeArtistTag,
     normalizeMediaTypeFilters,
     playlistMatchesActiveTags,
     playlistMatchesHapticFilters,
@@ -20,6 +23,7 @@ import {
     mediaRowHtml,
     emptyStateHtml,
     tagChipActiveHtml,
+    tagChipArtistActiveHtml,
 } from './templates';
 
 type LibraryViewMode = 'grid' | 'list';
@@ -284,14 +288,7 @@ export class Library {
         if (label) container.appendChild(label);
 
         const q = this.searchQuery.trim();
-        const suggested = q
-            ? this.getAllTags()
-                .filter((tag) =>
-                    tag.toLowerCase().includes(q.toLowerCase()) &&
-                    !this.activeTags.some((active) => active.toLowerCase() === tag.toLowerCase())
-                )
-                .slice(0, 10)
-            : [];
+        const suggested = q ? this.getSuggestions(q) : [];
 
         const showList = this.activeTags.length > 0 || suggested.length > 0;
         if (!showList) {
@@ -302,23 +299,33 @@ export class Library {
 
         for (const tag of this.activeTags) {
             const div = document.createElement('div');
-            div.innerHTML = tagChipActiveHtml({ tag });
+            const artist = isArtistTag(tag) ? artistTagValue(tag) : null;
+            div.innerHTML = artist === null ? tagChipActiveHtml({ tag }) : tagChipArtistActiveHtml({ artist });
             const chip = div.firstElementChild as HTMLButtonElement;
-            chip.title = `Remove filter: ${tag}`;
+            chip.title = artist === null ? `Remove filter: ${tag}` : `Remove artist filter: ${artist}`;
             chip.addEventListener('click', () => this.removeTag(tag));
             container.appendChild(chip);
         }
 
-        for (const tag of suggested) {
+        for (const suggestion of suggested) {
             const chip = document.createElement('button');
             chip.type = 'button';
             chip.className = 'tag-chip tag-chip-suggestion';
-            chip.textContent = tag;
-            chip.title = `Add tag: ${tag}`;
+            if (suggestion.artist) {
+                const icon = document.createElement('i');
+                icon.className = 'bi bi-person-fill';
+                icon.setAttribute('aria-hidden', 'true');
+                chip.appendChild(icon);
+                chip.appendChild(document.createTextNode(` ${suggestion.label}`));
+                chip.title = `Add artist filter: ${suggestion.label}`;
+            } else {
+                chip.textContent = suggestion.label;
+                chip.title = `Add tag: ${suggestion.label}`;
+            }
             chip.addEventListener('click', () => {
                 if (this.searchInput) this.searchInput.value = '';
                 this.searchQuery = '';
-                this.addTag(tag);
+                this.addTag(suggestion.value);
             });
             container.appendChild(chip);
         }
@@ -517,7 +524,7 @@ export class Library {
         if (this.filterShowHapticMachine) allowedHapticTypes.push('machine');
         if (this.filterShowHapticUnknown) allowedHapticTypes.push('unknown');
         if (this.activeTags.length > 0) {
-            tracks = tracks.filter((t) => trackMatchesActiveTags(t.tags, this.activeTags));
+            tracks = tracks.filter((t) => trackMatchesActiveTags(t.tags, this.activeTags, t.artist));
         }
         if (allowedHapticTypes.length > 0) {
             tracks = tracks.filter((t) => trackMatchesHapticFilters(t, allowedHapticTypes));
@@ -638,6 +645,39 @@ export class Library {
             for (const tag of track.tags) set.add(tag);
         }
         return [...set].sort((a, b) => a.localeCompare(b));
+    }
+
+    private getAllArtists(): string[] {
+        const byLower = new Map<string, string>();
+        const add = (artist: string): void => {
+            const trimmed = artist.trim();
+            if (!trimmed) return;
+            const key = trimmed.toLowerCase();
+            if (!byLower.has(key)) byLower.set(key, trimmed);
+        };
+        for (const track of this.allMedia()) add(track.artist ?? '');
+        for (const album of this.albums) add(album.artist ?? '');
+        for (const playlist of this.playlists) {
+            for (const entry of playlist.entries) add(entry.artist ?? '');
+        }
+        return [...byLower.values()].sort((a, b) => a.localeCompare(b));
+    }
+
+    /** Artist suggestions are listed before tag suggestions. */
+    private getSuggestions(query: string): { label: string; value: string; artist: boolean }[] {
+        const q = query.toLowerCase();
+        const isActive = (value: string): boolean =>
+            this.activeTags.some((active) => active.toLowerCase() === value.toLowerCase());
+
+        const artists = this.getAllArtists()
+            .filter((artist) => artist.toLowerCase().includes(q) && !isActive(makeArtistTag(artist)))
+            .map((artist) => ({ label: artist, value: makeArtistTag(artist), artist: true }));
+
+        const tags = this.getAllTags()
+            .filter((tag) => tag.toLowerCase().includes(q) && !isActive(tag))
+            .map((tag) => ({ label: tag, value: tag, artist: false }));
+
+        return [...artists, ...tags].slice(0, 10);
     }
 
     private removeTag(tag: string): void {

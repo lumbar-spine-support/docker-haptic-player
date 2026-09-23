@@ -3,6 +3,7 @@ import sectionHeadingTemplate from './templates/section-heading.html';
 import mediaRowTemplate from './templates/media-row.html';
 import emptyStateTemplate from './templates/empty-state.html';
 import tagChipActiveTemplate from './templates/tag-chip-active.html';
+import tagChipArtistActiveTemplate from './templates/tag-chip-artist-active.html';
 import { renderTemplate } from '../../utils/template';
 
 export function cardHtml(values: {
@@ -40,4 +41,8 @@ export function emptyStateHtml(values: { message: string }): string {
 
 export function tagChipActiveHtml(values: { tag: string }): string {
     return renderTemplate(tagChipActiveTemplate, values);
+}
+
+export function tagChipArtistActiveHtml(values: { artist: string }): string {
+    return renderTemplate(tagChipArtistActiveTemplate, values);
 }
