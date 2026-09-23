@@ -9,8 +9,8 @@
     "build:vendor": "node scripts/copy-vendor-assets.js",
     "build": "npm run build:server && npm run build:client && npm run build:vendor",
     "start": "node dist/server/index.js",
-    "clean": "rm -rf dist public/js public/vendor",
-    "build:css": "npx sass public/css/app.scss:public/css/app.css --style=compressed --quiet-deps --silence-deprecation=import,global-builtin,if-function,color-functions",
+    "clean": "rm -rf dist public/js public/vendor public/css/*.css public/auth/*.css public/auth/login.js*",
+    "build:css": "npx sass public/css/app.scss:public/css/app.css public/css/auth.scss:public/auth/auth.css --style=compressed --quiet-deps --silence-deprecation=import,global-builtin,if-function,color-functions",
     "test": "NODE_ENV=test node --import tsx --test $(find test/server test/client -name '*.test.ts')",
     "test:watch": "NODE_ENV=test node --import tsx --test --watch $(find test/server test/client -name '*.test.ts')",
     "screenshot": "node scripts/screenshot-app.js"

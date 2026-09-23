@@ -3,6 +3,8 @@ dist/
 public/js/
 public/vendor/
 public/css/*.css
+public/auth/*.css
+public/auth/login.js*
 *.log
 .env
 .DS_Store

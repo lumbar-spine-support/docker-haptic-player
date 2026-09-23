@@ -20,8 +20,9 @@ The server is intentionally stateless with respect to playback. All live playbac
   - `/api/media/:trackId`
   - `/api/artwork/:trackId`
   - `/api/funscript/:trackId/:filename`
-  - `/api/config`
+  - `/api/auth/login`, `/api/auth/logout`, `/api/auth/status`
 - Serve compiled frontend assets from `public/`
+- Gate every asset and API route behind a valid access token
 
 ### Client responsibilities
 
@@ -146,9 +147,53 @@ The sync engine recalculates output when:
 - device assignments change
 - devices connect/disconnect
 
+## Authentication
+
+A single shared password guards the whole application. There is no user management.
+
+### Flow
+
+1. `createApp()` mounts `/api/auth` and then `createAuthMiddleware()` **before** `express.static`,
+   so `index.html`, `/js/app.js` and every `/api/*` route are unreachable without a token.
+2. `POST /api/auth/login` compares the submitted password against `PASSWORD` in constant time,
+   issues a 256-bit opaque token and returns it in an `HttpOnly`, `SameSite=Lax` cookie.
+3. Subsequent requests are authorized by that cookie. A cookie is required rather than an
+   `Authorization` header because artwork and media are loaded through `<img src>` and
+   `<video src>`, which cannot send custom headers.
+4. Rejected requests get `401 { error }`, or a `302` to `/auth/` for browser navigations.
+   The client logs the failure to the console before redirecting.
+
+### Token persistence
+
+Tokens are appended to `tokens.txt` inside the config directory (default `/config/tokens.txt`, mode `0600`) as
+`<token> <issued-at> <label>`. The file lives in the `/config` mount, so sessions survive
+container restarts and rebuilds. The store re-reads the file whenever its mtime changes:
+**deleting `/config/tokens.txt` revokes every session immediately, without a restart.**
+Tokens do not expire on their own.
+
+### Deployment modes
+
+`TRUST_PROXY` is the number of reverse-proxy hops Express should trust:
+
+- `0` (default) — direct LAN exposure over plain HTTP. `X-Forwarded-*` headers are ignored,
+  the session cookie is issued without `Secure` (a `Secure` cookie would be dropped by the
+  browser), and the login throttle keys on the real socket address.
+- `1` — behind nginx/Traefik. `X-Forwarded-Proto: https` marks the cookie `Secure`, and
+  `X-Forwarded-For` resolves the client IP.
+
+### Files
+
+- `src/server/middleware/auth.ts` — the guard, allow-list and cookie options
+- `src/server/middleware/loginThrottle.ts` — in-process per-IP backoff on the login endpoint
+- `src/server/services/tokenStore.ts` — issue/verify/revoke against the plain-text file
+- `src/server/routes/auth.ts` — login, logout and status endpoints
+- `public/auth/` — standalone login page, deliberately outside the bundle
+
+Setting `PASSWORD` to an empty string disables the guard entirely.
+
 ## Device connection flow
 
-Buttplug device management lives in `src/client/components/buttplugClient.ts`.
+Buttplug device management lives in `src/client/components/haptic/buttplugClient.ts`.
 
 ### Connection lifecycle
 
@@ -199,7 +244,6 @@ src/
       player/           Session (two slots), queue, controller, footer element
     utils/              API and formatting helpers
     index.ts            Main SPA/controller
-    player.ts           URL/base-path bootstrap redirect
   server/               Express app, routes, config, and library services
   shared/               Shared types and utility logic used by client/server
 test/                   Existing tests
@@ -213,7 +257,7 @@ dist/                   Compiled server output
 - `src/client/components/player/controller.ts` joins session + queue + library and exposes browse/activate/step
 - `src/client/components/player/footer.ts` is a `UIElement` bound to the active slot's store via `StoreController`
 - `src/client/components/funscriptSync.ts` isolates playback-time → device-command logic
-- `src/client/components/buttplugClient.ts` isolates Intiface connection and command routing
+- `src/client/components/haptic/buttplugClient.ts` isolates Intiface connection and command routing
 - `src/client/index.ts` coordinates navigation, player ownership, footer state, and UI wiring
 - `src/server/routes/` keeps each API concern separate
 - `src/shared/types.ts` provides shared contracts between server responses and client consumers

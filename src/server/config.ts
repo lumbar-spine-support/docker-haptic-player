@@ -18,6 +18,8 @@ export namespace Config {
     mediaDir: string;
     ignoreExt: string[];
     password: string;
+    configDir: string;
+    trustProxy: number;
     funscriptSuffixSeparator: string;
     funscriptSuffixStroker: string;
     funscriptSuffixButtplug: string;
@@ -39,15 +41,27 @@ export namespace Config {
 
   export const DEFAULT_MOUNT = '/config';
 
-  export const DEFAULT_FILE_NAME = 'settings.yaml';
+  export const SETTINGS_FILE_NAME = 'settings.yaml';
 
-  export const DEFAULT_FILE_PATH = path.join(DEFAULT_MOUNT, DEFAULT_FILE_NAME);
+  export const TOKEN_FILE_NAME = 'tokens.txt';
+
+  /** Path of the settings file inside a config directory. */
+  export function settingsFilePath(configDir: string): string {
+    return path.join(configDir, SETTINGS_FILE_NAME);
+  }
+
+  /** Path of the persisted access token file inside a config directory. */
+  export function tokenFilePath(configDir: string): string {
+    return path.join(configDir, TOKEN_FILE_NAME);
+  }
 
   export const DEFAULT_SERVER_CONFIG: ServerConfig = {
     port: 3000,
     mediaDir: '/media',
     ignoreExt: [],
     password: 'happy',
+    configDir: DEFAULT_MOUNT,
+    trustProxy: 0,
     funscriptSuffixSeparator: '.',
     funscriptSuffixStroker: 'stroker',
     funscriptSuffixButtplug: 'buttplug',
@@ -66,7 +80,8 @@ export namespace Config {
     port: 'HTTP port of the web interface',
     mediaDir: 'Directory that contains media files',
     ignoreExt: 'File extensions to ignore (without leading dot)',
-    password: 'Web interface access password (TODO: authentication not implemented yet)',
+    password: 'Web interface access password. Leave empty to disable authentication',
+    trustProxy: 'Number of reverse proxy hops to trust for X-Forwarded-* headers. 0 for direct LAN access, 1 behind nginx/Traefik',
     videoSeekInterval: 'Default skip interval in seconds for the seek buttons (TODO: unused)',
     funscriptSuffixSeparator: 'Character that separates filename from funscript suffix',
     funscriptSuffixStroker: 'Suffix for stroker funscript files',
@@ -81,6 +96,7 @@ export namespace Config {
     mediaDir: 'MEDIA_DIR',
     ignoreExt: 'IGNORE_EXT',
     password: 'PASSWORD',
+    trustProxy: 'TRUST_PROXY',
     videoSeekInterval: 'VIDEO_SEEK_INTERVAL',
     funscriptSuffixSeparator: 'FUNSCRIPT_SUFFIX_SEPARATOR',
     funscriptSuffixStroker: 'FUNSCRIPT_SUFFIX_STROKER',
@@ -171,6 +187,8 @@ export namespace Config {
     let yamlContent = '';
     for (const key in DEFAULTS) {
       const name = ENV_NAMES[key];
+      // configDir has no YAML form; it is where this very file lives.
+      if (!name) continue;
       const desc = DESCRIPTIONS[key] ?? '';
       const value = DEFAULTS[key];
       yamlContent += `# ${desc}\n${name}: ${JSON.stringify(value)}\n\n`;
@@ -196,14 +214,30 @@ export namespace Config {
     }
   }
 
+  /** Resolve the directory holding settings.yaml and tokens.txt. */
+  function resolveConfigDir(): string {
+    const configured = process.env.CONFIG_PATH;
+    if (!configured) return DEFAULT_MOUNT;
+
+    // CONFIG_PATH used to name the YAML file itself; accept that form so existing setups keep working.
+    if (/\.ya?ml$/i.test(configured)) {
+      const dir = path.dirname(configured);
+      console.warn(`${TAG} CONFIG_PATH should be a directory; using ${dir} instead of the file ${configured}.`);
+      return dir;
+    }
+
+    return configured;
+  }
+
   /** Load and merge settings.yaml with built-in defaults. */
   export function load(): Config {
-    const configPath = process.env.CONFIG_PATH ?? DEFAULT_FILE_PATH;
+    const configDir = resolveConfigDir();
+    const configPath = settingsFilePath(configDir);
     createIfNotExists(configPath);
     const loaded = loadYml({ ...DEFAULT_SERVER_CONFIG }, { ...DEFAULT_CLIENT_CONFIG }, configPath);
     const envOverridden = loadEnv(loaded.server, loaded.client);
     return {
-      server: envOverridden.server,
+      server: { ...envOverridden.server, configDir },
       client: envOverridden.client,
     };
   }

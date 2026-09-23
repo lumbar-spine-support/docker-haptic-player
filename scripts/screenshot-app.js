@@ -30,6 +30,17 @@ async function run(command, args, options = {}) {
     }
 }
 
+async function assertPortFree(url) {
+    try {
+        await fetch(url);
+    } catch {
+        return;
+    }
+
+    // Otherwise waitForServer would happily accept the stale server and screenshot the wrong build.
+    throw new Error(`Something is already listening on ${url}; stop it before taking screenshots`);
+}
+
 async function waitForServer(url, timeoutMs = 30000) {
     const deadline = Date.now() + timeoutMs;
 
@@ -137,14 +148,18 @@ try {
     await run('npm', ['run', 'build:client']);
     await run('npm', ['run', 'build:server']);
 
+    await assertPortFree(SERVER_URL);
+
     server = spawn('node', ['--enable-source-maps', 'dist/server/index.js'], {
         cwd: process.cwd(),
         detached: true,
         stdio: 'inherit',
         env: {
             ...process.env,
-            CONFIG_PATH: `${process.cwd()}/config/settings.yaml`,
+            CONFIG_PATH: `${process.cwd()}/config`,
             MEDIA_DIR: `${process.cwd()}/test/fixtures/media/`,
+            // Screenshots document the library and player, so skip the login gate entirely.
+            PASSWORD: '',
         },
     });
 

@@ -7,6 +7,9 @@ import { createMediaRouter } from './routes/media';
 import { createArtworkRouter } from './routes/artwork';
 import { createFunscriptRouter } from './routes/funscript';
 import { createVersionRouter } from './routes/version';
+import { createAuthRouter } from './routes/auth';
+import { createAuthMiddleware } from './middleware/auth';
+import { createTokenStore } from './services/tokenStore';
 
 export const TAG = '[server]';
 
@@ -16,6 +19,11 @@ export function createApp(serverConfig?: Config.ServerConfig): express.Express {
     serverConfig = fullConfig.server;
   }
   const app = express();
+  // Kept configurable so a direct LAN deployment cannot spoof X-Forwarded-* headers.
+  app.set('trust proxy', serverConfig.trustProxy);
+  const tokenStore = createTokenStore(Config.tokenFilePath(serverConfig.configDir));
+  app.use('/api/auth', createAuthRouter(serverConfig, tokenStore));
+  app.use(createAuthMiddleware(serverConfig, tokenStore));
   app.use(express.static(path.join(__dirname, '..', '..', 'public')));
   app.use('/api/library', createLibraryRouter(serverConfig));
   app.use('/api/media', createMediaRouter(serverConfig));

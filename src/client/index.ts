@@ -1,4 +1,4 @@
-import { fetchFunscript, fetchTrackDescription, fetchVersion, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
+import { fetchFunscript, fetchTrackDescription, fetchVersion, fetchAuthStatus, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
 import { bindDragOnlyRange, syncRangeFill } from './utils/rangeSlider';
 import { resetScrollPosition } from '../shared/scroll';
 import { PlaybackSession, PlaybackQueue, PlaybackController } from './components/player';
@@ -89,6 +89,7 @@ class App {
   private readonly footer = qs<PlayerFooterElement>('#player-footer');
   private readonly blurContentToggle = qs<HTMLInputElement>('#blur-content-toggle');
   private readonly versionBadge = qs<HTMLElement>('#app-version');
+  private readonly logoutBtn = qs<HTMLButtonElement>('#btn-logout');
 
   private readonly buttplug = new ButtplugClientManager();
   /** Owns the two interchangeable players; one of them is always the playing one. */
@@ -147,6 +148,7 @@ class App {
     this.initBlurContent();
     this.bindZoomControls();
     void this.showVersion();
+    void this.bindLogout();
     this.footer?.bind(this.session, this.playback, (trackId) => this.navigateTo(trackHref(trackId)));
 
     const assignContainer = qs<HTMLElement>('#device-assignment');
@@ -224,6 +226,20 @@ class App {
     } catch {
       this.versionBadge.classList.add('d-none');
     }
+  }
+
+  private async bindLogout(): Promise<void> {
+    if (!this.logoutBtn) return;
+    try {
+      const status = await fetchAuthStatus();
+      if (!status.required) return;
+    } catch {
+      return;
+    }
+    this.logoutBtn.classList.remove('d-none');
+    this.logoutBtn.addEventListener('click', () => {
+      void logout();
+    });
   }
 
   private bindSidebarControls(): void {

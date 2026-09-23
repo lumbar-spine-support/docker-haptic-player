@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Authenticate — HAPPY</title>
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="stylesheet" href="/auth/auth.css" />
+</head>
+
+<body>
+
+    <main class="login-card">
+        <div class="card bg-dark border-secondary shadow">
+            <div class="card-body p-4">
+                <h1 class="h4 text-center mb-4 fw-bold">
+                    <span class="login-brand-icon me-2" aria-hidden="true"></span>HAPPY
+                </h1>
+
+                <div id="login-error" class="alert alert-danger py-2 d-none" role="alert"></div>
+
+                <form id="login-form" novalidate>
+                    <input type="password" class="form-control mb-3" id="password" name="password"
+                        autocomplete="current-password" required autofocus placeholder="Password" />
+                    <button type="submit" id="login-submit" class="btn btn-primary w-100">Unlock</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="/auth/login.js"></script>
+</body>
+
+</html>

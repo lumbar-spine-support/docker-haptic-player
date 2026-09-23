@@ -2,6 +2,20 @@ import type { LibraryResponse, Funscript, VersionInfo } from '../../shared/types
 
 const BASE = new URL('.', window.location.href).pathname;
 
+let redirectingToLogin = false;
+
+/** Reports an expired or missing access token and sends the user back to the login page. */
+function handleUnauthorized(res: Response, what: string): void {
+  if (res.status !== 401) return;
+
+  console.error(`[auth] ${what} rejected: token missing or invalid (401). Redirecting to login.`);
+  if (redirectingToLogin) return;
+
+  redirectingToLogin = true;
+  const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+  window.location.replace(`${BASE}auth/?returnTo=${returnTo}`);
+}
+
 /**
  * Fetches the full track library from the server.
  *
@@ -9,14 +23,20 @@ const BASE = new URL('.', window.location.href).pathname;
  */
 export async function fetchLibrary(): Promise<LibraryResponse> {
   const res = await fetch(`${BASE}api/library`);
-  if (!res.ok) throw new Error(`Library fetch failed: ${res.status}`);
+  if (!res.ok) {
+    handleUnauthorized(res, 'Library fetch');
+    throw new Error(`Library fetch failed: ${res.status}`);
+  }
   return res.json() as Promise<LibraryResponse>;
 }
 
 /** Fetches a parsed Funscript payload for the given track/file pair. */
 export async function fetchFunscript(trackId: string, filename: string): Promise<Funscript> {
   const res = await fetch(`${BASE}api/funscript/${trackId}/${encodeURIComponent(filename)}`);
-  if (!res.ok) throw new Error(`Funscript fetch failed: ${res.status}`);
+  if (!res.ok) {
+    handleUnauthorized(res, 'Funscript fetch');
+    throw new Error(`Funscript fetch failed: ${res.status}`);
+  }
   return res.json() as Promise<Funscript>;
 }
 
@@ -28,7 +48,10 @@ export function mediaUrl(trackId: string): string {
 /** Fetches the optional markdown description companion file for a track. */
 export async function fetchTrackDescription(trackId: string): Promise<string> {
   const res = await fetch(`${BASE}api/media/${trackId}/description`);
-  if (!res.ok) throw new Error(`Description fetch failed: ${res.status}`);
+  if (!res.ok) {
+    handleUnauthorized(res, 'Description fetch');
+    throw new Error(`Description fetch failed: ${res.status}`);
+  }
   return res.text();
 }
 
@@ -40,6 +63,26 @@ export function artworkUrl(trackId: string): string {
 /** Fetches the running server/app version info. */
 export async function fetchVersion(): Promise<VersionInfo> {
   const res = await fetch(`${BASE}api/version`);
-  if (!res.ok) throw new Error(`Version fetch failed: ${res.status}`);
+  if (!res.ok) {
+    handleUnauthorized(res, 'Version fetch');
+    throw new Error(`Version fetch failed: ${res.status}`);
+  }
   return res.json() as Promise<VersionInfo>;
+}
+
+/** Reports whether authentication is enabled and whether the current token is still valid. */
+export async function fetchAuthStatus(): Promise<{ required: boolean; authenticated: boolean }> {
+  const res = await fetch(`${BASE}api/auth/status`);
+  if (!res.ok) throw new Error(`Auth status fetch failed: ${res.status}`);
+  return res.json() as Promise<{ required: boolean; authenticated: boolean }>;
+}
+
+/** Revokes the current access token and returns to the login page. */
+export async function logout(): Promise<void> {
+  try {
+    await fetch(`${BASE}api/auth/logout`, { method: 'POST' });
+  } catch (err) {
+    console.error('[auth] Logout request failed', err);
+  }
+  window.location.replace(`${BASE}auth/`);
 }

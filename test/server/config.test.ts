@@ -9,16 +9,16 @@ import { Config } from '../../src/server/config';
 const TAG = Config.TAG;
 const DEFAULTS = Config.DEFAULTS;
 
-/** Runs `fn` with CONFIG_PATH pointed at a fresh temp file, restoring the env var afterwards. */
+/** Runs `fn` with CONFIG_PATH pointed at a fresh temp directory, restoring the env var afterwards. */
 async function withConfigPath(fn: (configPath: string) => void | Promise<void>): Promise<void> {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'config-test-'));
-    const configPath = path.join(dir, 'settings.yaml');
+    const configPath = Config.settingsFilePath(dir);
     const originalConfigPath = process.env.CONFIG_PATH;
     const originalWarn = console.warn;
     const originalLog = console.log;
     console.warn = () => { };
     console.log = () => { };
-    process.env.CONFIG_PATH = configPath;
+    process.env.CONFIG_PATH = dir;
     try {
         await fn(configPath);
     } finally {
@@ -38,6 +38,31 @@ test(`${TAG} load writes a default settings.yaml and returns built-in defaults w
         assert.equal(config.server.password, DEFAULTS.password);
         assert.equal(config.client.videoSeekInterval, DEFAULTS.videoSeekInterval);
         assert.deepEqual(config.server.ignoreExt, DEFAULTS.ignoreExt);
+    });
+});
+
+test(`${TAG} CONFIG_PATH names the directory holding settings.yaml and tokens.txt`, async () => {
+    await withConfigPath((configPath) => {
+        const config = Config.load();
+        const dir = path.dirname(configPath);
+        assert.equal(config.server.configDir, dir);
+        assert.equal(Config.settingsFilePath(dir), configPath);
+        assert.equal(Config.tokenFilePath(dir), path.join(dir, 'tokens.txt'));
+    });
+});
+
+test(`${TAG} a CONFIG_PATH still pointing at settings.yaml falls back to its directory`, async () => {
+    await withConfigPath((configPath) => {
+        process.env.CONFIG_PATH = configPath;
+        const config = Config.load();
+        assert.equal(config.server.configDir, path.dirname(configPath));
+    });
+});
+
+test(`${TAG} the generated settings.yaml contains no key without an env name`, async () => {
+    await withConfigPath((configPath) => {
+        Config.load();
+        assert.doesNotMatch(fs.readFileSync(configPath, 'utf-8'), /^undefined:/m);
     });
 });
 

@@ -42,6 +42,8 @@ async function buildAll() {
     try {
         await Promise.all([
             build('src/client/index.ts', 'public/js/app.js'),
+            // Separate bundle: the login page is served before authentication.
+            build('src/client/login.ts', 'public/auth/login.js'),
         ]);
         if (!watch) {
             console.log('Build complete');

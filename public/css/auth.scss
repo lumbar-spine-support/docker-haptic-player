@@ -1,0 +1,31 @@
+// ============================================================================
+// Login page stylesheet
+// ============================================================================
+// Deliberately excludes the app modules: this file is served to
+// unauthenticated clients, so it must not reveal application UI.
+// ============================================================================
+
+@import 'scss/bootstrap-theme';
+
+body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card {
+  width: 24rem;
+  max-width: 92vw;
+}
+
+// Tinted with the heading colour, so the theme-aware /icon.svg colours are ignored here.
+.login-brand-icon {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  background-color: currentColor;
+  -webkit-mask: url('/icon.svg') no-repeat center / contain;
+  mask: url('/icon.svg') no-repeat center / contain;
+  vertical-align: middle;
+}

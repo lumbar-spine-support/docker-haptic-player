@@ -44,7 +44,7 @@
         "--enable-source-maps"
       ],
       "env": {
-        "CONFIG_PATH": "${workspaceFolder}/config/settings.yaml",
+        "CONFIG_PATH": "${workspaceFolder}/config",
         "MEDIA_DIR": "${workspaceFolder}/test/fixtures/media/"
       }
     }
