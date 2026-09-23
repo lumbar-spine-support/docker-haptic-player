@@ -1,12 +1,16 @@
 import { Router } from 'express';
-import { Config } from '../config';
-import { buildLibrary } from '../services/libraryService';
+import type { LibraryIndex } from '../services/libraryIndex';
 
-export function createLibraryRouter(config: Config.ServerConfig): Router {
+export function createLibraryRouter(libraryIndex: LibraryIndex): Router {
   const router = Router();
 
   router.get('/', async (_req, res) => {
-    res.json(await buildLibrary(config));
+    res.json(await libraryIndex.get());
+  });
+
+  // Escape hatch for media added over a network share, where mtimes may not reflect the change.
+  router.post('/refresh', async (_req, res) => {
+    res.json(await libraryIndex.refresh());
   });
 
   return router;

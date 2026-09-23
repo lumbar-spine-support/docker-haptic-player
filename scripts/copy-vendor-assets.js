@@ -67,6 +67,16 @@ try {
     path.join(vendor, 'bootstrap', 'bootstrap.bundle.min.js'),
   );
 
+  // Both minified files carry a sourceMappingURL, so devtools 404s without these.
+  copy(
+    path.join(nm, 'bootstrap', 'dist', 'css', 'bootstrap.min.css.map'),
+    path.join(vendor, 'bootstrap', 'bootstrap.min.css.map'),
+  );
+  copy(
+    path.join(nm, 'bootstrap', 'dist', 'js', 'bootstrap.bundle.min.js.map'),
+    path.join(vendor, 'bootstrap', 'bootstrap.bundle.min.js.map'),
+  );
+
   // Bootstrap Icons CSS + webfonts
   copy(
     path.join(nm, 'bootstrap-icons', 'font', 'bootstrap-icons.min.css'),

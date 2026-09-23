@@ -133,7 +133,7 @@ export class PlaybackController {
             title: track.title,
             artist: track.artist || track.filename,
             year: track.year,
-            poster: track.hasArtwork ? artworkUrl(track.id) : FALLBACK_ART_DATA_URI,
+            poster: track.hasArtwork ? artworkUrl(track.id, track.artworkVersion) : FALLBACK_ART_DATA_URI,
         };
     }
 }

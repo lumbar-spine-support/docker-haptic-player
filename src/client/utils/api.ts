@@ -55,9 +55,15 @@ export async function fetchTrackDescription(trackId: string): Promise<string> {
   return res.text();
 }
 
-/** Builds the artwork URL for a track's embedded cover image. */
-export function artworkUrl(trackId: string): string {
-  return `${BASE}api/artwork/${trackId}`;
+/**
+ * Builds the artwork URL for a track's embedded cover image.
+ *
+ * Passing the track's `artworkVersion` lets the server mark the response `immutable`, so repeat
+ * visits skip the request entirely instead of revalidating.
+ */
+export function artworkUrl(trackId: string, artworkVersion?: number): string {
+  const base = `${BASE}api/artwork/${trackId}`;
+  return artworkVersion ? `${base}?v=${artworkVersion}` : base;
 }
 
 /** Fetches the running server/app version info. */

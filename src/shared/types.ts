@@ -47,6 +47,8 @@ export interface TrackInfo extends LibraryItemBase {
   trackNumber: number | null;
   comment: string;
   hasArtwork: boolean;
+  /** Media file mtime in whole milliseconds; used to version the artwork URL. */
+  artworkVersion: number;
   durationSeconds: number;
   funscripts: FunscriptInfo[];
   tags: string[];

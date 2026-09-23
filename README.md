@@ -206,7 +206,6 @@ Leave `TRUST_PROXY` at `0` when the container is reachable directly, otherwise c
   - [ ] Funscript chapters shown in Video.JS player for navigation.
   - [ ] VR Video support once Video.JS v10 matures.
 - [ ] Playlist editor and a seperate mount with write-access.
-- [ ] Improve Library viewer for large amount of files in database.
 
 ## Screenshots
 

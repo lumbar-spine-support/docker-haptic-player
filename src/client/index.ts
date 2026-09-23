@@ -502,7 +502,7 @@ class App {
     this.detailSubtitleAlbum!.textContent = album.artist || 'Unknown artist';
     this.detailYearAlbum!.textContent = album.year ? `${album.year}` : '';
     if (this.detailCoverAlbum) {
-      this.detailCoverAlbum.src = renderTrackArt(album.coverTrackId);
+      this.detailCoverAlbum.src = renderTrackArt(this.allMedia().find((item) => item.id === album.coverTrackId));
       this.detailCoverAlbum.style.display = '';
     }
     this.renderDetailRows(
@@ -645,7 +645,7 @@ class App {
   private applyMediaSessionMetadata(track: TrackInfo): void {
     if (!('mediaSession' in navigator)) return;
     const artwork: MediaImage[] = track.hasArtwork
-      ? [{ src: artworkUrl(track.id), type: 'image/jpeg' }]
+      ? [{ src: artworkUrl(track.id, track.artworkVersion), type: 'image/jpeg' }]
       : [];
     navigator.mediaSession.metadata = new MediaMetadata({
       title: track.title,
