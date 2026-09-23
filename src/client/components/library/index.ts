@@ -1,5 +1,5 @@
 import { qs } from '../../utils/html';
-import { fetchLibrary, artworkUrl } from '../../utils/api';
+import { fetchLibrary } from '../../utils/api';
 import { buildUrl, trackHref, detailHref } from '../../utils/routes';
 import { renderHapticIcons } from '../../utils/hapticIcons';
 import { FALLBACK_ART_DATA_URI, renderTrackArt } from '../../utils/artwork';
@@ -682,7 +682,7 @@ export class Library {
     private createAlbumCard(album: AlbumInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
         const col = document.createElement('div');
         col.className = CARD_GRID_CLASSES;
-        const artSrc = renderTrackArt(album.coverTrackId);
+        const artSrc = renderTrackArt(album.coverTrackId ? tracksById.get(album.coverTrackId) : null);
         const artist = `${album.artist || 'Unknown'}`;
         const meta = this.prependYear(this.buildCardMeta('album', album.durationSeconds), album.year);
         col.innerHTML = cardHtml({
@@ -704,7 +704,7 @@ export class Library {
     private createTrackCard(track: TrackInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
         const col = document.createElement('div');
         col.className = CARD_GRID_CLASSES;
-        const artSrc = track.hasArtwork ? artworkUrl(track.id) : FALLBACK_ART_DATA_URI;
+        const artSrc = renderTrackArt(track);
         const artist = track.artist || 'Unknown';
         const meta = this.prependYear(this.buildCardMeta(track.type, track.durationSeconds), track.year);
         col.innerHTML = cardHtml({
@@ -729,7 +729,7 @@ export class Library {
 
     private createPlaylistCard(playlist: PlaylistInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
         const firstTrack = tracksById.get(playlist.entries[0]?.trackId ?? '');
-        const artSrc = firstTrack?.hasArtwork ? artworkUrl(firstTrack.id) : FALLBACK_ART_DATA_URI;
+        const artSrc = renderTrackArt(firstTrack);
         const artists = this.playlistArtists(playlist);
         const meta = this.buildCardMeta('playlist', playlist.durationSeconds);
         const col = document.createElement('div');
@@ -755,7 +755,7 @@ export class Library {
         tr.style.cursor = 'pointer';
         tr.addEventListener('click', () => this.callbacks.openAlbum(album.id));
         tr.innerHTML = mediaRowHtml({
-            artSrc: renderTrackArt(album.coverTrackId),
+            artSrc: renderTrackArt(album.coverTrackId ? tracksById.get(album.coverTrackId) : null),
             fallbackArt: FALLBACK_ART_DATA_URI,
             title: album.title,
             artist: album.artist || 'Unknown artist',
@@ -769,7 +769,7 @@ export class Library {
 
     private createPlaylistRow(playlist: PlaylistInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
         const firstTrack = tracksById.get(playlist.entries[0]?.trackId ?? '');
-        const artSrc = firstTrack?.hasArtwork ? artworkUrl(firstTrack.id) : FALLBACK_ART_DATA_URI;
+        const artSrc = renderTrackArt(firstTrack);
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
         tr.addEventListener('click', () => this.callbacks.openPlaylist(playlist.id));
@@ -787,7 +787,7 @@ export class Library {
     }
 
     private createTrackRow(track: TrackInfo): HTMLElement {
-        const artSrc = track.hasArtwork ? artworkUrl(track.id) : FALLBACK_ART_DATA_URI;
+        const artSrc = renderTrackArt(track);
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
         tr.addEventListener('click', () => this.callbacks.openTrack(track.id));

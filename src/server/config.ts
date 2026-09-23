@@ -45,6 +45,12 @@ export namespace Config {
 
   export const TOKEN_FILE_NAME = 'tokens.txt';
 
+  export const CACHE_DIR_NAME = 'cache';
+
+  export const LIBRARY_CACHE_FILE_NAME = 'library.json';
+
+  export const ARTWORK_CACHE_DIR_NAME = 'artwork';
+
   /** Path of the settings file inside a config directory. */
   export function settingsFilePath(configDir: string): string {
     return path.join(configDir, SETTINGS_FILE_NAME);
@@ -53,6 +59,21 @@ export namespace Config {
   /** Path of the persisted access token file inside a config directory. */
   export function tokenFilePath(configDir: string): string {
     return path.join(configDir, TOKEN_FILE_NAME);
+  }
+
+  /** Root of all derived, disposable data inside a config directory. Safe to delete at any time. */
+  export function cacheDirPath(configDir: string): string {
+    return path.join(configDir, CACHE_DIR_NAME);
+  }
+
+  /** Path of the persisted library index snapshot. */
+  export function libraryCacheFilePath(configDir: string): string {
+    return path.join(cacheDirPath(configDir), LIBRARY_CACHE_FILE_NAME);
+  }
+
+  /** Directory holding extracted cover images, one pair of files per cache key. */
+  export function artworkCacheDirPath(configDir: string): string {
+    return path.join(cacheDirPath(configDir), ARTWORK_CACHE_DIR_NAME);
   }
 
   export const DEFAULT_SERVER_CONFIG: ServerConfig = {

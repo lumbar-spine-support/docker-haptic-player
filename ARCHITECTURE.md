@@ -14,9 +14,9 @@ The server is intentionally stateless with respect to playback. All live playbac
 ### Server responsibilities
 
 - Load runtime configuration from `config/settings.yaml`
-- Build the media library model from the filesystem
+- Build the media library model from the filesystem and cache it in `<configDir>/cache/`
 - Expose API routes for:
-  - `/api/library`
+  - `/api/library`, `POST /api/library/refresh`
   - `/api/media/:trackId`
   - `/api/artwork/:trackId`
   - `/api/funscript/:trackId/:filename`
@@ -147,6 +147,107 @@ The sync engine recalculates output when:
 - device assignments change
 - devices connect/disconnect
 
+## Library indexing and caching
+
+Scanning the media directory is the single most expensive thing the server does: `buildLibrary()`
+runs `music-metadata` over every audio and video file, and extracting a cover means parsing the
+container of a file that may be several gigabytes. Neither cost may be paid per request once a
+library grows past a few hundred items, so both results are cached.
+
+Everything derived lives under the `cache/` subdirectory of the `/config` mount. It contains only
+reproducible data and is safe to delete at any time — the next request rebuilds it:
+
+```text
+<configDir>/
+  settings.yaml        hand-edited configuration
+  tokens.txt           issued access tokens
+  cache/
+    library.json       library index snapshot
+    artwork/           extracted cover images, two files per entry
+```
+
+All cache writes are best effort. A read-only or full `/config` mount logs a warning and degrades to
+an in-memory-only cache rather than failing the request.
+
+### Library index
+
+`src/server/services/libraryIndex.ts` wraps `buildLibrary()` with an in-memory snapshot that is
+mirrored to `cache/library.json`, so a restart does not re-scan an unchanged library.
+
+Staleness is decided by a **fingerprint**, not by a timer:
+
+- `computeMediaFingerprint()` walks the media directory and hashes `path`, `size` and `mtimeMs` of
+  every file. This is one `stat` per file and no metadata parsing, i.e. orders of magnitude cheaper
+  than a rebuild.
+- The config values that influence the scan result (media directory, `ignoreExt`, all funscript
+  suffixes) are hashed into the same digest, so editing `settings.yaml` invalidates the snapshot.
+
+`get()` revalidates the fingerprint at most once every 30 seconds; within that window it answers
+straight from memory. A rebuild is triggered only when the digest actually differs. Concurrent
+callers share a single in-flight build promise, so a burst of requests can never start two scans.
+
+`CACHE_FORMAT_VERSION` guards the on-disk shape: bump it whenever `LibraryResponse` changes, and
+older snapshots are discarded instead of being trusted. The file is written via a temp file plus
+rename so a crash mid-write cannot leave a half-parsed snapshot behind.
+
+`createApp()` kicks off the first `get()` eagerly, which moves the startup scan off the first
+visitor's request. `POST /api/library/refresh` forces a rebuild regardless of the fingerprint; it is
+the escape hatch for media added over a network share whose mtimes do not reflect the change.
+
+### Artwork cache
+
+`src/server/services/artworkCache.ts` stores each extracted cover under `cache/artwork/` as two
+files, so a cache hit never needs a directory scan:
+
+- `<key>.meta` — JSON `{ "mime": "image/jpeg" }`
+- `<key>.bin` — the raw image bytes
+
+The key is `sha1(trackId + ':' + artworkVersion)`, where `artworkVersion` is the media file's mtime
+in whole milliseconds. Re-tagging a file changes its mtime and therefore its key, which invalidates
+every cached copy of that cover without any explicit invalidation step.
+
+Files **without** a cover are cached too, as a negative entry (`{ "mime": null }`). Without this,
+every art-less track would re-parse its full media file on each request just to produce a 404.
+
+Stale entries are removed after every successful library rebuild: the index hands the cache the set
+of keys referenced by the fresh snapshot, and `prune()` deletes everything else.
+
+### HTTP caching of `/api/artwork/:id`
+
+- The route always sends an `ETag` derived from the cache key, and answers a matching
+  `If-None-Match` with `304` before touching the cache or the media file.
+- `?v=<artworkVersion>` marks the response `public, max-age=31536000, immutable`, so repeat visits
+  skip the request entirely. The client appends this automatically via `artworkUrl()`.
+- Unversioned URLs fall back to `public, max-age=86400, must-revalidate`, where the ETag turns a
+  revalidation into a `304` instead of a re-send.
+
+`TrackInfo.artworkVersion` carries the mtime to the browser purely so the client can build those
+versioned URLs.
+
+## Gallery rendering with large libraries
+
+The client holds the whole library in memory and does all searching, tag filtering and sorting
+locally, which keeps those interactions instant. The scaling risk is therefore not the JSON payload
+but the number of cover images a render puts into the DOM.
+
+Covers are requested lazily rather than eagerly:
+
+- `card.html` and `media-row.html` mark every cover `loading="lazy" decoding="async"` and declare
+  intrinsic `width`/`height`. The dimensions matter: without them the grid would collapse into the
+  viewport and the browser would consider every image visible, defeating the deferral.
+- `.track-art` additionally pins `aspect-ratio: 1 / 1` and `.track-art-thumb` a fixed 40px box, so
+  the placeholder occupies the final layout before the image arrives.
+- `renderTrackArt()` is the single place that decides between a real URL and the inline
+  `FALLBACK_ART_DATA_URI` placeholder. It emits a request only when `hasArtwork` is true, so
+  art-less media costs no round trip at all. Album covers point at `coverTrackId`, which the server
+  leaves `null` when no track in the album carries a cover.
+
+This keeps a first render to the covers actually on screen. Client-side windowing of the grid itself
+is deliberately not implemented: the filtering logic depends on the full in-memory list, and the
+lazy images remove the dominant cost. Downscaling covers to thumbnail size server-side would cut
+bandwidth further, but needs a native image library (`sharp`) and is left out to keep the runtime
+image lean.
+
 ## Authentication
 
 A single shared password guards the whole application. There is no user management.
@@ -235,7 +336,7 @@ Buttplug device management lives in `src/client/components/haptic/buttplugClient
 ## Directory structure
 
 ```text
-config/                 Runtime settings
+config/                 Runtime settings, tokens, and the derived cache/ subdirectory
 public/                 Built client assets and vendored frontend libraries
 scripts/                Build/helper scripts
 src/
@@ -260,4 +361,7 @@ dist/                   Compiled server output
 - `src/client/components/haptic/buttplugClient.ts` isolates Intiface connection and command routing
 - `src/client/index.ts` coordinates navigation, player ownership, footer state, and UI wiring
 - `src/server/routes/` keeps each API concern separate
+- `src/server/services/libraryService.ts` performs the raw filesystem scan; it holds no state
+- `src/server/services/libraryIndex.ts` owns caching and staleness detection around that scan
+- `src/server/services/artworkCache.ts` owns the on-disk cover cache, including negative entries
 - `src/shared/types.ts` provides shared contracts between server responses and client consumers

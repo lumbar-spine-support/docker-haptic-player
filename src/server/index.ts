@@ -10,6 +10,8 @@ import { createVersionRouter } from './routes/version';
 import { createAuthRouter } from './routes/auth';
 import { createAuthMiddleware } from './middleware/auth';
 import { createTokenStore } from './services/tokenStore';
+import { createArtworkCache } from './services/artworkCache';
+import { createLibraryIndex } from './services/libraryIndex';
 
 export const TAG = '[server]';
 
@@ -22,15 +24,21 @@ export function createApp(serverConfig?: Config.ServerConfig): express.Express {
   // Kept configurable so a direct LAN deployment cannot spoof X-Forwarded-* headers.
   app.set('trust proxy', serverConfig.trustProxy);
   const tokenStore = createTokenStore(Config.tokenFilePath(serverConfig.configDir));
+  const artworkCache = createArtworkCache(serverConfig.configDir);
+  const libraryIndex = createLibraryIndex(serverConfig, artworkCache);
   app.use('/api/auth', createAuthRouter(serverConfig, tokenStore));
   app.use(createAuthMiddleware(serverConfig, tokenStore));
   app.use(express.static(path.join(__dirname, '..', '..', 'public')));
-  app.use('/api/library', createLibraryRouter(serverConfig));
+  app.use('/api/library', createLibraryRouter(libraryIndex));
   app.use('/api/media', createMediaRouter(serverConfig));
-  app.use('/api/artwork', createArtworkRouter(serverConfig));
+  app.use('/api/artwork', createArtworkRouter(serverConfig, artworkCache));
   app.use('/api/funscript', createFunscriptRouter(serverConfig));
   app.use('/api/version', createVersionRouter());
   app.use(errorMiddleware);
+
+  // Pay the scan cost at startup instead of on the first visitor's library request.
+  void libraryIndex.get().catch((err) => console.error(`${TAG} Initial library scan failed:`, err));
+
   return app;
 }
 

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import yaml from 'js-yaml';
 import type { AlbumInfo, FunscriptInfo, FunscriptType, LibraryResponse, PlaylistEntry, PlaylistInfo, TrackInfo } from '../../shared/types';
 import { Config } from '../config';
@@ -123,7 +124,18 @@ function readDirectoryDirents(dir: string): fs.Dirent[] {
 }
 
 function collectFilesRecursively(rootDir: string): string[] {
-  const collected: string[] = [];
+  return collectFileStats(rootDir).map((entry) => entry.path);
+}
+
+/** Relative path plus the stat fields that decide whether the library index is stale. */
+export interface MediaFileStat {
+  path: string;
+  size: number;
+  mtimeMs: number;
+}
+
+function collectFileStats(rootDir: string): MediaFileStat[] {
+  const collected: MediaFileStat[] = [];
 
   const walk = (currentDir: string): void => {
     for (const dirent of readDirectoryDirents(currentDir)) {
@@ -133,12 +145,34 @@ function collectFilesRecursively(rootDir: string): string[] {
         continue;
       }
       if (!dirent.isFile()) continue;
-      collected.push(normalizeRelativePath(path.relative(rootDir, absolutePath)));
+      let size = 0;
+      let mtimeMs = 0;
+      try {
+        const stats = fs.statSync(absolutePath);
+        size = stats.size;
+        mtimeMs = Math.floor(stats.mtimeMs);
+      } catch {
+        // Unreadable entry: treat as empty so it still participates in the fingerprint.
+      }
+      collected.push({ path: normalizeRelativePath(path.relative(rootDir, absolutePath)), size, mtimeMs });
     }
   };
 
   walk(rootDir);
-  return collected.sort((a, b) => a.localeCompare(b));
+  return collected.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/**
+ * Cheap content signature of the media directory: one stat per file, no metadata parsing.
+ * Any rename, resize or touch changes the digest and therefore invalidates the library index.
+ */
+export function computeMediaFingerprint(mediaDir: string): string {
+  if (!fs.existsSync(mediaDir)) return 'missing';
+  const hash = crypto.createHash('sha1');
+  for (const entry of collectFileStats(mediaDir)) {
+    hash.update(`${entry.path}\0${entry.size}\0${entry.mtimeMs}\n`);
+  }
+  return hash.digest('hex');
 }
 
 function parsePlaylist(content: string): string[] {
@@ -260,7 +294,8 @@ function buildAlbums(tracks: TrackInfo[]): AlbumInfo[] {
     .map(([key, albumTracks]) => {
       const [artist, album] = key.split('\u0000');
       const sortedTracks = [...albumTracks].sort(compareTrackEntries);
-      const coverTrack = sortedTracks.find((track) => track.hasArtwork) ?? sortedTracks[0] ?? null;
+      // Only tracks that actually carry a cover; otherwise the client would request a guaranteed 404.
+      const coverTrack = sortedTracks.find((track) => track.hasArtwork) ?? null;
 
       return {
         id: albumIdFromName(album, artist),
@@ -366,6 +401,13 @@ async function buildMediaEntries<
       // Metadata unavailable; fall back to filename-based info below.
     }
 
+    let artworkVersion = 0;
+    try {
+      artworkVersion = Math.floor(fs.statSync(filePath).mtimeMs);
+    } catch {
+      // Unreadable stat only costs us cache-busting precision.
+    }
+
     const hasArtwork = Array.isArray(common?.picture) && common.picture.length > 0;
 
     const firstComment = Array.isArray(common?.comment)
@@ -386,6 +428,7 @@ async function buildMediaEntries<
       trackNumber: parseTrackNumber(common?.track),
       comment: firstComment,
       hasArtwork,
+      artworkVersion,
       durationSeconds,
       funscripts: funscriptsByStem.get(stem) ?? [],
       tags: readDescriptionTags(mediaDir, descriptionFilename),

@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import { TAG } from '../../src/server/index';
-import { startTestServer, httpGet, httpGetBuffer } from '../helpers/index';
+import { startTestServer, httpGet, httpGetBuffer, httpPost } from '../helpers/index';
 import type { LibraryResponse } from '../../src/shared/types';
 import pkg from '../../package.json';
 
@@ -118,8 +120,33 @@ test(`${TAG} GET /api/artwork/:id returns image with correct content-type and ca
     const { status, headers, buffer } = await httpGetBuffer(testServer.port, `/api/artwork/${track.id}`);
     assert.equal(status, 200);
     assert.ok(headers['content-type']?.startsWith('image/'), 'Should return image content-type');
-    assert.equal(headers['cache-control'], 'public, max-age=86400', 'Should set cache-control header');
+    assert.equal(headers['cache-control'], 'public, max-age=86400, must-revalidate', 'Unversioned URL should revalidate');
+    assert.ok(headers['etag'], 'Should set an ETag for conditional requests');
     assert.ok(buffer.length > 0, 'Should return image data');
+
+    const versioned = await httpGetBuffer(testServer.port, `/api/artwork/${track.id}?v=${track.artworkVersion}`);
+    assert.equal(versioned.status, 200);
+    assert.equal(versioned.headers['cache-control'], 'public, max-age=31536000, immutable', 'Versioned URL should be immutable');
+    assert.deepEqual(versioned.buffer, buffer, 'Cached response should match the freshly parsed one');
+
+    const conditional = await httpGetBuffer(testServer.port, `/api/artwork/${track.id}`, {
+        headers: { 'If-None-Match': headers['etag'] as string },
+    });
+    assert.equal(conditional.status, 304, 'Matching ETag should produce a 304');
+    assert.equal(conditional.buffer.length, 0, '304 must not carry a body');
+});
+
+test(`${TAG} GET /api/library serves a cached index and POST /api/library/refresh rebuilds it`, async () => {
+    const cacheFile = path.join(testServer.config.configDir, 'cache', 'library.json');
+    assert.ok(fs.existsSync(cacheFile), 'Library index should be persisted under <configDir>/cache');
+
+    const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf-8')) as { fingerprint: string; library: LibraryResponse };
+    assert.ok(cached.fingerprint, 'Snapshot should record a media fingerprint');
+    assert.ok(cached.library.tracks.length > 0, 'Snapshot should contain the scanned tracks');
+
+    const { status, body } = await httpPost(testServer.port, '/api/library/refresh', {});
+    assert.equal(status, 200);
+    assert.deepEqual((body as LibraryResponse).tracks, cached.library.tracks, 'Refresh should reproduce the same tracks');
 });
 
 test(`${TAG} GET /api/media with path traversal returns 404`, async () => {
