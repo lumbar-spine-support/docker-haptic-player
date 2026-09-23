@@ -162,6 +162,34 @@ FUNSCRIPT_SUFFIX_BUTTPLUG: "prostate"
 
 Note that you can also set all YAML-variables as environment variables instead. Environment variables have prescedence over YAML settings. This means you don't need a `/config/` mount, you can also set everything through environment variables in your `docker-compose.yml`.
 
+### Logging
+
+Everything the server logs goes to the docker console, so `docker compose logs -f app` shows the live log. How much is written is controlled by a single setting:
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `LOG_LEVEL` | `info` | One of `error`, `warn`, `info`, `debug`. Each level includes the ones above it. |
+
+At `info` you get the startup summary of the scanned media directory, every login, logout and rejected login attempt, and a line whenever a client connects for the first time:
+
+```
+2026-09-23T22:05:13.150Z INFO  [library] Scanned /media: 42 media files (37 audio, 5 video), 12 with funscripts, 3 playlists, 4 ignored files
+2026-09-23T22:05:31.004Z INFO  [request] Client connected: 192.168.1.24 (Mozilla/5.0 ...)
+2026-09-23T22:05:33.887Z INFO  [auth-route] Successful login from 192.168.1.24 (Mozilla/5.0 ...)
+```
+
+At `debug` the startup summary is followed by one line per media file — with its category and the funscripts found for it — and one line per ignored file including the reason it was skipped. Every HTTP request is logged as well:
+
+```
+2026-09-23T22:05:13.151Z DEBUG [library]   audio album/track01.mp3 (funscripts: stroker, estim/nipples)
+2026-09-23T22:05:13.151Z DEBUG [library]   video clips/demo.mp4 (no funscript)
+2026-09-23T22:05:13.152Z DEBUG [library]   ignored notes.txt (unsupported extension (.txt))
+2026-09-23T22:05:13.152Z DEBUG [library]   ignored raw/take.wav (IGNORE_EXT (.wav))
+2026-09-23T22:05:31.010Z DEBUG [request] 192.168.1.24 GET /api/library -> 200 (7ms)
+```
+
+Set it like any other setting, e.g. `LOG_LEVEL: "debug"` in `settings.yaml` or `LOG_LEVEL=debug` in the environment.
+
 ## Authentication
 
 HAPPY is protected by a single shared password. Nothing — not the page, not the JavaScript bundle, not the API — is served before you sign in. There are no user accounts.

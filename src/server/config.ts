@@ -1,10 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
+import { createLogger, DEFAULT_LOG_LEVEL, isLogLevel, LOG_LEVELS, setLogLevel } from './utils/logger';
 
 export namespace Config {
 
   export const TAG = '[config]';
+
+  const log = createLogger(TAG);
 
   export const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv'];
   export const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'wav', 'flac'];
@@ -20,6 +23,7 @@ export namespace Config {
     password: string;
     configDir: string;
     trustProxy: number;
+    logLevel: string;
     funscriptSuffixSeparator: string;
     funscriptSuffixStroker: string;
     funscriptSuffixButtplug: string;
@@ -83,6 +87,7 @@ export namespace Config {
     password: 'happy',
     configDir: DEFAULT_MOUNT,
     trustProxy: 0,
+    logLevel: DEFAULT_LOG_LEVEL,
     funscriptSuffixSeparator: '.',
     funscriptSuffixStroker: 'stroker',
     funscriptSuffixButtplug: 'buttplug',
@@ -103,6 +108,7 @@ export namespace Config {
     ignoreExt: 'File extensions to ignore (without leading dot)',
     password: 'Web interface access password. Leave empty to disable authentication',
     trustProxy: 'Number of reverse proxy hops to trust for X-Forwarded-* headers. 0 for direct LAN access, 1 behind nginx/Traefik',
+    logLevel: `Verbosity of the console log: ${LOG_LEVELS.join(', ')}`,
     videoSeekInterval: 'Default skip interval in seconds for the seek buttons (TODO: unused)',
     funscriptSuffixSeparator: 'Character that separates filename from funscript suffix',
     funscriptSuffixStroker: 'Suffix for stroker funscript files',
@@ -118,6 +124,7 @@ export namespace Config {
     ignoreExt: 'IGNORE_EXT',
     password: 'PASSWORD',
     trustProxy: 'TRUST_PROXY',
+    logLevel: 'LOG_LEVEL',
     videoSeekInterval: 'VIDEO_SEEK_INTERVAL',
     funscriptSuffixSeparator: 'FUNSCRIPT_SUFFIX_SEPARATOR',
     funscriptSuffixStroker: 'FUNSCRIPT_SUFFIX_STROKER',
@@ -180,7 +187,7 @@ export namespace Config {
       const raw = fs.readFileSync(configPath, 'utf-8')
       loaded = yaml.load(raw) as Record<string, any>;
     } catch (err) {
-      console.warn(`${TAG} Could not load configuration from ${configPath}:`, err);
+      log.warn(`Could not load configuration from ${configPath}:`, err);
       return { server: serverConfig, client: clientConfig };
     }
 
@@ -220,17 +227,17 @@ export namespace Config {
   /** Ensure a configuration file exists by creating it if necessary. */
   function createIfNotExists(configPath: string): void {
     if (fs.existsSync(configPath)) {
-      console.debug(`${TAG} Configuration file found at ${configPath}.`);
+      log.debug(`Configuration file found at ${configPath}.`);
       return;
     }
 
     try {
       fs.mkdirSync(path.dirname(configPath), { recursive: true });
       fs.writeFileSync(configPath, getDefaultSettingsYaml(), 'utf-8');
-      console.debug(`${TAG} Created default configuration file at ${configPath}`);
+      log.debug(`Created default configuration file at ${configPath}`);
       return;
     } catch (err) {
-      console.warn(`${TAG} Could not create default settings file at ${configPath} (mount may be read-only):`, err);
+      log.warn(`Could not create default settings file at ${configPath} (mount may be read-only):`, err);
       return;
     }
   }
@@ -243,7 +250,7 @@ export namespace Config {
     // CONFIG_PATH used to name the YAML file itself; accept that form so existing setups keep working.
     if (/\.ya?ml$/i.test(configured)) {
       const dir = path.dirname(configured);
-      console.warn(`${TAG} CONFIG_PATH should be a directory; using ${dir} instead of the file ${configured}.`);
+      log.warn(`CONFIG_PATH should be a directory; using ${dir} instead of the file ${configured}.`);
       return dir;
     }
 
@@ -252,15 +259,21 @@ export namespace Config {
 
   /** Load and merge settings.yaml with built-in defaults. */
   export function load(): Config {
+    // Applied before anything else so the config loading itself already honours the requested verbosity.
+    setLogLevel(process.env[ENV_NAMES.logLevel]);
+
     const configDir = resolveConfigDir();
     const configPath = settingsFilePath(configDir);
     createIfNotExists(configPath);
     const loaded = loadYml({ ...DEFAULT_SERVER_CONFIG }, { ...DEFAULT_CLIENT_CONFIG }, configPath);
     const envOverridden = loadEnv(loaded.server, loaded.client);
-    return {
-      server: { ...envOverridden.server, configDir },
-      client: envOverridden.client,
-    };
+    const server = { ...envOverridden.server, configDir };
+    if (!isLogLevel(server.logLevel)) {
+      log.warn(`Unknown ${ENV_NAMES.logLevel} "${server.logLevel}", falling back to "${DEFAULT_LOG_LEVEL}". Valid levels: ${LOG_LEVELS.join(', ')}`);
+      server.logLevel = DEFAULT_LOG_LEVEL;
+    }
+    server.logLevel = setLogLevel(String(server.logLevel));
+    return { server, client: envOverridden.client };
   }
 
 }

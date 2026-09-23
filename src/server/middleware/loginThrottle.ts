@@ -3,6 +3,11 @@
 
 import type { Request, RequestHandler } from 'express';
 import { HttpError } from '../utils/errorHandler';
+import { createLogger } from '../utils/logger';
+
+export const TAG = '[login-throttle]';
+
+const log = createLogger(TAG);
 
 export const MAX_ATTEMPTS = 5;
 export const BASE_BLOCK_MS = 60 * 1000;
@@ -46,6 +51,7 @@ export function createLoginThrottle(): LoginThrottle {
             const entry = attempts.get(keyOf(req));
             if (entry && entry.blockedUntil > now) {
                 const retryAfter = Math.ceil((entry.blockedUntil - now) / 1000);
+                log.warn(`Blocked login attempt from ${keyOf(req)}, ${retryAfter}s remaining`);
                 _res.setHeader('Retry-After', String(retryAfter));
                 next(new HttpError(429, `Too many login attempts, retry in ${retryAfter} seconds`));
                 return;
@@ -66,6 +72,7 @@ export function createLoginThrottle(): LoginThrottle {
                 entry.count = 0;
                 entry.blocks += 1;
                 entry.blockedUntil = now + Math.min(BASE_BLOCK_MS * 2 ** (entry.blocks - 1), MAX_BLOCK_MS);
+                log.warn(`${MAX_ATTEMPTS} failed login attempts from ${key}, blocking for ${Math.round((entry.blockedUntil - now) / 1000)}s`);
             }
 
             attempts.set(key, entry);

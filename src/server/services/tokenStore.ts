@@ -4,8 +4,11 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { createLogger } from '../utils/logger';
 
 export const TAG = '[tokens]';
+
+const log = createLogger(TAG);
 
 const TOKEN_BYTES = 32;
 const FILE_MODE = 0o600;
@@ -61,7 +64,7 @@ export function createTokenStore(filePath: string): TokenStore {
             cached = parseTokens(fs.readFileSync(filePath, 'utf-8'));
             cachedMtimeMs = stat.mtimeMs;
         } catch (err) {
-            console.warn(`${TAG} Could not read token file at ${filePath}:`, err);
+            log.warn(`Could not read token file at ${filePath}:`, err);
             cached = [];
             cachedMtimeMs = -1;
         }
@@ -76,7 +79,7 @@ export function createTokenStore(filePath: string): TokenStore {
             cachedMtimeMs = -1;
             return true;
         } catch (err) {
-            console.warn(`${TAG} Could not persist tokens to ${filePath} (mount may be read-only):`, err);
+            log.warn(`Could not persist tokens to ${filePath} (mount may be read-only):`, err);
             return false;
         }
     }
@@ -98,8 +101,8 @@ export function createTokenStore(filePath: string): TokenStore {
             fs.accessSync(dir, fs.constants.W_OK);
         } catch (err) {
             const reason = err instanceof Error ? err.message : String(err);
-            console.warn(
-                `${TAG} ${dir} is not writable (${reason}).\n` +
+            log.warn(
+                `${dir} is not writable (${reason}).\n` +
                 `${TAG} Sessions will be kept in memory only and every restart will require signing in again.\n` +
                 `${TAG} Mount a writable /config volume, or point CONFIG_PATH at a writable directory.`,
             );

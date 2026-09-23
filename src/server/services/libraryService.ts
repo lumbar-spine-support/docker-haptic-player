@@ -5,6 +5,11 @@ import yaml from 'js-yaml';
 import type { AlbumInfo, FunscriptInfo, FunscriptType, LibraryResponse, PlaylistEntry, PlaylistInfo, TrackInfo } from '../../shared/types';
 import { Config } from '../config';
 import { normalizeRelativePath } from '../utils/paths';
+import { createLogger } from '../utils/logger';
+
+export const TAG = '[library]';
+
+const log = createLogger(TAG);
 
 // Funscript type → suffix mapping used for discovery.
 export function buildFunscriptPatterns(config: Config.ServerConfig): Array<{ type: FunscriptType; suffix: string }> {
@@ -118,7 +123,7 @@ function readDirectoryDirents(dir: string): fs.Dirent[] {
   try {
     return fs.readdirSync(dir, { withFileTypes: true });
   } catch (err) {
-    console.error(`[library] Failed to read directory ${dir}:`, err);
+    log.error(`Failed to read directory ${dir}:`, err);
     return [];
   }
 }
@@ -443,7 +448,7 @@ export async function buildLibrary(config: Config.ServerConfig): Promise<Library
   const MEDIA_DIR = config.mediaDir;
 
   if (!fs.existsSync(MEDIA_DIR)) {
-    console.warn(`[library] Media directory not found: ${MEDIA_DIR}`);
+    log.warn(`Media directory not found: ${MEDIA_DIR}`);
     return { tracks: [], videos: [], albums: [], playlists: [] };
   }
 
@@ -480,11 +485,68 @@ export async function buildLibrary(config: Config.ServerConfig): Promise<Library
   const videos = await buildMediaEntries(MEDIA_DIR, videoFiles, 'video', descriptionsByStem, funscriptsByStem, mm);
 
   const allMedia = [...tracks, ...videos];
+  const playlists = buildPlaylists(MEDIA_DIR, allMedia, playlistFiles);
 
   return {
     tracks,
     videos,
     albums: buildAlbums(allMedia),
-    playlists: buildPlaylists(MEDIA_DIR, allMedia, playlistFiles),
+    playlists,
   };
+}
+
+/** Everything in the media directory that is neither playable media nor a companion file. */
+function classifyIgnored(filename: string, ignoredExts: Set<string>): string {
+  const ext = path.extname(filename).toLowerCase();
+  const bare = ext.replace('.', '');
+  if (ignoredExts.has(bare)) return `IGNORE_EXT (.${bare})`;
+  if (ext === FUNSCRIPT_EXT) return 'funscript without media';
+  if (ext === '.md') return 'description without media';
+  if (ext === '.m3u') return 'unreadable playlist';
+  return `unsupported extension (${ext || 'none'})`;
+}
+
+/**
+ * One-line inventory of the media directory, plus a per-file breakdown on debug level.
+ * Walks the directory again (stat only, no metadata parsing) so it also works for a library
+ * that was restored from the cache instead of freshly scanned.
+ */
+export function logLibrarySummary(config: Config.ServerConfig, library: LibraryResponse): void {
+  const mediaDir = config.mediaDir;
+  if (!fs.existsSync(mediaDir)) {
+    log.warn(`Media directory not found: ${mediaDir}`);
+    return;
+  }
+
+  const media = [...library.tracks, ...library.videos];
+  const known = new Set<string>();
+  for (const entry of media) {
+    known.add(entry.filename);
+    if (entry.descriptionFilename) known.add(entry.descriptionFilename);
+    for (const funscript of entry.funscripts) known.add(funscript.filename);
+  }
+  for (const playlist of library.playlists) known.add(playlist.filename);
+
+  const ignoredExts = new Set(config.ignoreExt.map((ext) => ext.toLowerCase()));
+  const ignored = collectFilesRecursively(mediaDir).filter((entry) => !known.has(entry));
+  const audioCount = media.filter((entry) => entry.type === 'audio').length;
+  const videoCount = media.length - audioCount;
+  const withFunscript = media.filter((entry) => entry.funscripts.length > 0).length;
+
+  log.info(
+    `Scanned ${mediaDir}: ${media.length} media files (${audioCount} audio, ${videoCount} video), `
+    + `${withFunscript} with funscripts, ${library.playlists.length} playlists, ${ignored.length} ignored files`
+  );
+
+  if (!log.isDebug()) return;
+
+  for (const entry of media) {
+    const scripts = entry.funscripts.length > 0
+      ? `funscripts: ${entry.funscripts.map((f) => (f.sub ? `${f.type}/${f.sub}` : f.type)).join(', ')}`
+      : 'no funscript';
+    log.debug(`  ${entry.type} ${entry.filename} (${scripts})`);
+  }
+  for (const entry of ignored) {
+    log.debug(`  ignored ${entry} (${classifyIgnored(entry, ignoredExts)})`);
+  }
 }

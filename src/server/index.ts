@@ -12,42 +12,52 @@ import { createAuthMiddleware } from './middleware/auth';
 import { createTokenStore } from './services/tokenStore';
 import { createArtworkCache } from './services/artworkCache';
 import { createLibraryIndex } from './services/libraryIndex';
+import { logLibrarySummary } from './services/libraryService';
+import { createRequestLogger } from './middleware/requestLog';
+import { createLogger } from './utils/logger';
 
 export const TAG = '[server]';
+
+const log = createLogger(TAG);
 
 export function createApp(serverConfig?: Config.ServerConfig): express.Express {
   if (!serverConfig) {
     const fullConfig = Config.load();
     serverConfig = fullConfig.server;
   }
+  const config = serverConfig;
   const app = express();
   // Kept configurable so a direct LAN deployment cannot spoof X-Forwarded-* headers.
-  app.set('trust proxy', serverConfig.trustProxy);
-  const tokenStore = createTokenStore(Config.tokenFilePath(serverConfig.configDir));
-  const artworkCache = createArtworkCache(serverConfig.configDir);
-  const libraryIndex = createLibraryIndex(serverConfig, artworkCache);
-  app.use('/api/auth', createAuthRouter(serverConfig, tokenStore));
-  app.use(createAuthMiddleware(serverConfig, tokenStore));
+  app.set('trust proxy', config.trustProxy);
+  const tokenStore = createTokenStore(Config.tokenFilePath(config.configDir));
+  const artworkCache = createArtworkCache(config.configDir);
+  const libraryIndex = createLibraryIndex(config, artworkCache);
+  app.use(createRequestLogger());
+  app.use('/api/auth', createAuthRouter(config, tokenStore));
+  app.use(createAuthMiddleware(config, tokenStore));
   app.use(express.static(path.join(__dirname, '..', '..', 'public')));
   app.use('/api/library', createLibraryRouter(libraryIndex));
-  app.use('/api/media', createMediaRouter(serverConfig));
-  app.use('/api/artwork', createArtworkRouter(serverConfig, artworkCache));
-  app.use('/api/funscript', createFunscriptRouter(serverConfig));
+  app.use('/api/media', createMediaRouter(config));
+  app.use('/api/artwork', createArtworkRouter(config, artworkCache));
+  app.use('/api/funscript', createFunscriptRouter(config));
   app.use('/api/version', createVersionRouter());
   app.use(errorMiddleware);
 
   // Pay the scan cost at startup instead of on the first visitor's library request.
-  void libraryIndex.get().catch((err) => console.error(`${TAG} Initial library scan failed:`, err));
+  void libraryIndex.get()
+    .then((library) => logLibrarySummary(config, library))
+    .catch((err) => log.error('Initial library scan failed:', err));
 
   return app;
 }
 
 function main() {
   const config = Config.load();
+  log.info(`Log level is "${config.server.logLevel}"`);
   const app = createApp(config.server);
   const port = config.server.port
   app.listen(port, () => {
-    console.log(`${TAG} Listening on http://0.0.0.0:${port}`);
+    log.info(`Listening on http://0.0.0.0:${port}`);
   });
 }
 

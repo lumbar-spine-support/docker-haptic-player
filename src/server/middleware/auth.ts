@@ -4,9 +4,13 @@
 import type { Request, RequestHandler, Response } from 'express';
 import { Config } from '../config';
 import { parseCookies } from '../utils/cookies';
+import { clientAddress } from '../utils/clientAddress';
+import { createLogger } from '../utils/logger';
 import type { TokenStore } from '../services/tokenStore';
 
 export const TAG = '[auth]';
+
+const log = createLogger(TAG);
 
 export const COOKIE_NAME = 'happy_token';
 
@@ -48,18 +52,22 @@ function denyRequest(req: Request, res: Response): void {
         && (req.headers.accept ?? '').includes('text/html');
 
     if (isNavigation) {
+        log.info(`Unauthenticated navigation from ${clientAddress(req)} to ${req.originalUrl}, redirecting to the login page`);
         res.redirect(302, `${LOGIN_PATH}?returnTo=${encodeURIComponent(req.originalUrl)}`);
         return;
     }
 
+    log.debug(`Rejected unauthenticated ${req.method} ${req.originalUrl} from ${clientAddress(req)}`);
     res.status(401).json({ error: 'Authentication required' });
 }
 
 export function createAuthMiddleware(config: Config.ServerConfig, store: TokenStore): RequestHandler {
     if (!config.password) {
-        console.warn(`${TAG} No password configured, authentication is disabled.`);
+        log.warn('No password configured, authentication is disabled.');
         return (_req, _res, next) => next();
     }
+
+    log.info('Password authentication is enabled.');
 
     return (req, res, next) => {
         if (isPublicPath(req.path) || isAuthenticated(req, store)) {

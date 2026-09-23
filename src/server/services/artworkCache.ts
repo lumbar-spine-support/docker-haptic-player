@@ -14,8 +14,11 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { Config } from '../config';
+import { createLogger } from '../utils/logger';
 
 export const TAG = '[artwork-cache]';
+
+const log = createLogger(TAG);
 
 const META_SUFFIX = '.meta';
 const DATA_SUFFIX = '.bin';
@@ -46,7 +49,7 @@ export function createArtworkCache(configDir: string): ArtworkCache {
       fs.mkdirSync(dir, { recursive: true });
       dirReady = true;
     } catch (err) {
-      console.warn(`${TAG} Cannot create ${dir}; serving artwork without a cache:`, err);
+      log.warn(`Cannot create ${dir}; serving artwork without a cache:`, err);
     }
     return dirReady;
   };
@@ -74,7 +77,7 @@ export function createArtworkCache(configDir: string): ArtworkCache {
         if (mime && data) fs.writeFileSync(path.join(dir, `${key}${DATA_SUFFIX}`), data);
         fs.writeFileSync(path.join(dir, `${key}${META_SUFFIX}`), JSON.stringify({ mime: mime ?? null }), 'utf-8');
       } catch (err) {
-        console.warn(`${TAG} Failed to cache artwork ${key}:`, err);
+        log.warn(`Failed to cache artwork ${key}:`, err);
       }
     },
 
@@ -89,10 +92,10 @@ export function createArtworkCache(configDir: string): ArtworkCache {
           removed++;
         }
       } catch (err) {
-        console.warn(`${TAG} Failed to prune ${dir}:`, err);
+        log.warn(`Failed to prune ${dir}:`, err);
         return;
       }
-      if (removed > 0) console.debug(`${TAG} Pruned ${removed} stale artwork cache files`);
+      if (removed > 0) log.debug(`Pruned ${removed} stale artwork cache files`);
     },
   };
 }

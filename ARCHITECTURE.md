@@ -23,6 +23,7 @@ The server is intentionally stateless with respect to playback. All live playbac
   - `/api/auth/login`, `/api/auth/logout`, `/api/auth/status`
 - Serve compiled frontend assets from `public/`
 - Gate every asset and API route behind a valid access token
+- Write a level-filtered log of startup, connection, and authentication events to the docker console
 
 ### Client responsibilities
 
@@ -336,6 +337,37 @@ Buttplug device management lives in `src/client/components/haptic/buttplugClient
 - **Buttplug** browser client for Intiface connectivity
 - **music-metadata** for server-side metadata extraction
 
+## Logging
+
+`src/server/utils/logger.ts` is a process-wide, level-filtered wrapper around `console`. It is a
+module-level singleton rather than an injected dependency because most server modules already log
+while the configuration is still being assembled.
+
+- Levels are `error < warn < info < debug`; `LOG_LEVEL` (YAML or environment) selects the threshold
+- `Config.load()` applies `LOG_LEVEL` from the environment first, so config loading itself already
+  honours the requested verbosity; an unknown name falls back to `info` with a warning
+- Every line is prefixed with an ISO timestamp, the padded level, and the module tag
+- `log.isDebug()` guards the loops that would otherwise build per-file strings that are then discarded
+
+What each level covers:
+
+| Level | Content |
+| --- | --- |
+| `error` | Unhandled request errors, failed initial library scan |
+| `warn` | Missing media directory, read-only config mount, failed logins, throttled clients, authentication disabled |
+| `info` | Listening address, library scan summary (counts per category, funscripts, ignored files), first request of a client, login/logout, redirect to the login page |
+| `debug` | One line per media file and per ignored file, every HTTP request with status and duration, cache hits and rebuilds |
+
+The startup summary is produced by `logLibrarySummary()` in `libraryService.ts` and is emitted by
+`createApp()` once the first `libraryIndex.get()` resolves. It walks the media directory itself
+(stat only, no metadata parsing), so the summary is identical whether the library was freshly
+scanned or restored from `cache/library.json`.
+
+Connection logging lives in `src/server/middleware/requestLog.ts`. Logging every request at `info`
+would drown the log in artwork requests, so `info` is limited to a client (address + user agent)
+that has not been seen for `CLIENT_IDLE_MS`. The same map is swept on that rare path to keep it
+bounded.
+
 ## Directory structure
 
 ```text
@@ -367,4 +399,5 @@ dist/                   Compiled server output
 - `src/server/services/libraryService.ts` performs the raw filesystem scan; it holds no state
 - `src/server/services/libraryIndex.ts` owns caching and staleness detection around that scan
 - `src/server/services/artworkCache.ts` owns the on-disk cover cache, including negative entries
+- `src/server/utils/logger.ts` owns the log level; every server module logs through `createLogger('[tag]')` instead of `console`
 - `src/shared/types.ts` provides shared contracts between server responses and client consumers

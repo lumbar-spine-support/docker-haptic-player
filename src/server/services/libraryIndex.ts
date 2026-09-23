@@ -17,8 +17,11 @@ import type { LibraryResponse } from '../../shared/types';
 import { Config } from '../config';
 import { buildLibrary, computeMediaFingerprint } from './libraryService';
 import type { ArtworkCache } from './artworkCache';
+import { createLogger } from '../utils/logger';
 
 export const TAG = '[library-index]';
+
+const log = createLogger(TAG);
 
 /** Bumped whenever the cached JSON shape changes, so old snapshots are discarded instead of trusted. */
 const CACHE_FORMAT_VERSION = 2;
@@ -86,7 +89,7 @@ export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: A
       fs.writeFileSync(tmp, JSON.stringify(payload), 'utf-8');
       fs.renameSync(tmp, cacheFile);
     } catch (err) {
-      console.warn(`${TAG} Could not persist the library index to ${cacheFile}:`, err);
+      log.warn(`Could not persist the library index to ${cacheFile}:`, err);
     }
   };
 
@@ -109,7 +112,7 @@ export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: A
       writeCacheFile(snapshot);
       pruneArtwork(library);
       const count = library.tracks.length + library.videos.length;
-      console.debug(`${TAG} Indexed ${count} media files in ${Date.now() - started}ms`);
+      log.debug(`Indexed ${count} media files in ${Date.now() - started}ms`);
       return library;
     })().finally(() => {
       inflight = null;
@@ -127,14 +130,14 @@ export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: A
 
       if (snapshot) {
         if (snapshot.fingerprint === current) return snapshot.library;
-        console.debug(`${TAG} Media directory changed; rebuilding index`);
+        log.info('Media directory changed; rebuilding index');
         return build(current);
       }
 
       const persisted = readCacheFile();
       if (persisted && persisted.fingerprint === current) {
         snapshot = persisted;
-        console.debug(`${TAG} Restored library index from ${cacheFile}`);
+        log.debug(`Restored library index from ${cacheFile}`);
         return persisted.library;
       }
 

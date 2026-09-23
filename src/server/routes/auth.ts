@@ -5,8 +5,12 @@ import { HttpError } from '../utils/errorHandler';
 import { createLoginThrottle } from '../middleware/loginThrottle';
 import { COOKIE_NAME, COOKIE_MAX_AGE_MS, cookieOptions, isAuthenticated, readToken } from '../middleware/auth';
 import type { TokenStore } from '../services/tokenStore';
+import { clientAddress, clientUserAgent } from '../utils/clientAddress';
+import { createLogger } from '../utils/logger';
 
 export const TAG = '[auth-route]';
+
+const log = createLogger(TAG);
 
 function matchesPassword(expected: string, received: unknown): boolean {
     if (typeof received !== 'string') return false;
@@ -39,11 +43,13 @@ export function createAuthRouter(config: Config.ServerConfig, store: TokenStore)
 
         if (!matchesPassword(config.password, req.body?.password)) {
             throttle.recordFailure(req);
+            log.warn(`Failed login from ${clientAddress(req)} (${clientUserAgent(req)})`);
             throw new HttpError(401, 'Invalid password');
         }
 
         throttle.reset(req);
         const token = store.issue(String(req.headers['user-agent'] ?? 'unknown'));
+        log.info(`Successful login from ${clientAddress(req)} (${clientUserAgent(req)})`);
         res.cookie(COOKIE_NAME, token, { ...cookieOptions(req), maxAge: COOKIE_MAX_AGE_MS });
         res.json({ ok: true });
     });
@@ -51,6 +57,7 @@ export function createAuthRouter(config: Config.ServerConfig, store: TokenStore)
     router.post('/logout', (req, res) => {
         const token = readToken(req);
         if (token) store.revoke(token);
+        log.info(`Logout from ${clientAddress(req)} (${clientUserAgent(req)})`);
         res.clearCookie(COOKIE_NAME, cookieOptions(req));
         res.setHeader('Cache-Control', 'no-store');
         res.json({ ok: true });

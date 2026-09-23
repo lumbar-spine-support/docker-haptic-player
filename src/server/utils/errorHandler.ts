@@ -1,6 +1,9 @@
 // Central error handler for Express 5. Maps errors to consistent { error } responses.
 
 import type { Request, Response, NextFunction } from 'express';
+import { createLogger } from './logger';
+
+const log = createLogger('[server-error]');
 
 // HTTP errors explicitly thrown by route handlers.
 export class HttpError extends Error {
@@ -20,11 +23,12 @@ export function errorMiddleware(
   _next: NextFunction,
 ): void {
   if (err instanceof HttpError) {
+    log.debug(`${err.status} ${err.message}`);
     res.status(err.status).json({ error: err.message });
     return;
   }
 
   // Log unexpected errors, but don't leak details to client.
-  console.error('[server error]', err);
+  log.error(err);
   res.status(500).json({ error: 'Internal server error' });
 }

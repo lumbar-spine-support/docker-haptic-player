@@ -5,6 +5,7 @@ import os from 'os';
 import path from 'path';
 
 import { Config } from '../../src/server/config';
+import { DEFAULT_LOG_LEVEL, getLogLevel } from '../../src/server/utils/logger';
 
 const TAG = Config.TAG;
 const DEFAULTS = Config.DEFAULTS;
@@ -94,5 +95,21 @@ test(`${TAG} load both from environment variables and settings.yaml`, async () =
         assert.equal(config.server.password, 'envpassword');
         assert.equal(config.client.videoSeekInterval, DEFAULTS.videoSeekInterval);
         delete process.env.PASSWORD;
+    });
+});
+
+test(`${TAG} LOG_LEVEL is applied to the logger and invalid values fall back to the default`, async () => {
+    await withConfigPath((configPath) => {
+        fs.writeFileSync(configPath, 'LOG_LEVEL: debug\n', 'utf-8');
+        assert.equal(Config.load().server.logLevel, 'debug');
+        assert.equal(getLogLevel(), 'debug');
+
+        process.env.LOG_LEVEL = 'chatty';
+        try {
+            assert.equal(Config.load().server.logLevel, DEFAULT_LOG_LEVEL);
+            assert.equal(getLogLevel(), DEFAULT_LOG_LEVEL);
+        } finally {
+            delete process.env.LOG_LEVEL;
+        }
     });
 });
