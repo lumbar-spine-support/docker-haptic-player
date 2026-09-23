@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.4.0...docker-haptic-player-v0.5.0) (2026-09-23)
+
+
+### Features
+
+* authentication layer ([10bcd14](https://github.com/lumbar-spine-support/docker-haptic-player/commit/10bcd14f6c4f53bcb4dd1271a1dd57323b09427e))
+
 ## [0.4.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.3.1...docker-haptic-player-v0.4.0) (2026-09-22)
 
 
