@@ -80,6 +80,8 @@ export async function fetchVersion(): Promise<VersionInfo> {
 export interface ClientConfig {
   videoSeekInterval: number;
   dglabEnabled: boolean;
+  /** LAN addresses of the server, for suggesting a reachable pairing address. */
+  serverHosts?: string[];
 }
 
 /** Fetches the client-facing configuration; server-only settings are never exposed. */

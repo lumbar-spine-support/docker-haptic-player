@@ -1,11 +1,11 @@
-import { fetchFunscript, fetchTrackDescription, fetchVersion, fetchAuthStatus, fetchClientConfig, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
+import { fetchFunscript, fetchTrackDescription, fetchVersion, fetchAuthStatus, fetchClientConfig, copyText, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
 import { bindDragOnlyRange, syncRangeFill } from './utils/rangeSlider';
 import { resetScrollPosition } from '../shared/scroll';
 import { PlaybackSession, PlaybackQueue, PlaybackController } from './components/player';
 import type { PlayerFooterElement } from './components/player';
 import { ButtplugClientManager } from './components/haptic/buttplugClient';
 import { HapticBackendRegistry } from './components/haptic/backendRegistry';
-import { CoyoteBackend, isLoopbackHost } from './components/haptic/dglab/coyoteBackend';
+import { CoyoteBackend } from './components/haptic/dglab/coyoteBackend';
 import { pairingDeepLink } from './components/haptic/dglab/protocol';
 import { FunscriptSync } from './components/funscriptSync';
 import { DeviceStatus } from './components/haptic/deviceStatus';
@@ -416,28 +416,27 @@ class App {
    */
   private async initDglab(): Promise<void> {
     const section = document.getElementById('dglab-section');
-    let enabled = false;
+    let config: Awaited<ReturnType<typeof fetchClientConfig>> | null = null;
     try {
-      enabled = (await fetchClientConfig()).dglabEnabled;
+      config = await fetchClientConfig();
     } catch {
-      enabled = false;
+      config = null;
     }
 
-    if (!enabled) {
+    if (!config?.dglabEnabled) {
       section?.remove();
       return;
     }
 
     const coyote = new CoyoteBackend();
+    coyote.setServerHosts(config.serverHosts ?? []);
     this.haptics.add(coyote);
 
     const statusEl = document.getElementById('dglab-status');
     const connectBtn = document.getElementById('btn-dglab-connect') as HTMLButtonElement | null;
     const pairingEl = document.getElementById('dglab-pairing');
     const linkEl = document.getElementById('dglab-pair-link') as HTMLAnchorElement | null;
-    const urlEl = document.getElementById('dglab-pair-url') as HTMLInputElement | null;
     const hostEl = document.getElementById('dglab-host') as HTMLInputElement | null;
-    const hintEl = document.getElementById('dglab-pair-hint');
     const copyBtn = document.getElementById('btn-dglab-copy');
 
     const sync = (): void => {
@@ -461,15 +460,7 @@ class App {
       const url = coyote.pairingUrl;
       pairingEl?.classList.toggle('d-none', !url || paired);
       if (url && linkEl) linkEl.href = pairingDeepLink(url);
-      if (url && urlEl) urlEl.value = url;
       if (hostEl && document.activeElement !== hostEl) hostEl.value = coyote.pairingHost;
-      if (hintEl) {
-        const loopback = isLoopbackHost(coyote.pairingHost);
-        hintEl.classList.toggle('text-warning', loopback);
-        hintEl.textContent = loopback
-          ? 'The DG-Lab app runs on your phone and cannot reach this address. Replace it with this machine\u2019s LAN IP, e.g. 192.168.1.10:3000.'
-          : 'Tap the button on the phone running the DG-Lab app, or type the address into it manually.';
-      }
     };
 
     coyote.onStateChange(() => sync());
@@ -482,9 +473,16 @@ class App {
     });
 
     copyBtn?.addEventListener('click', () => {
-      if (!urlEl) return;
-      void navigator.clipboard?.writeText(urlEl.value).catch(() => undefined);
-      urlEl.select();
+      const url = coyote.pairingUrl;
+      if (!url) return;
+      void copyText(url).then((copied) => {
+        copyBtn.innerHTML = copied
+          ? '<i class="bi bi-check-lg" aria-hidden="true"></i>Copied'
+          : '<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Copy failed';
+        window.setTimeout(() => {
+          copyBtn.innerHTML = '<i class="bi bi-copy" aria-hidden="true"></i>Copy URL';
+        }, 1500);
+      });
     });
 
     hostEl?.addEventListener('change', () => {

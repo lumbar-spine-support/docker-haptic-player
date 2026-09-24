@@ -39,8 +39,9 @@ function nextClose(ws: WebSocket): Promise<number> {
 
 async function withRelay(
     fn: (ctx: { port: number; token: string }) => Promise<void>,
+    createAppFn?: (config: import('../../src/server/config').Config.ServerConfig) => import('../../src/server/index').HappyApp,
 ): Promise<void> {
-    const server = await startTestServer(undefined, undefined, { dglabEnabled: true });
+    const server = await startTestServer(createAppFn, undefined, { dglabEnabled: true });
     try {
         await fn({ port: server.port, token: server.token });
     } finally {
@@ -122,6 +123,29 @@ test(`${TAG} lets a second connection from the same client take over its apps`, 
     });
 });
 
+test(`${TAG} lets an app pair while the controller tab is backgrounded`, async () => {
+    await withRelay(async ({ port, token }) => {
+        const controller = open(port, '', token);
+        const { clientId: tid } = await nextFrame(controller, 'hello');
+
+        // Mobile Chrome closes the socket when the user switches to the DG-Lab app.
+        controller.close();
+        await nextClose(controller);
+
+        const app = open(port, `?tid=${tid as string}`, null);
+        const attached = await nextFrame(app, 'controller_attached');
+        assert.equal(attached.clientId, tid);
+
+        // Returning to the tab reconnects and picks the app up.
+        const resumed = open(port, '', token);
+        const seen = await nextFrame(resumed, 'client_attached');
+        assert.equal(typeof seen.clientId, 'string');
+
+        resumed.close();
+        app.close();
+    });
+});
+
 test(`${TAG} attaches an app that presents a known tid and notifies both sides`, async () => {
     await withRelay(async ({ port, token }) => {
         const controller = open(port, '', token);
@@ -173,7 +197,13 @@ test(`${TAG} relays opaque payloads in both directions, stamping the sender id`,
     });
 });
 
-test(`${TAG} closes attached apps when the controller goes away`, async () => {
+test(`${TAG} closes attached apps once the controller's grace period expires`, async () => {
+    const { createApp } = await import('../../src/server/index');
+    const { createDglabRelay } = await import('../../src/server/services/dglabRelay');
+    const { createTokenStore } = await import('../../src/server/services/tokenStore');
+    const { Config } = await import('../../src/server/config');
+
+    // A controller that never comes back must not pin its apps open forever.
     await withRelay(async ({ port, token }) => {
         const controller = open(port, '', token);
         const { clientId: tid } = await nextFrame(controller, 'hello');
@@ -183,6 +213,11 @@ test(`${TAG} closes attached apps when the controller goes away`, async () => {
         controller.close();
         const code = await nextClose(app);
         assert.equal(code, CLOSE_CONTROLLER_DISCONNECTED);
+    }, (config) => {
+        const app = createApp(config, { ...Config.DEFAULT_CLIENT_CONFIG, dglabEnabled: true });
+        app.dglabRelay?.close();
+        app.dglabRelay = createDglabRelay(createTokenStore(Config.tokenFilePath(config.configDir)), 50);
+        return app;
     });
 });
 

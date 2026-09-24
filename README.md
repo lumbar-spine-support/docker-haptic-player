@@ -59,13 +59,16 @@ does not exist and the settings section is not rendered at all.
 Pairing:
 
 1. Open HAPPY and the settings sidebar, then press **Enable** in the DG-Lab section.
-2. Check the address shown. It defaults to the host you loaded HAPPY from, which is wrong when
-   HAPPY runs on a desktop browser at `localhost` — the phone cannot reach that. Replace it with
-   the machine's LAN IP (e.g. `192.168.1.10:3000`); the value is remembered.
-3. On the phone running the DG-Lab 4 app, tap **Open in DG-Lab app**. If HAPPY is open on a
-   desktop browser instead, copy the shown `ws://…` address and enter it in the app by hand.
-4. Once the app attaches, the Coyote's two channels appear in Device Assignment and can be
+2. On the phone running the DG-Lab 4 app, tap **Open DG-Lab**. If HAPPY is open on a desktop
+   browser instead, press **Copy URL** and enter that address in the app by hand.
+3. Once the app attaches, the Coyote's two channels appear in Device Assignment and can be
    assigned to any funscript, exactly like an Intiface actuator.
+
+The address field is filled in automatically: it uses the host you loaded HAPPY from, falling
+back to a LAN address reported by the server when that is `localhost`. `localhost` is never
+usable here, because to the phone it means the phone itself. The automatic value can be wrong
+when the server runs in a container on a bridge network — it then sees only the container's
+address — so the field stays editable and whatever you type is remembered.
 
 > **Safety:** set your comfort limits in the DG-Lab app before assigning a script. Output stops
 > within ~300 ms whenever playback pauses, the tab closes, or the connection drops.

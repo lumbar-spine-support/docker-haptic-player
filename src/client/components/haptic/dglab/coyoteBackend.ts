@@ -189,6 +189,8 @@ export class CoyoteBackend implements HapticBackend {
   private lastStateKey = '';
   /** Empty means "use the browser's own host". */
   private hostOverride = '';
+  /** Server-reported LAN address, used when the browser's own host is loopback. */
+  private suggestedHost = '';
 
   masterStrength = 1.0;
   /** The Coyote has no linear actuator; kept only to satisfy the interface. */
@@ -224,17 +226,27 @@ export class CoyoteBackend implements HapticBackend {
   /**
    * Host the DG-Lab app should dial.
    *
-   * Defaults to the host HAPPY was loaded from, which is wrong whenever the app
-   * runs on a different device than the browser — a desktop on `localhost`, or a
-   * reverse proxy on a name the phone cannot resolve — so it stays overridable.
+   * The browser's own host is right whenever HAPPY was opened over the network,
+   * but is useless when it was opened on the server itself: `localhost` there
+   * means the phone, not the server. In that case a LAN address reported by the
+   * server is suggested instead.
    */
   get pairingHost(): string {
-    return this.hostOverride || window.location.host;
+    if (this.hostOverride) return this.hostOverride;
+    const own = window.location.host;
+    if (!isLoopbackHost(own)) return own;
+    return this.suggestedHost || own;
+  }
+
+  /** LAN addresses reported by the server, used only when the browser is on it. */
+  setServerHosts(hosts: readonly string[]): void {
+    const port = window.location.port ? `:${window.location.port}` : '';
+    this.suggestedHost = hosts.map((host) => `${host}${port}`).find((host) => !isLoopbackHost(host)) ?? '';
   }
 
   setPairingHost(host: string): void {
     const normalized = normalizeHost(host);
-    this.hostOverride = normalized === window.location.host ? '' : normalized;
+    this.hostOverride = normalized === this.pairingHost ? '' : normalized;
     this.persist();
   }
 

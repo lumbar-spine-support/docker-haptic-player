@@ -15,6 +15,11 @@ point. The relay is a dumb passthrough: it pairs one controller with one or more
 forwards opaque payloads. It never parses a device command, so all haptic logic still lives in
 the browser and all safety limits still live in the DG-Lab app.
 
+A controller's id is derived from its access token rather than being random, so the pairing URL
+survives reloads. Its slot also outlives its socket by a grace period: switching to the DG-Lab
+app backgrounds the browser and mobile Chrome may close the WebSocket, so the relay holds the
+slot, accepts the app that arrives meanwhile, and hands it to the tab when it returns.
+
 ## High-level system architecture
 
 ### Server responsibilities

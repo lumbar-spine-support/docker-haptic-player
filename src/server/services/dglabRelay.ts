@@ -24,6 +24,15 @@ export const DGLAB_WS_PATH = '/ws/dglab';
 const HEARTBEAT_INTERVAL_MS = 30_000;
 /** A controller nobody ever paired with is a forgotten browser tab; reclaim it. */
 export const IDLE_TIMEOUT_MS = 5 * 60_000;
+/**
+ * How long a controller's slot outlives its socket.
+ *
+ * Switching to the DG-Lab app backgrounds the browser, and mobile Chrome may
+ * close the WebSocket while it is hidden. Evicting the controller immediately
+ * would make the `tid` the user is about to paste unknown, so the slot is kept
+ * and the reconnecting tab picks up whatever attached meanwhile.
+ */
+export const DETACH_GRACE_MS = 5 * 60_000;
 const MAX_CONTROLLERS = 8;
 const MAX_APPS_PER_CONTROLLER = 4;
 /** Guards against a peer streaming junk; real frames are a few hundred bytes. */
@@ -35,9 +44,11 @@ export const CLOSE_IDLE_TIMEOUT = 4002;
 
 interface Controller {
   id: string;
-  socket: WebSocket;
+  /** Null while the browser tab is backgrounded, reloading or otherwise away. */
+  socket: WebSocket | null;
   apps: Set<string>;
   idleTimer: NodeJS.Timeout | null;
+  graceTimer: NodeJS.Timeout | null;
 }
 
 interface AppConn {
@@ -53,8 +64,8 @@ export interface DglabRelay {
   readonly controllerCount: number;
 }
 
-function send(socket: WebSocket, frame: unknown): void {
-  if (socket.readyState !== WebSocket.OPEN) return;
+function send(socket: WebSocket | null, frame: unknown): void {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
   socket.send(JSON.stringify(frame));
 }
 
@@ -95,7 +106,7 @@ function clientSeed(req: IncomingMessage, tokenStore: TokenStore | null): { seed
  * Creates the relay. `tokenStore` is null when authentication is disabled, in
  * which case controllers are accepted without a cookie.
  */
-export function createDglabRelay(tokenStore: TokenStore | null): DglabRelay {
+export function createDglabRelay(tokenStore: TokenStore | null, graceMs = DETACH_GRACE_MS): DglabRelay {
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_FRAME_BYTES });
   const controllers = new Map<string, Controller>();
   const apps = new Map<string, AppConn>();
@@ -112,13 +123,14 @@ export function createDglabRelay(tokenStore: TokenStore | null): DglabRelay {
     controller.idleTimer = setTimeout(() => {
       if (controller.apps.size > 0) return;
       send(controller.socket, { type: 'idle_timeout' });
-      controller.socket.close(CLOSE_IDLE_TIMEOUT, 'idle_timeout');
+      controller.socket?.close(CLOSE_IDLE_TIMEOUT, 'idle_timeout');
     }, IDLE_TIMEOUT_MS);
     controller.idleTimer.unref?.();
   }
 
   function dropController(controller: Controller): void {
     if (controller.idleTimer) clearTimeout(controller.idleTimer);
+    if (controller.graceTimer) clearTimeout(controller.graceTimer);
     // A reconnect under the same id already replaced this entry; leave its apps alone.
     if (controllers.get(controller.id) !== controller) return;
     controllers.delete(controller.id);
@@ -129,6 +141,18 @@ export function createDglabRelay(tokenStore: TokenStore | null): DglabRelay {
       app.socket.close(CLOSE_CONTROLLER_DISCONNECTED, 'controller_disconnected');
     }
     controller.apps.clear();
+  }
+
+  /** Socket lost, but the slot is kept so a returning tab can resume pairing. */
+  function detachController(controller: Controller): void {
+    if (controllers.get(controller.id) !== controller) return;
+    if (controller.idleTimer) clearTimeout(controller.idleTimer);
+    controller.idleTimer = null;
+    controller.socket = null;
+    if (controller.graceTimer) clearTimeout(controller.graceTimer);
+    controller.graceTimer = setTimeout(() => dropController(controller), graceMs);
+    controller.graceTimer.unref?.();
+    log.debug(`Controller ${controller.id} detached, holding its slot`);
   }
 
   function dropApp(app: AppConn): void {
@@ -165,10 +189,19 @@ export function createDglabRelay(tokenStore: TokenStore | null): DglabRelay {
     }
 
     // Reconnecting under the same id inherits the apps that are still paired.
-    const controller: Controller = { id, socket, apps: previous?.apps ?? new Set(), idleTimer: null };
-    if (previous) previous.apps = new Set();
+    const controller: Controller = {
+      id,
+      socket,
+      apps: previous?.apps ?? new Set(),
+      idleTimer: null,
+      graceTimer: null,
+    };
+    if (previous) {
+      if (previous.graceTimer) clearTimeout(previous.graceTimer);
+      previous.apps = new Set();
+    }
     controllers.set(id, controller);
-    if (previous) previous.socket.close(CLOSE_CONTROLLER_DISCONNECTED, 'replaced');
+    if (previous?.socket) previous.socket.close(CLOSE_CONTROLLER_DISCONNECTED, 'replaced');
 
     send(socket, { type: 'hello', clientId: controller.id });
     for (const appId of controller.apps) send(socket, { type: 'client_attached', clientId: appId });
@@ -197,9 +230,9 @@ export function createDglabRelay(tokenStore: TokenStore | null): DglabRelay {
 
     socket.on('close', () => {
       log.debug(`Controller ${controller.id} disconnected`);
-      dropController(controller);
+      detachController(controller);
     });
-    socket.on('error', () => dropController(controller));
+    socket.on('error', () => detachController(controller));
   }
 
   function attachApp(socket: WebSocket, controllerId: string): void {
@@ -287,7 +320,7 @@ export function createDglabRelay(tokenStore: TokenStore | null): DglabRelay {
     close() {
       clearInterval(heartbeat);
       for (const controller of [...controllers.values()]) {
-        controller.socket.close();
+        controller.socket?.close();
         dropController(controller);
       }
       for (const app of [...apps.values()]) app.socket.close();
