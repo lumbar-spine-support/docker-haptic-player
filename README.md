@@ -73,6 +73,11 @@ Pairing:
 Both channels must be **unmuted in the DG-Lab app**; a muted channel accepts commands and
 stays silent. The channel labels in Device Assignment show the current mute state and limit.
 
+The pairing address is stable per client: the relay derives the controller id from your access
+token, so reloading the page or restarting the server keeps the same URL and the app stays
+paired. With authentication disabled there is no token, so the id falls back to the client's
+network address and every browser on that host shares one pairing URL.
+
 To trace the wire protocol when something misbehaves, set `localStorage['happy-dglab-debug'] =
 'true'` in the browser console and reload. Warnings and rejected commands are always logged.
 

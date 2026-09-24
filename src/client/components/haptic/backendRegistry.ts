@@ -2,8 +2,11 @@ import type { HapticChannel } from '../../../shared/haptics';
 import type {
   AssignmentListener,
   ConnectionState,
+  DeviceAlert,
+  DeviceBadge,
   DeviceFeature,
   DeviceListener,
+  FeatureDetail,
   HapticBackend,
   HapticDevice,
   StateListener,
@@ -21,6 +24,7 @@ export class HapticBackendRegistry implements HapticBackend {
   private readonly stateListeners: StateListener[] = [];
   private readonly deviceListeners: DeviceListener[] = [];
   private readonly assignmentListeners: AssignmentListener[] = [];
+  private readonly deviceStateListeners: Array<() => void> = [];
 
   private strength = 1.0;
   private rangeMin = 0;
@@ -36,11 +40,15 @@ export class HapticBackendRegistry implements HapticBackend {
     backend.onStateChange(() => this.emitState());
     backend.onDevicesChange(() => this.emitDevices());
     backend.onAssignmentsChange(() => this.emitAssignments());
+    backend.onDeviceStateChange?.(() => {
+      for (const l of this.deviceStateListeners) l();
+    });
   }
 
   onStateChange(listener: StateListener): void { this.stateListeners.push(listener); }
   onDevicesChange(listener: DeviceListener): void { this.deviceListeners.push(listener); }
   onAssignmentsChange(listener: AssignmentListener): void { this.assignmentListeners.push(listener); }
+  onDeviceStateChange(listener: () => void): void { this.deviceStateListeners.push(listener); }
 
   /** Connected as soon as any backend is; the UI then keys off per-channel assignment. */
   get connectionState(): ConnectionState {
@@ -86,6 +94,20 @@ export class HapticBackendRegistry implements HapticBackend {
   setCarrierFrequency(deviceName: string, frequency: number): void {
     const owner = this.backends.find((b) => b.devices.some((d) => d.name === deviceName));
     owner?.setCarrierFrequency?.(deviceName, frequency);
+  }
+
+  getDeviceBadge(deviceName: string): DeviceBadge | null {
+    const owner = this.backends.find((b) => b.devices.some((d) => d.name === deviceName));
+    return owner?.getDeviceBadge?.(deviceName) ?? null;
+  }
+
+  getDeviceAlerts(deviceName: string): DeviceAlert[] {
+    const owner = this.backends.find((b) => b.devices.some((d) => d.name === deviceName));
+    return owner?.getDeviceAlerts?.(deviceName) ?? [];
+  }
+
+  getFeatureDetails(featureId: string): FeatureDetail[] {
+    return this.ownerOfFeature(featureId)?.getFeatureDetails?.(featureId) ?? [];
   }
 
   setFeatureChannel(featureId: string, channel: HapticChannel | null): void {

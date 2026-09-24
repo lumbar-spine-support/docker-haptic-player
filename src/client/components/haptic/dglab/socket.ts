@@ -315,7 +315,8 @@ export class DglabV4Socket {
 
   private applySnapshot(payload: unknown): void {
     const devices = parseDeviceList(payload);
-    trace('[dglab] raw device list:', JSON.stringify(payload));
+    // Logged as a live object so devtools renders an expandable tree, not one long string.
+    trace('[dglab] raw device list:', payload);
     if (devices.length === 0) console.warn('[dglab] no devices found in the app payload');
     else trace('[dglab] devices', devices.map((d) => `${d.id} (${d.type})`));
     this.deviceCache.clear();
@@ -345,7 +346,7 @@ export class DglabV4Socket {
     for (const entry of slots) {
       const patch = entry && typeof entry === 'object' ? (entry as Record<string, unknown>) : null;
       const slotId = patch?.slotId;
-      if (typeof slotId !== 'string') continue;
+      if (!patch || typeof slotId !== 'string') continue;
       const device = this.deviceCache.get(slotId);
       if (!device) continue;
 

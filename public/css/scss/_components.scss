@@ -184,6 +184,33 @@
   }
 }
 
+.device-card-badge {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+// Fixed width keeps every channel's dropdown aligned regardless of label length.
+// The themed `.btn` forces `justify-content: center !important` and is emitted after
+// this file, so overriding it needs both higher specificity and `!important`.
+.device-feature .device-feature-toggle {
+  flex: 0 0 8rem;
+  min-width: 0;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+.device-feature-chevron {
+  transition: transform 0.15s ease;
+}
+
+[aria-expanded='true']>.device-feature-chevron {
+  transform: rotate(90deg);
+}
+
+.device-feature-details {
+  padding: 0.25rem 0 0.5rem 1.4rem;
+}
+
 .device-role-icon-stroker {
   -webkit-mask-image: url('/img/icon-stroker.svg');
   mask-image: url('/img/icon-stroker.svg');

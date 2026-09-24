@@ -194,7 +194,8 @@ export namespace Config {
       const raw = fs.readFileSync(configPath, 'utf-8')
       loaded = yaml.load(raw) as Record<string, any>;
     } catch (err) {
-      log.warn(`Could not load configuration from ${configPath}:`, err);
+      // Every setting in the file is discarded here, so this must not look routine.
+      log.error(`Could not load configuration from ${configPath}, falling back to defaults:`, err);
       return { server: serverConfig, client: clientConfig };
     }
 

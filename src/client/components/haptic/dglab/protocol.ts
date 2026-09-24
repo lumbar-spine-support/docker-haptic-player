@@ -48,12 +48,18 @@ export interface V4ChannelState {
 export interface V4SlotState {
   channelA?: V4ChannelState;
   channelB?: V4ChannelState;
+  /** Colour of the slot marker shown in the app. */
+  markLight?: string;
+  /** False while the slot is configured in the app but no hardware is connected. */
+  hasDevice?: boolean;
   [key: string]: unknown;
 }
 
 export interface V4Device {
   /** Slot id used as `s` in every `device.op`. */
   id: string;
+  /** The app's own slot number, shown in its UI. Distinct from `id`. */
+  index?: number;
   type: string;
   props?: {
     power?: number;
@@ -181,6 +187,7 @@ export function parseDevice(value: unknown): V4Device | null {
   if (typeof id !== 'string' || id.length === 0) return null;
   return {
     id,
+    index: typeof record.id === 'number' ? record.id : undefined,
     type: typeof record.type === 'string' ? record.type : 'unknown',
     props: asRecord(record.props) ?? undefined,
     slotState: asRecord(record.slotState) ?? asRecord(record.state) ?? undefined,

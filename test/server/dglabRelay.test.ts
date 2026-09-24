@@ -84,6 +84,44 @@ test(`${TAG} greets an authenticated controller with a client id`, async () => {
     });
 });
 
+test(`${TAG} hands the same client the same id on every reconnect`, async () => {
+    await withRelay(async ({ port, token }) => {
+        const first = open(port, '', token);
+        const { clientId: before } = await nextFrame(first, 'hello');
+        first.close();
+        await nextClose(first);
+
+        // A fresh id each time would change the pairing URL and force a re-pair.
+        const second = open(port, '', token);
+        const { clientId: after } = await nextFrame(second, 'hello');
+        assert.equal(after, before);
+        second.close();
+    });
+});
+
+test(`${TAG} lets a second connection from the same client take over its apps`, async () => {
+    await withRelay(async ({ port, token }) => {
+        const controller = open(port, '', token);
+        const { clientId: tid } = await nextFrame(controller, 'hello');
+        const app = open(port, `?tid=${tid as string}`, null);
+        const { clientId: appId } = await nextFrame(app, 'hello');
+        await nextFrame(controller, 'client_attached');
+
+        // Opened while the first is still up, which is what a reconnect after a
+        // network blip looks like: the relay has not seen the old socket close yet.
+        const reconnected = open(port, '', token);
+        const attached = await nextFrame(reconnected, 'client_attached');
+
+        assert.equal(attached.clientId, appId);
+        // Superseding the controller must not disconnect the paired app.
+        assert.equal(app.readyState, WebSocket.OPEN);
+
+        reconnected.close();
+        app.close();
+        controller.close();
+    });
+});
+
 test(`${TAG} attaches an app that presents a known tid and notifies both sides`, async () => {
     await withRelay(async ({ port, token }) => {
         const controller = open(port, '', token);

@@ -303,7 +303,7 @@
           <span>Intiface</span>
           <span id="intiface-status" class="badge bg-secondary">Disconnected</span>
         </div>
-        <div class="input-group">
+        <div class="input-group input-group-sm">
           <span class="input-group-text bg-dark text-light border-secondary">ws://</span>
           <input id="intiface-address" type="text" class="form-control form-control-sm border-secondary"
             value="localhost:12345" placeholder="localhost:12345" aria-label="Intiface websocket host and port" />
@@ -313,7 +313,8 @@
 
       <div class="settings-section" id="dglab-section">
         <div class="d-flex align-items-center gap-2 mb-2">
-          <span>DG-Lab Coyote</span>
+          <span>DG-Lab Socket Control</span>
+          <span id="dglab-socket-version" class="badge bg-secondary">v4</span>
           <span id="dglab-status" class="badge bg-secondary">Disconnected</span>
         </div>
         <button id="btn-dglab-connect" class="btn btn-sm btn-outline-primary w-100 mb-2" type="button">Enable</button>

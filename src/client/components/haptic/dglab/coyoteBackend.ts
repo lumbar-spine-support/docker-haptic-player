@@ -3,8 +3,11 @@ import {
   clamp01,
   type AssignmentListener,
   type ConnectionState,
+  type DeviceAlert,
+  type DeviceBadge,
   type DeviceFeature,
   type DeviceListener,
+  type FeatureDetail,
   type HapticBackend,
   type HapticDevice,
   type StateListener,
@@ -52,6 +55,24 @@ const STATUS_NO_CIRCUIT = 1;
 const STATUS_DAMAGED = 3;
 const STATUS_MASKED = 4;
 
+/**
+ * Full-scale strength of a Coyote channel.
+ *
+ * The app shows limits against this scale but never reports it, so it is fixed
+ * here to give `intensityMax` a denominator.
+ */
+const ABSOLUTE_SCALE = 200;
+
+/** Slot marker colours the app uses; anything else is ignored rather than injected as CSS. */
+const MARK_LIGHT_COLORS: Record<string, string> = {
+  yellow: '#ffc107',
+  green: '#198754',
+  red: '#dc3545',
+  purple: '#a855f7',
+  blue: '#0d6efd',
+  cyan: '#0dcaf0',
+};
+
 interface CoyoteChannelRef {
   device: V4Device;
   channel: V4ChannelId;
@@ -97,6 +118,17 @@ export function channelCeiling(device: V4Device, channel: V4ChannelId): number {
 /** A muted channel accepts commands but emits nothing, which looks like a bug from the UI. */
 export function isChannelMuted(device: V4Device, channel: V4ChannelId): boolean {
   return channelState(device, channel)?.isMuted === true;
+}
+
+/** Comfort limit mode the app is running in, e.g. `simple`. */
+export function channelMode(device: V4Device, channel: V4ChannelId): string {
+  const mode = channelState(device, channel)?.comfortLimit?.mode;
+  return typeof mode === 'string' ? mode : 'unknown';
+}
+
+/** False while the slot exists in the app but no hardware is attached to it. */
+export function isSlotConnected(device: V4Device): boolean {
+  return device.slotState?.hasDevice !== false;
 }
 
 /**
@@ -148,10 +180,13 @@ export class CoyoteBackend implements HapticBackend {
   private readonly stateListeners: StateListener[] = [];
   private readonly deviceListeners: DeviceListener[] = [];
   private readonly assignmentListeners: AssignmentListener[] = [];
+  private readonly deviceStateListeners: Array<() => void> = [];
 
   private waveformSeq = 0;
   /** Device set last reported to listeners; guards against slot-state churn. */
   private lastDeviceKey = '';
+  /** Displayed metadata last reported, so the UI only re-renders on real changes. */
+  private lastStateKey = '';
   /** Empty means "use the browser's own host". */
   private hostOverride = '';
 
@@ -178,7 +213,10 @@ export class CoyoteBackend implements HapticBackend {
     this.socket.onStateChange((state) => {
       for (const l of this.stateListeners) l(state);
     });
-    this.socket.onDevicesChange(() => this.emitDevices());
+    this.socket.onDevicesChange(() => {
+      this.emitDevices();
+      this.emitDeviceState();
+    });
   }
 
   // --- Connection ---
@@ -225,6 +263,7 @@ export class CoyoteBackend implements HapticBackend {
   onStateChange(listener: StateListener): void { this.stateListeners.push(listener); }
   onDevicesChange(listener: DeviceListener): void { this.deviceListeners.push(listener); }
   onAssignmentsChange(listener: AssignmentListener): void { this.assignmentListeners.push(listener); }
+  onDeviceStateChange(listener: () => void): void { this.deviceStateListeners.push(listener); }
 
   get connectionState(): ConnectionState { return this.socket.connectionState; }
 
@@ -236,20 +275,48 @@ export class CoyoteBackend implements HapticBackend {
     const source = this.coyotes().find((d) => deviceName(d) === device.name);
     if (!source) return [];
     return ([V4Channel.A, V4Channel.B] as V4ChannelId[]).map((channel, index) => {
-      const name = channel === V4Channel.A ? 'Channel A' : 'Channel B';
-      const ceiling = channelCeiling(source, channel);
-      // The app's own limits decide what this channel can do, so show them rather than
-      // letting an assigned-but-silent channel look broken.
-      const note = isChannelMuted(source, channel) ? 'muted in app' : ceiling > 0 ? `max ${ceiling}` : 'no limit set';
+      const name = channel === V4Channel.A ? 'Ch. A' : 'Ch. B';
       return {
         id: featureId(source, channel),
         deviceName: device.name,
         kind: 'estim' as const,
         index,
-        descriptor: `${name} \u2014 ${note}`,
-        label: `${name} (${note})`,
+        descriptor: name,
+        label: name,
       };
     });
+  }
+
+  getDeviceBadge(name: string): DeviceBadge | null {
+    const source = this.coyotes().find((d) => deviceName(d) === name);
+    if (!source || typeof source.index !== 'number') return null;
+    const light = String(source.slotState?.markLight ?? '').toLowerCase();
+    return {
+      icon: `${source.index}-circle-fill`,
+      color: MARK_LIGHT_COLORS[light],
+      title: `Slot ${source.index}`,
+    };
+  }
+
+  getDeviceAlerts(name: string): DeviceAlert[] {
+    const source = this.coyotes().find((d) => deviceName(d) === name);
+    if (!source || isSlotConnected(source)) return [];
+    return [{ level: 'warning', message: 'Paired in the app but no device connected' }];
+  }
+
+  getFeatureDetails(id: string): FeatureDetail[] {
+    for (const device of this.coyotes()) {
+      for (const ch of [V4Channel.A, V4Channel.B] as V4ChannelId[]) {
+        if (featureId(device, ch) !== id) continue;
+        const muted = isChannelMuted(device, ch);
+        return [
+          { label: 'Output', value: muted ? 'Muted' : 'Enabled', warn: muted },
+          { label: 'Mode', value: channelMode(device, ch) },
+          { label: 'Absolute Limit', value: `${channelCeiling(device, ch)} / ${ABSOLUTE_SCALE}` },
+        ];
+      }
+    }
+    return [];
   }
 
   setFeatureChannel(id: string, channel: HapticChannel | null): void {
@@ -398,6 +465,31 @@ export class CoyoteBackend implements HapticBackend {
     if (key === this.lastDeviceKey) return;
     this.lastDeviceKey = key;
     for (const l of this.deviceListeners) l(devices);
+  }
+
+  /**
+   * Notify the UI when metadata it displays changes.
+   *
+   * Keyed on displayed fields only, so the constant `intensityA` and
+   * `warmUpScale` traffic does not re-render the card out from under the user.
+   */
+  private emitDeviceState(): void {
+    const key = this.coyotes().map((device) => [
+      device.id,
+      device.index,
+      device.slotState?.markLight,
+      device.slotState?.hasDevice,
+      device.props?.power,
+      ...([V4Channel.A, V4Channel.B] as V4ChannelId[]).flatMap((ch) => [
+        isChannelMuted(device, ch),
+        channelCeiling(device, ch),
+        channelMode(device, ch),
+      ]),
+    ].join(':')).join('|');
+
+    if (key === this.lastStateKey) return;
+    this.lastStateKey = key;
+    for (const l of this.deviceStateListeners) l();
   }
 
   setLinearRange(): void { /* no linear actuator */ }

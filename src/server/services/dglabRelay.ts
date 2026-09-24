@@ -64,6 +64,34 @@ function refuseUpgrade(socket: Duplex, status: number, reason: string): void {
 }
 
 /**
+ * Stable, unguessable controller id derived from something unique to the client.
+ *
+ * A random id per connection would change the pairing URL on every reload, forcing
+ * the user to re-pair. The access token is the natural seed: it is already unique
+ * per client, survives restarts and reconnects, and a SHA-256 of it cannot be
+ * reversed back into the token.
+ */
+export function deriveClientId(seed: string): string {
+  const hash = crypto.createHash('sha256').update(`dglab:${seed}`).digest('hex');
+  return [hash.slice(0, 8), hash.slice(8, 12), hash.slice(12, 16), hash.slice(16, 20), hash.slice(20, 32)].join('-');
+}
+
+/**
+ * Seed for a client's id.
+ *
+ * The token is preferred because it is per-client and stable. With authentication
+ * disabled there is none, so the network address is used instead; every browser on
+ * the same host then shares one id, which is the best that can be done there.
+ */
+function clientSeed(req: IncomingMessage, tokenStore: TokenStore | null): { seed: string; source: string } {
+  const token = parseCookies(req.headers.cookie)[COOKIE_NAME];
+  if (tokenStore && token) return { seed: `token:${token}`, source: 'token' };
+  const forwarded = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim();
+  const address = forwarded || req.socket.remoteAddress || 'unknown';
+  return { seed: `addr:${address}`, source: `address ${address}` };
+}
+
+/**
  * Creates the relay. `tokenStore` is null when authentication is disabled, in
  * which case controllers are accepted without a cookie.
  */
@@ -91,6 +119,8 @@ export function createDglabRelay(tokenStore: TokenStore | null): DglabRelay {
 
   function dropController(controller: Controller): void {
     if (controller.idleTimer) clearTimeout(controller.idleTimer);
+    // A reconnect under the same id already replaced this entry; leave its apps alone.
+    if (controllers.get(controller.id) !== controller) return;
     controllers.delete(controller.id);
     for (const appId of controller.apps) {
       const app = apps.get(appId);
@@ -127,17 +157,22 @@ export function createDglabRelay(tokenStore: TokenStore | null): DglabRelay {
     }
   }
 
-  function attachController(socket: WebSocket): void {
-    if (controllers.size >= MAX_CONTROLLERS) {
+  function attachController(socket: WebSocket, id: string): void {
+    const previous = controllers.get(id);
+    if (!previous && controllers.size >= MAX_CONTROLLERS) {
       socket.close(CLOSE_IDLE_TIMEOUT, 'too_many_controllers');
       return;
     }
 
-    // The id doubles as the app's only credential, so it must be unguessable.
-    const controller: Controller = { id: crypto.randomUUID(), socket, apps: new Set(), idleTimer: null };
-    controllers.set(controller.id, controller);
+    // Reconnecting under the same id inherits the apps that are still paired.
+    const controller: Controller = { id, socket, apps: previous?.apps ?? new Set(), idleTimer: null };
+    if (previous) previous.apps = new Set();
+    controllers.set(id, controller);
+    if (previous) previous.socket.close(CLOSE_CONTROLLER_DISCONNECTED, 'replaced');
+
     send(socket, { type: 'hello', clientId: controller.id });
-    armIdleTimer(controller);
+    for (const appId of controller.apps) send(socket, { type: 'client_attached', clientId: appId });
+    if (controller.apps.size === 0) armIdleTimer(controller);
     log.debug(`Controller ${controller.id} connected`);
 
     socket.on('message', (raw) => {
@@ -239,8 +274,13 @@ export function createDglabRelay(tokenStore: TokenStore | null): DglabRelay {
       }
 
       wss.handleUpgrade(req, socket, head, (ws) => {
-        if (tid) attachApp(ws, tid);
-        else attachController(ws);
+        if (tid) {
+          attachApp(ws, tid);
+          return;
+        }
+        const { seed, source } = clientSeed(req, tokenStore);
+        log.debug(`Controller id derived from ${source}`);
+        attachController(ws, deriveClientId(seed));
       });
     },
 

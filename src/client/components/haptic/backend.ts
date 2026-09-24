@@ -27,6 +27,29 @@ export type StateListener = (state: ConnectionState) => void;
 export type DeviceListener = (devices: HapticDevice[]) => void;
 export type AssignmentListener = (assignments: ReadonlyMap<string, string>) => void;
 
+/** Small marker shown in the corner of a device card, e.g. the app's slot number. */
+export interface DeviceBadge {
+  /** Bootstrap Icons name without the `bi-` prefix. */
+  icon: string;
+  /** CSS colour, already validated by the backend. */
+  color?: string;
+  title?: string;
+}
+
+/** Condition the user has to fix in the device's own app. */
+export interface DeviceAlert {
+  level: 'warning' | 'danger';
+  message: string;
+}
+
+/** One `label: value` line in a feature's collapsible detail panel. */
+export interface FeatureDetail {
+  label: string;
+  value: string;
+  /** Renders the value in the warning colour. */
+  warn?: boolean;
+}
+
 /**
  * Everything the sync engine and the settings UI need from a haptic transport.
  *
@@ -65,6 +88,20 @@ export interface HapticBackend {
    */
   getCarrierFrequency?(deviceName: string): number | null;
   setCarrierFrequency?(deviceName: string, frequency: number): void;
+
+  /** Optional presentation data; the settings UI renders these generically. */
+  getDeviceBadge?(deviceName: string): DeviceBadge | null;
+  getDeviceAlerts?(deviceName: string): DeviceAlert[];
+  getFeatureDetails?(featureId: string): FeatureDetail[];
+
+  /**
+   * Optional: fired when displayed device metadata changes, e.g. a channel is
+   * muted in the device's own app.
+   *
+   * Separate from `onDevicesChange`, which also makes the sync engine resync and
+   * stop output, and so must only fire when devices are actually added or removed.
+   */
+  onDeviceStateChange?(listener: () => void): void;
 
   /** Master strength multiplier 0–1 applied to continuous output. */
   masterStrength: number;
