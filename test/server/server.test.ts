@@ -174,8 +174,6 @@ test(`${TAG} GET /api/config exposes the client config and nothing from the serv
     assert.equal(status, 200);
     assert.equal(body.dglabEnabled, false);
     assert.equal(body.videoSeekInterval, 10);
-    // Suggested pairing addresses; absent on a host with no routable interface.
-    assert.ok(Array.isArray(body.serverHosts));
     for (const secret of ['password', 'mediaDir', 'configDir']) {
         assert.equal(secret in (body as Record<string, unknown>), false, `${secret} must not be exposed`);
     }

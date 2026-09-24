@@ -199,8 +199,6 @@ export class CoyoteBackend implements HapticBackend {
   private lastStateKey = '';
   /** Empty means "use the browser's own host". */
   private hostOverride = '';
-  /** Server-reported LAN address, used when the browser's own host is loopback. */
-  private suggestedHost = '';
 
   masterStrength = 1.0;
   /** The Coyote has no linear actuator; kept only to satisfy the interface. */
@@ -233,29 +231,18 @@ export class CoyoteBackend implements HapticBackend {
 
   // --- Connection ---
 
-  /**
-   * Host the DG-Lab app should dial.
-   *
-   * The browser's own host is right whenever HAPPY was opened over the network,
-   * but is useless when it was opened on the server itself: `localhost` there
-   * means the phone, not the server. In that case a LAN address reported by the
-   * server is suggested instead.
-   */
+  /** Host the DG-Lab app should dial. */
   get pairingHost(): string {
     return this.hostOverride || this.defaultPairingHost;
   }
 
-  /** Host used when the user has not overridden it. */
+  /**
+   * The browser's own host, unless it is loopback: the server cannot see the
+   * Docker host's LAN address, so the user has to enter it in that case.
+   */
   get defaultPairingHost(): string {
     const own = window.location.host;
-    if (!isLoopbackHost(own)) return own;
-    return this.suggestedHost || own;
-  }
-
-  /** LAN addresses reported by the server, used only when the browser is on it. */
-  setServerHosts(hosts: readonly string[]): void {
-    const port = window.location.port ? `:${window.location.port}` : '';
-    this.suggestedHost = hosts.map((host) => `${host}${port}`).find((host) => !isLoopbackHost(host)) ?? '';
+    return isLoopbackHost(own) ? '' : own;
   }
 
   setPairingHost(host: string): void {
@@ -275,7 +262,7 @@ export class CoyoteBackend implements HapticBackend {
   /** Relay URL the DG-Lab app must be pointed at; null until the relay says hello. */
   get pairingUrl(): string | null {
     const tid = this.socket.targetId;
-    if (!tid) return null;
+    if (!tid || !this.pairingHost) return null;
     const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
     return `${scheme}://${this.pairingHost}/ws/dglab?tid=${encodeURIComponent(tid)}`;
   }

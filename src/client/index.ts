@@ -446,7 +446,6 @@ class App {
     }
 
     const coyote = new CoyoteBackend();
-    coyote.setServerHosts(config.serverHosts ?? []);
     this.haptics.add(coyote);
     this.mountDeviceAssignment(coyote, '#dglab-devices');
 
