@@ -311,6 +311,31 @@
         </div>
       </div>
 
+      <div class="settings-section" id="dglab-section">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span>DG-Lab Coyote</span>
+          <span id="dglab-status" class="badge bg-secondary">Disconnected</span>
+        </div>
+        <button id="btn-dglab-connect" class="btn btn-sm btn-outline-primary w-100 mb-2" type="button">Enable</button>
+        <div id="dglab-pairing" class="d-none">
+          <div class="input-group input-group-sm mb-2">
+            <span class="input-group-text bg-dark text-light border-secondary">ws://</span>
+            <input id="dglab-host" type="text" class="form-control form-control-sm border-secondary"
+              placeholder="192.168.1.10:3000" aria-label="Address the DG-Lab app should connect to" />
+          </div>
+          <a id="dglab-pair-link" class="btn btn-sm btn-outline-success w-100 mb-2" href="#" target="_blank"
+            rel="noopener">Open in DG-Lab app</a>
+          <div class="input-group input-group-sm">
+            <input id="dglab-pair-url" type="text" class="form-control form-control-sm border-secondary" readonly
+              aria-label="DG-Lab relay address" />
+            <button id="btn-dglab-copy" class="btn btn-sm btn-outline-secondary" type="button">Copy</button>
+          </div>
+          <div class="form-text small" id="dglab-pair-hint">Tap the button on the phone running the DG-Lab app, or type
+            the address into
+            it manually.</div>
+        </div>
+      </div>
+
       <div class="settings-section">
         <div id="device-assignment"></div>
       </div>

@@ -169,6 +169,21 @@ test(`${TAG} GET /api/version returns the package version by default`, async () 
     assert.equal(body.builtAt, null);
 });
 
+test(`${TAG} GET /api/config exposes the client config and nothing from the server config`, async () => {
+    const { status, body } = await httpGet(testServer.port, '/api/config');
+    assert.equal(status, 200);
+    assert.equal(body.dglabEnabled, false);
+    assert.equal(body.videoSeekInterval, 10);
+    for (const secret of ['password', 'mediaDir', 'configDir']) {
+        assert.equal(secret in (body as Record<string, unknown>), false, `${secret} must not be exposed`);
+    }
+});
+
+test(`${TAG} GET /api/config requires authentication`, async () => {
+    const { status } = await httpGet(testServer.port, '/api/config', { token: null });
+    assert.equal(status, 401);
+});
+
 test.after(async () => {
     await testServer.close();
 });

@@ -4,7 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import http from 'http';
-import type { Express } from 'express';
+import type { HappyApp } from '../../src/server/index';
 import { Config } from '../../src/server/config';
 
 const FIXTURES_DIR = path.resolve(__dirname, '../fixtures/media');
@@ -59,8 +59,9 @@ export async function withMediaFixtures(
 
 // Start a test server with a temporary media directory and fixtures.
 export async function startTestServer(
-    createAppFn?: (config: Config.ServerConfig) => Express,
+    createAppFn?: (config: Config.ServerConfig) => HappyApp,
     overrides?: Partial<Config.ServerConfig>,
+    clientOverrides?: Partial<Config.ClientConfig>,
 ): Promise<{ port: number; config: Config.ServerConfig; mediaDir: string; tokenFile: string; token: string; close: () => Promise<void> }> {
     const testMediaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'server-test-'));
     copyFixtures(testMediaDir);
@@ -74,9 +75,13 @@ export async function startTestServer(
         configDir,
         ...overrides,
     };
+    const clientConfig: Config.ClientConfig = {
+        ...Config.DEFAULT_CLIENT_CONFIG,
+        ...clientOverrides,
+    };
 
-    const { createApp } = await import('../../src/server/index');
-    const app = createAppFn ? createAppFn(config) : createApp(config);
+    const { createApp, attachUpgradeHandlers } = await import('../../src/server/index');
+    const app = createAppFn ? createAppFn(config) : createApp(config, clientConfig);
 
     const { createTokenStore } = await import('../../src/server/services/tokenStore');
     const token = createTokenStore(tokenFile).issue('test');
@@ -98,6 +103,8 @@ export async function startTestServer(
         throw new Error('Invalid server address');
     }
 
+    attachUpgradeHandlers(server, app);
+
     return {
         port: addr.port,
         config,
@@ -106,6 +113,8 @@ export async function startTestServer(
         token,
         close: async () => {
             return new Promise((resolve) => {
+                app.dglabRelay?.close();
+                server.closeAllConnections?.();
                 server.close(() => {
                     fs.rmSync(testMediaDir, { recursive: true, force: true });
                     fs.rmSync(path.dirname(tokenFile), { recursive: true, force: true });

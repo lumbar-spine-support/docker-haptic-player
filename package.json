@@ -20,12 +20,14 @@
     "express": "^5.1.0",
     "js-yaml": "^4.1.0",
     "markdown-it": "^15.0.2",
-    "music-metadata": "^11.14.0"
+    "music-metadata": "^11.14.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.19.43",
+    "@types/ws": "^8.18.1",
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",
     "buttplug": "^3.2.2",

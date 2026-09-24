@@ -10,34 +10,27 @@ import {
     VectorSubcommand,
 } from 'buttplug';
 import { channelKey, type HapticChannel } from '../../../shared/haptics';
+import {
+    type AssignmentListener,
+    type ConnectionState,
+    type DeviceFeature,
+    type DeviceListener,
+    type FeatureKind,
+    type HapticBackend,
+    type HapticDevice,
+    type StateListener,
+} from './backend';
 
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type { ConnectionState, DeviceFeature, FeatureKind } from './backend';
 
 const FEATURE_ASSIGNMENTS_KEY = 'happy-feature-assignments';
 const DEVICE_STRENGTHS_KEY = 'happy-device-strengths';
 const LINEAR_RANGE_KEY = 'happy-stroker-range';
 
-/** How a single actuator is addressed on the wire. */
-export type FeatureKind = 'scalar' | 'rotate' | 'linear';
-
-/** One individually addressable actuator of a device. */
-export interface DeviceFeature {
-    /** Stable identity across reconnects: device name + actuator kind + actuator index. */
-    id: string;
-    deviceName: string;
-    kind: FeatureKind;
-    /** Actuator index inside the device's message attributes. */
-    index: number;
-    /** `Vibrate`, `Rotate`, `Oscillate`, … — only meaningful for scalar features. */
+/** A Buttplug actuator, which additionally carries its wire-level actuator type. */
+interface ButtplugFeature extends DeviceFeature {
     actuator: ActuatorType;
-    /** Device-reported descriptor, e.g. "Vibrator" or "Rotator". */
-    descriptor: string;
-    label: string;
 }
-
-type StateListener = (state: ConnectionState) => void;
-type DeviceListener = (devices: ButtplugClientDevice[]) => void;
-type AssignmentListener = (assignments: ReadonlyMap<string, string>) => void;
 
 function makeFeatureId(deviceName: string, kind: FeatureKind, index: number): string {
     return `${deviceName}#${kind}#${index}`;
@@ -65,7 +58,7 @@ export function positionToRotate(pos: number): { speed: number; clockwise: boole
  * scripts are addressed by channel (`estim`, `estim:nipples`, …) rather than by
  * bare funscript type.
  */
-export class ButtplugClientManager {
+export class ButtplugClientManager implements HapticBackend {
     private client: ButtplugClient | null = null;
     private state: ConnectionState = 'disconnected';
     private readonly stateListeners: StateListener[] = [];
@@ -110,8 +103,15 @@ export class ButtplugClientManager {
     // --- Features and assignment ---
 
     /** Every individually addressable actuator of a device. */
-    getFeatures(device: ButtplugClientDevice): DeviceFeature[] {
-        const features: DeviceFeature[] = [];
+    getFeatures(device: HapticDevice): DeviceFeature[] {
+        return this.buttplugFeatures(device);
+    }
+
+    private buttplugFeatures(target: HapticDevice): ButtplugFeature[] {
+        const device = this.getConnectedDevices().find((d) => d === target);
+        if (!device) return [];
+
+        const features: ButtplugFeature[] = [];
         const counts = new Map<string, number>();
 
         const push = (kind: FeatureKind, index: number, actuator: ActuatorType, descriptor: string): void => {
@@ -264,9 +264,11 @@ export class ButtplugClientManager {
      * Read the battery level (0–1) from a device.
      * Returns null if the device does not support battery reporting or if the query fails.
      */
-    async getBatteryLevel(device: ButtplugClientDevice): Promise<number | null> {
+    async getBatteryLevel(device: HapticDevice): Promise<number | null> {
+        const owned = this.getConnectedDevices().find((d) => d === device);
+        if (!owned) return null;
         try {
-            return await device.battery();
+            return await owned.battery();
         } catch {
             return null;
         }
@@ -281,11 +283,11 @@ export class ButtplugClientManager {
     }
 
     /** Connected actuators assigned to a channel, paired with their device. */
-    private resolve(channel: HapticChannel): Array<{ device: ButtplugClientDevice; feature: DeviceFeature }> {
+    private resolve(channel: HapticChannel): Array<{ device: ButtplugClientDevice; feature: ButtplugFeature }> {
         const key = channelKey(channel);
-        const matches: Array<{ device: ButtplugClientDevice; feature: DeviceFeature }> = [];
+        const matches: Array<{ device: ButtplugClientDevice; feature: ButtplugFeature }> = [];
         for (const device of this.getConnectedDevices()) {
-            for (const feature of this.getFeatures(device)) {
+            for (const feature of this.buttplugFeatures(device)) {
                 if (this.featureAssignments.get(feature.id) === key) matches.push({ device, feature });
             }
         }

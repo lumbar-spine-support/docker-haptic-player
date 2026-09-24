@@ -61,6 +61,28 @@ These libraries are fetched from npm at build time by `scripts/copy-vendor-asset
 
 ---
 
+## Server Dependencies
+
+### ws
+
+**License:** [MIT](https://github.com/websockets/ws/blob/master/LICENSE)
+
+**Copyright:** © 2011–2024 Einar Otto Stangvik and contributors
+
+**Source:** https://github.com/websockets/ws
+
+Used for the DG-Lab V4 relay endpoint.
+
+---
+
+## DG-Lab V4 Protocol
+
+The DG-Lab V4 WebSocket relay and client in this repository are a clean-room implementation
+written from the publicly documented wire format. No code was copied from the GPL-3.0 licensed
+`dglab-kit` / `dglab-websocket-server` projects.
+
+---
+
 ## Project License
 
 This project itself is licensed under the [MIT License](LICENSE).
