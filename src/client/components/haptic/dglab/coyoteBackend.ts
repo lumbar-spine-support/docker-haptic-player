@@ -85,9 +85,19 @@ export function isCoyote(type: string): boolean {
   return /coyote/i.test(type) || type === 'unknown';
 }
 
+/** Display names for device types reported by the app, keyed case-insensitively. */
+const KNOWN_DEVICE_NAMES: Record<string, string> = {
+  COYOTE_030: 'Coyote 3.0',
+};
+
+/** Human-readable model name, falling back to the raw reported type. */
+export function deviceModelName(type: string): string {
+  return KNOWN_DEVICE_NAMES[type.toUpperCase()] ?? (type && type !== 'unknown' ? type : 'Coyote');
+}
+
 /** Devices are surfaced to the UI under a stable display name per slot. */
 function deviceName(device: V4Device): string {
-  return `Coyote 3.0 (${device.id.slice(0, 6)})`;
+  return `${deviceModelName(device.type)} (${device.id.slice(0, 6)})`;
 }
 
 function featureId(device: V4Device, channel: V4ChannelId): string {
