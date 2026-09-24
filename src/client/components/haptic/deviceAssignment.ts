@@ -307,10 +307,7 @@ function buildControl(title: string, initialValue: string): { row: HTMLElement; 
   row.className = 'settings-control mb-2';
 
   const label = document.createElement('label');
-  // Elements built via createElement have no whitespace text node between them
-  // (unlike the static HTML markup), so an explicit flex layout keeps title
-  // and value apart instead of visually running together.
-  label.className = 'form-label small d-flex justify-content-between';
+  label.className = 'form-label settings-label small';
 
   const text = document.createElement('span');
   text.textContent = title;

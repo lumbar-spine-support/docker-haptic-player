@@ -18,7 +18,25 @@ body.blur-content media-container {
 }
 
 .settings-section {
-  margin-bottom: var(--bs-offcanvas-padding-y);
+  margin-bottom: 0; // var(--bs-offcanvas-padding-y);
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.settings-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  margin-bottom: 0.125rem;
 }
 
 .min-w-0 {

@@ -10,6 +10,7 @@ import { pairingDeepLink } from './components/haptic/dglab/protocol';
 import { FunscriptSync } from './components/funscriptSync';
 import { DeviceStatus } from './components/haptic/deviceStatus';
 import { DeviceAssignment } from './components/haptic/deviceAssignment';
+import type { HapticBackend } from './components/haptic/backend';
 import { HapticControls } from './components/hapticControls';
 import { Visualization } from './components/visualization';
 import { Markdown } from './components/markdown';
@@ -103,7 +104,9 @@ class App {
   private readonly playback: PlaybackController;
   private readonly syncEngine: FunscriptSync;
   private readonly deviceStatus: DeviceStatus;
-  private readonly deviceAssignment: DeviceAssignment;
+  /** One device list per backend, rendered inside that backend's settings section. */
+  private readonly deviceAssignments: DeviceAssignment[] = [];
+  private trackChannels: HapticChannel[] = [];
   private readonly hapticControls: HapticControls;
   private readonly viz: Visualization;
   private readonly library: Library;
@@ -126,7 +129,6 @@ class App {
     this.haptics.add(this.buttplug);
     this.syncEngine = new FunscriptSync(session, this.haptics);
     this.deviceStatus = new DeviceStatus(this.haptics);
-    this.deviceAssignment = new DeviceAssignment(this.haptics);
     this.hapticControls = new HapticControls(this.haptics);
     this.viz = new Visualization(session);
     this.viz.onSeek((time) => { void session.focusedStore.seek(time); });
@@ -157,13 +159,12 @@ class App {
     void this.bindLogout();
     this.footer?.bind(this.session, this.playback, (trackId) => this.navigateTo(trackHref(trackId)));
 
-    const assignContainer = qs<HTMLElement>('#device-assignment');
-    if (assignContainer) this.deviceAssignment.mount(assignContainer);
+    this.mountDeviceAssignment(this.buttplug, '#intiface-devices');
 
     const settingsPanel = document.getElementById('settings-panel');
     if (settingsPanel) {
       settingsPanel.addEventListener('show.bs.offcanvas', () => {
-        this.deviceAssignment.refresh();
+        for (const assignment of this.deviceAssignments) assignment.refresh();
       });
     }
 
@@ -178,6 +179,15 @@ class App {
     window.addEventListener('pagehide', () => { void this.haptics.stopAll(); });
 
     window.addEventListener('popstate', () => { void this.handleRouteChange(); });
+  }
+
+  private mountDeviceAssignment(backend: HapticBackend, containerSelector: string): void {
+    const container = qs<HTMLElement>(containerSelector);
+    if (!container) return;
+    const assignment = new DeviceAssignment(backend);
+    assignment.setAvailableChannels(this.trackChannels);
+    assignment.mount(container);
+    this.deviceAssignments.push(assignment);
   }
 
   private bindDetailControls(): void {
@@ -431,6 +441,7 @@ class App {
     const coyote = new CoyoteBackend();
     coyote.setServerHosts(config.serverHosts ?? []);
     this.haptics.add(coyote);
+    this.mountDeviceAssignment(coyote, '#dglab-devices');
 
     const statusEl = document.getElementById('dglab-status');
     const connectBtn = document.getElementById('btn-dglab-connect') as HTMLButtonElement | null;
@@ -727,8 +738,9 @@ class App {
   /** Tell the status badges and the assignment UI which channels this track carries. */
   private publishChannels(scripts: LoadedScript[]): void {
     const channels = scripts.map((script) => script.channel);
+    this.trackChannels = channels;
     this.deviceStatus.setAvailableChannels(channels);
-    this.deviceAssignment.setAvailableChannels(channels);
+    for (const assignment of this.deviceAssignments) assignment.setAvailableChannels(channels);
   }
 
   private fetchTrackScripts(track: TrackInfo): Promise<LoadedScript[]> {
