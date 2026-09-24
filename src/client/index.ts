@@ -1,4 +1,4 @@
-import { fetchFunscript, fetchTrackDescription, fetchVersion, fetchAuthStatus, fetchClientConfig, copyText, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
+import { fetchFunscript, fetchTrackDescription, fetchVersion, fetchAuthStatus, fetchClientConfig, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
 import { bindDragOnlyRange, syncRangeFill } from './utils/rangeSlider';
 import { resetScrollPosition } from '../shared/scroll';
 import { PlaybackSession, PlaybackQueue, PlaybackController } from './components/player';
@@ -75,6 +75,7 @@ class App {
   private readonly detailTitlePlaylist = qs<HTMLElement>('#detail-title-playlist');
   private readonly detailSubtitlePlaylist = qs<HTMLElement>('#detail-subtitle-playlist');
   private readonly connectBtn = qs<HTMLButtonElement>('#btn-connect');
+  private readonly resetBtn = qs<HTMLButtonElement>('#btn-reset');
   private readonly intifaceInput = qs<HTMLInputElement>('#intiface-address');
   private readonly hapticSlider = qs<HTMLInputElement>('#haptic-strength');
   private readonly hapticLabel = qs<HTMLElement>('#haptic-strength-label');
@@ -293,6 +294,12 @@ class App {
         this.connectBtn.textContent = 'Connect';
         this.connectBtn.classList.add('btn-outline-primary');
       }
+      if (this.resetBtn) {
+        this.resetBtn.addEventListener('click', () => {
+          if (this.intifaceInput) this.intifaceInput.value = formatIntifaceHost('localhost:12345');
+          localStorage.setItem(INTIFACE_ADDRESS_KEY, 'localhost:12345');
+        });
+      }
     };
 
     this.intifaceInput?.addEventListener('change', () => {
@@ -445,10 +452,14 @@ class App {
 
     const statusEl = document.getElementById('dglab-status');
     const connectBtn = document.getElementById('btn-dglab-connect') as HTMLButtonElement | null;
+    const disconnectBtn = document.getElementById('btn-dglab-disconnect') as HTMLButtonElement | null;
+    const resetBtn = document.getElementById('btn-dglab-reset') as HTMLButtonElement | null;
     const pairingEl = document.getElementById('dglab-pairing');
     const linkEl = document.getElementById('dglab-pair-link') as HTMLAnchorElement | null;
     const hostEl = document.getElementById('dglab-host') as HTMLInputElement | null;
-    const copyBtn = document.getElementById('btn-dglab-copy');
+    const hostGroup = document.getElementById('dglab-host-group');
+    const urlGroup = document.getElementById('dglab-url-group');
+    const urlEl = document.getElementById('dglab-url') as HTMLInputElement | null;
 
     const sync = (): void => {
       const state = coyote.connectionState;
@@ -462,13 +473,11 @@ class App {
         );
         statusEl.textContent = paired ? 'Paired' : state === 'connected' ? 'Waiting for app' : state.charAt(0).toUpperCase() + state.slice(1);
       }
-      if (connectBtn) {
-        const on = state === 'connected' || state === 'connecting';
-        connectBtn.textContent = on ? 'Disable' : 'Enable';
-        connectBtn.classList.toggle('btn-outline-danger', on);
-        connectBtn.classList.toggle('btn-outline-primary', !on);
-      }
+      const on = state === 'connected' || state === 'connecting';
+      hostGroup?.classList.toggle('d-none', on);
+      urlGroup?.classList.toggle('d-none', !on);
       const url = coyote.pairingUrl;
+      if (urlEl) urlEl.value = url ?? '';
       pairingEl?.classList.toggle('d-none', !url || paired);
       if (url && linkEl) linkEl.href = pairingDeepLink(url);
       if (hostEl && document.activeElement !== hostEl) hostEl.value = coyote.pairingHost;
@@ -478,26 +487,28 @@ class App {
     coyote.onDevicesChange(() => sync());
 
     connectBtn?.addEventListener('click', () => {
-      if (coyote.connectionState === 'disconnected' || coyote.connectionState === 'error') coyote.connect();
-      else coyote.disconnect();
+      coyote.connect();
       sync();
     });
 
-    copyBtn?.addEventListener('click', () => {
-      const url = coyote.pairingUrl;
-      if (!url) return;
-      void copyText(url).then((copied) => {
-        copyBtn.innerHTML = copied
-          ? '<i class="bi bi-check-lg" aria-hidden="true"></i>Copied'
-          : '<i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Copy failed';
-        window.setTimeout(() => {
-          copyBtn.innerHTML = '<i class="bi bi-copy" aria-hidden="true"></i>Copy URL';
-        }, 1500);
-      });
+    disconnectBtn?.addEventListener('click', () => {
+      coyote.disconnect();
+      sync();
     });
+
+    urlEl?.addEventListener('focus', () => urlEl.select());
 
     hostEl?.addEventListener('change', () => {
       coyote.setPairingHost(hostEl.value);
+      sync();
+    });
+
+    resetBtn?.addEventListener('click', () => {
+      coyote.resetPairingHost();
+      if (hostEl) {
+        hostEl.blur();
+        hostEl.value = coyote.pairingHost;
+      }
       sync();
     });
 

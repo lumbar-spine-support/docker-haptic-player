@@ -309,6 +309,9 @@
           <span class="input-group-text bg-dark text-light border-secondary">ws://</span>
           <input id="intiface-address" type="text" class="form-control form-control-sm border-secondary"
             value="localhost:12345" placeholder="localhost:12345" aria-label="Intiface websocket host and port" />
+          <button id="btn-reset" class="btn btn-sm btn-outline-primary" type="button">
+            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+          </button>
           <button id="btn-connect" class="btn btn-sm btn-outline-primary">Connect</button>
         </div>
 
@@ -345,23 +348,26 @@
       <div class="settings-section" id="dglab-section">
         <hr>
         <h6 class="settings-header">
-          <span>DG-Lab Socket</span>
-          <span id="dglab-socket-version" class="badge bg-info rounded-pill">v4</span>
+          <span>DG-Lab Socket v4</span>
           <span id="dglab-status" class="badge bg-secondary">Disconnected</span>
         </h6>
-        <div class="input-group input-group-sm">
+        <div id="dglab-host-group" class="input-group input-group-sm">
           <span class="input-group-text bg-dark text-light border-secondary">ws://</span>
           <input id="dglab-host" type="text" class="form-control form-control-sm border-secondary"
             placeholder="192.168.1.10:3000" aria-label="Address the DG-Lab app should connect to" />
+          <button id="btn-dglab-reset" class="btn btn-sm btn-outline-primary" type="button">
+            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+          </button>
           <button id="btn-dglab-connect" class="btn btn-sm btn-outline-primary" type="button">Enable</button>
         </div>
+        <div id="dglab-url-group" class="input-group input-group-sm d-none">
+          <input id="dglab-url" type="text" class="form-control form-control-sm border-secondary" readonly
+            placeholder="Waiting for relay…" aria-label="WebSocket URL for the DG-Lab app" />
+          <button id="btn-dglab-disconnect" class="btn btn-sm btn-outline-danger" type="button">Disable</button>
+        </div>
         <div id="dglab-pairing" class="d-none">
-          <div class="d-flex gap-2 mt-2">
-            <a id="dglab-pair-link" class="btn btn-sm btn-secondary flex-fill" href="#" target="_blank"
-              rel="noopener"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Open DG-Lab</a>
-            <button id="btn-dglab-copy" class="btn btn-sm btn-secondary flex-fill" type="button"><i class="bi bi-copy"
-                aria-hidden="true"></i>Copy URL</button>
-          </div>
+          <a id="dglab-pair-link" class="btn btn-sm btn-secondary w-100 mt-2" href="#" target="_blank" rel="noopener"><i
+              class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Open DG-Lab</a>
         </div>
         <div id="dglab-devices" class="mt-3"></div>
       </div>

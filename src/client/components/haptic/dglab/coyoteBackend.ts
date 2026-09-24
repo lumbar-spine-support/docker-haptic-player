@@ -232,7 +232,11 @@ export class CoyoteBackend implements HapticBackend {
    * server is suggested instead.
    */
   get pairingHost(): string {
-    if (this.hostOverride) return this.hostOverride;
+    return this.hostOverride || this.defaultPairingHost;
+  }
+
+  /** Host used when the user has not overridden it. */
+  get defaultPairingHost(): string {
     const own = window.location.host;
     if (!isLoopbackHost(own)) return own;
     return this.suggestedHost || own;
@@ -246,7 +250,15 @@ export class CoyoteBackend implements HapticBackend {
 
   setPairingHost(host: string): void {
     const normalized = normalizeHost(host);
-    this.hostOverride = normalized === this.pairingHost ? '' : normalized;
+    // Comparing against the default, not the current value, so re-typing the
+    // default clears the override instead of pinning it.
+    this.hostOverride = normalized === this.defaultPairingHost ? '' : normalized;
+    this.persist();
+  }
+
+  /** Drops any override and goes back to the automatically detected host. */
+  resetPairingHost(): void {
+    this.hostOverride = '';
     this.persist();
   }
 

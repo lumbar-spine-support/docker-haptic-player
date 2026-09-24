@@ -1,5 +1,4 @@
 export * from './api';
-export * from './clipboard';
 export * from './formatTime';
 export * from './formatVersion';
 export * from './html';

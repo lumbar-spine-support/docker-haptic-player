@@ -156,9 +156,9 @@ export class DeviceAssignment {
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.className = 'form-range handle-only-range';
-    slider.min = '1';
+    slider.min = '2';
     slider.max = '100';
-    slider.step = '1';
+    slider.step = '2';
     slider.value = String(initial);
     slider.setAttribute('aria-label', `Pulse frequency for ${device.name}`);
     slider.addEventListener('input', () => {
