@@ -112,7 +112,7 @@ export namespace Config {
     trustProxy: 'Number of reverse proxy hops to trust for X-Forwarded-* headers. 0 for direct LAN access, 1 behind nginx/Traefik',
     logLevel: `Verbosity of the console log: ${LOG_LEVELS.join(', ')}`,
     videoSeekInterval: 'Default skip interval in seconds for the seek buttons (TODO: unused)',
-    dglabEnabled: 'Enable the experimental DG-Lab Coyote 3.0 relay endpoint and its settings UI',
+    dglabEnabled: '(EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control',
     funscriptSuffixSeparator: 'Character that separates filename from funscript suffix',
     funscriptSuffixStroker: 'Suffix for stroker funscript files',
     funscriptSuffixButtplug: 'Suffix for buttplug funscript files',
@@ -194,8 +194,7 @@ export namespace Config {
       const raw = fs.readFileSync(configPath, 'utf-8')
       loaded = yaml.load(raw) as Record<string, any>;
     } catch (err) {
-      // Every setting in the file is discarded here, so this must not look routine.
-      log.error(`Could not load configuration from ${configPath}, falling back to defaults:`, err);
+      log.warn(`Could not load configuration from ${configPath}:`, err);
       return { server: serverConfig, client: clientConfig };
     }
 
