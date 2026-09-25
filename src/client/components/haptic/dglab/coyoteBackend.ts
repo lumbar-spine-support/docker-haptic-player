@@ -20,9 +20,9 @@ import {
   buildSetTempIntensity,
   type ChannelId,
   type Device,
-} from './protocol';
+} from './v4/protocol';
 import { DEFAULT_PULSE_FREQUENCY, FRAME_DURATION_MS, carrierFrames, clampFrequency } from './waveform';
-import { DglabV4Socket } from './socket';
+import { DglabV4Socket } from './v4/socket';
 
 const ASSIGNMENTS_KEY = 'happy-dglab-assignments';
 const STRENGTHS_KEY = 'happy-dglab-strengths';

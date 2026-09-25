@@ -14,7 +14,7 @@ import {
     mergeSlotState,
     pairingDeepLink,
     parseDeviceList,
-} from '../../src/client/components/haptic/dglab/protocol';
+} from '../../src/client/components/haptic/dglab/v4/protocol';
 import { carrierFrames, clampFrequency, flatFrame } from '../../src/client/components/haptic/dglab/waveform';
 
 const TAG = '[client:dglab:protocol]';

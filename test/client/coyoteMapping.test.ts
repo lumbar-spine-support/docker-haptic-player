@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Channel } from '../../src/client/components/haptic/dglab/protocol';
-import type { Device } from '../../src/client/components/haptic/dglab/protocol';
+import { Channel } from '../../src/client/components/haptic/dglab/v4/protocol';
+import type { Device } from '../../src/client/components/haptic/dglab/v4/protocol';
 import { channelCeiling, isChannelMuted, isLoopbackHost, mapIntensity, normalizeHost } from '../../src/client/components/haptic/dglab/coyoteBackend';
-import { parseDeviceList } from '../../src/client/components/haptic/dglab/protocol';
+import { parseDeviceList } from '../../src/client/components/haptic/dglab/v4/protocol';
 
 const TAG = '[client:dglab:mapping]';
 

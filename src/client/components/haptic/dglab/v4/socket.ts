@@ -13,7 +13,7 @@ import {
   type Device,
 } from './protocol';
 
-export type DglabSocketState = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type DglabV4SocketState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 const REQUEST_TIMEOUT_MS = 5_000;
 const RECONNECT_BASE_MS = 1_000;
@@ -53,7 +53,7 @@ type Listener<T> = (value: T) => void;
  */
 export class DglabV4Socket {
   private ws: WebSocket | null = null;
-  private state: DglabSocketState = 'disconnected';
+  private state: DglabV4SocketState = 'disconnected';
   private url = '';
   /** Our relay client id; the DG-Lab app pairs by passing this back as `tid`. */
   private clientId: string | null = null;
@@ -68,13 +68,13 @@ export class DglabV4Socket {
   private readonly loggedOnce = new Set<string>();
   private readonly sentLog = new Map<string, { what: string; body: string }>();
 
-  private readonly stateListeners: Array<Listener<DglabSocketState>> = [];
+  private readonly stateListeners: Array<Listener<DglabV4SocketState>> = [];
   private readonly deviceListeners: Array<Listener<Device[]>> = [];
 
-  onStateChange(l: Listener<DglabSocketState>): void { this.stateListeners.push(l); }
+  onStateChange(l: Listener<DglabV4SocketState>): void { this.stateListeners.push(l); }
   onDevicesChange(l: Listener<Device[]>): void { this.deviceListeners.push(l); }
 
-  get connectionState(): DglabSocketState { return this.state; }
+  get connectionState(): DglabV4SocketState { return this.state; }
   /** Value the DG-Lab app must pass as `?tid=`; null until the relay says hello. */
   get targetId(): string | null { return this.clientId; }
   get appCount(): number { return this.attachedApps.size; }
@@ -375,7 +375,7 @@ export class DglabV4Socket {
     this.pending.clear();
   }
 
-  private setState(next: DglabSocketState): void {
+  private setState(next: DglabV4SocketState): void {
     if (this.state === next) return;
     this.state = next;
     for (const l of this.stateListeners) l(next);
