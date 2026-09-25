@@ -324,7 +324,7 @@ class App {
   private bindZoomControls(): void {
     if (!this.zoomSlider) return;
     const applyZoom = (rawZoom: number): void => {
-      const zoom = Math.max(1, Math.min(10, rawZoom));
+      const zoom = Math.max(1, rawZoom);
       if (this.zoomSlider && Number(this.zoomSlider.value) !== zoom) this.zoomSlider.value = String(zoom);
       if (this.zoomSlider) syncRangeFill(this.zoomSlider);
       this.viz.zoomLevel = zoom;
