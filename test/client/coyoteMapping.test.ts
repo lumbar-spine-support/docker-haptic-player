@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { V4Channel } from '../../src/client/components/haptic/dglab/protocol';
-import type { V4Device } from '../../src/client/components/haptic/dglab/protocol';
+import { Channel } from '../../src/client/components/haptic/dglab/protocol';
+import type { Device } from '../../src/client/components/haptic/dglab/protocol';
 import { channelCeiling, isChannelMuted, isLoopbackHost, mapIntensity, normalizeHost } from '../../src/client/components/haptic/dglab/coyoteBackend';
 import { parseDeviceList } from '../../src/client/components/haptic/dglab/protocol';
 
 const TAG = '[client:dglab:mapping]';
 
-function device(intensityMax: number | undefined, comfortMax?: number, isMuted = false): V4Device {
+function device(intensityMax: number | undefined, comfortMax?: number, isMuted = false): Device {
     return {
         id: 'U2j452hg',
         type: 'COYOTE_030',
@@ -41,16 +41,16 @@ test(`${TAG} the slot id is used as the device key, not the numeric device id`, 
 
 test(`${TAG} the ceiling is the app's computed intensityMax, not the comfort input`, () => {
     const [parsed] = parseDeviceList(REAL_PAYLOAD);
-    assert.equal(channelCeiling(parsed, V4Channel.A), 25);
-    assert.equal(channelCeiling(parsed, V4Channel.B), 25);
+    assert.equal(channelCeiling(parsed, Channel.A), 25);
+    assert.equal(channelCeiling(parsed, Channel.B), 25);
     // Raising the limit in the app must actually raise the ceiling here.
-    assert.equal(channelCeiling(device(42, 17), V4Channel.A), 42);
+    assert.equal(channelCeiling(device(42, 17), Channel.A), 42);
 });
 
 test(`${TAG} a channel muted in the app is reported as muted`, () => {
     const [parsed] = parseDeviceList(REAL_PAYLOAD);
-    assert.equal(isChannelMuted(parsed, V4Channel.A), true);
-    assert.equal(isChannelMuted(device(25, 24, false), V4Channel.A), false);
+    assert.equal(isChannelMuted(parsed, Channel.A), true);
+    assert.equal(isChannelMuted(device(25, 24, false), Channel.A), false);
 });
 
 test(`${TAG} position scales linearly into the app's configured ceiling`, () => {
@@ -71,14 +71,14 @@ test(`${TAG} out-of-range inputs can never exceed the ceiling`, () => {
 });
 
 test(`${TAG} a missing ceiling means no output at all, never a guessed default`, () => {
-    assert.equal(channelCeiling(device(undefined), V4Channel.A), 0);
-    assert.equal(mapIntensity(1, 1, channelCeiling(device(undefined), V4Channel.A)), 0);
+    assert.equal(channelCeiling(device(undefined), Channel.A), 0);
+    assert.equal(mapIntensity(1, 1, channelCeiling(device(undefined), Channel.A)), 0);
 });
 
 test(`${TAG} the ceiling is read from the slot state the DG-Lab app reports`, () => {
-    assert.equal(channelCeiling(device(12), V4Channel.A), 12);
+    assert.equal(channelCeiling(device(12), Channel.A), 12);
     // Channel B has no state in the fixture, so it must not inherit channel A's cap.
-    assert.equal(channelCeiling(device(12), V4Channel.B), 0);
+    assert.equal(channelCeiling(device(12), Channel.B), 0);
 });
 test(`${TAG} a pairing host is reduced to bare host and port`, () => {
     assert.equal(normalizeHost(' ws://192.168.1.10:3000/ws/dglab '), '192.168.1.10:3000');

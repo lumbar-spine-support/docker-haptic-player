@@ -13,13 +13,13 @@ import {
   type StateListener,
 } from '../backend';
 import {
-  V4Channel,
+  Channel,
   buildAppendPulseData,
   buildClear,
   buildResetIntensity,
   buildSetTempIntensity,
-  type V4ChannelId,
-  type V4Device,
+  type ChannelId,
+  type Device,
 } from './protocol';
 import { DEFAULT_PULSE_FREQUENCY, FRAME_DURATION_MS, carrierFrames, clampFrequency } from './waveform';
 import { DglabV4Socket } from './socket';
@@ -74,8 +74,8 @@ const MARK_LIGHT_COLORS: Record<string, string> = {
 };
 
 interface CoyoteChannelRef {
-  device: V4Device;
-  channel: V4ChannelId;
+  device: Device;
+  channel: ChannelId;
 }
 
 /** Device type string reported by a Coyote 3.0. */
@@ -96,20 +96,20 @@ export function deviceModelName(type: string): string {
 }
 
 /** Devices are surfaced to the UI under a stable display name per slot. */
-function deviceName(device: V4Device): string {
+function deviceName(device: Device): string {
   return `${deviceModelName(device.type)} (${device.id.slice(0, 6)})`;
 }
 
-function featureId(device: V4Device, channel: V4ChannelId): string {
+function featureId(device: Device, channel: ChannelId): string {
   return `${FEATURE_PREFIX}#${device.id}#${channel}`;
 }
 
-function channelState(device: V4Device, channel: V4ChannelId) {
-  return channel === V4Channel.A ? device.slotState?.channelA : device.slotState?.channelB;
+function channelState(device: Device, channel: ChannelId) {
+  return channel === Channel.A ? device.slotState?.channelA : device.slotState?.channelB;
 }
 
-function channelStatus(device: V4Device, channel: V4ChannelId): number | undefined {
-  const raw = channel === V4Channel.A ? device.props?.channelAStatus : device.props?.channelBStatus;
+function channelStatus(device: Device, channel: ChannelId): number | undefined {
+  const raw = channel === Channel.A ? device.props?.channelAStatus : device.props?.channelBStatus;
   return typeof raw === 'number' ? raw : undefined;
 }
 
@@ -120,24 +120,24 @@ function channelStatus(device: V4Device, channel: V4ChannelId): number | undefin
  * limit settings and enforced app-side. `comfortMax` is one of its inputs, so
  * clamping to that as well would double-apply it and ignore a raised limit.
  */
-export function channelCeiling(device: V4Device, channel: V4ChannelId): number {
+export function channelCeiling(device: Device, channel: ChannelId): number {
   const max = channelState(device, channel)?.intensityMax;
   return typeof max === 'number' && max > 0 ? max : 0;
 }
 
 /** A muted channel accepts commands but emits nothing, which looks like a bug from the UI. */
-export function isChannelMuted(device: V4Device, channel: V4ChannelId): boolean {
+export function isChannelMuted(device: Device, channel: ChannelId): boolean {
   return channelState(device, channel)?.isMuted === true;
 }
 
 /** Comfort limit mode the app is running in, e.g. `simple`. */
-export function channelMode(device: V4Device, channel: V4ChannelId): string {
+export function channelMode(device: Device, channel: ChannelId): string {
   const mode = channelState(device, channel)?.comfortLimit?.mode;
   return typeof mode === 'string' ? mode : 'unknown';
 }
 
 /** False while the slot exists in the app but no hardware is attached to it. */
-export function isSlotConnected(device: V4Device): boolean {
+export function isSlotConnected(device: Device): boolean {
   return device.slotState?.hasDevice !== false;
 }
 
@@ -295,8 +295,8 @@ export class CoyoteBackend implements HapticBackend {
   getFeatures(device: HapticDevice): DeviceFeature[] {
     const source = this.coyotes().find((d) => deviceName(d) === device.name);
     if (!source) return [];
-    return ([V4Channel.A, V4Channel.B] as V4ChannelId[]).map((channel, index) => {
-      const name = channel === V4Channel.A ? 'Ch. A' : 'Ch. B';
+    return ([Channel.A, Channel.B] as ChannelId[]).map((channel, index) => {
+      const name = channel === Channel.A ? 'Ch. A' : 'Ch. B';
       return {
         id: featureId(source, channel),
         deviceName: device.name,
@@ -327,7 +327,7 @@ export class CoyoteBackend implements HapticBackend {
 
   getFeatureDetails(id: string): FeatureDetail[] {
     for (const device of this.coyotes()) {
-      for (const ch of [V4Channel.A, V4Channel.B] as V4ChannelId[]) {
+      for (const ch of [Channel.A, Channel.B] as ChannelId[]) {
         if (featureId(device, ch) !== id) continue;
         const muted = isChannelMuted(device, ch);
         return [
@@ -397,7 +397,7 @@ export class CoyoteBackend implements HapticBackend {
   }
 
   /** Strength follows the script, refreshed before its dead-man's timer runs out. */
-  private pushStrength(device: V4Device, ch: V4ChannelId, id: string, value: number, now: number): void {
+  private pushStrength(device: Device, ch: ChannelId, id: string, value: number, now: number): void {
     const elapsed = now - (this.lastSentAt.get(id) ?? 0);
     const unchanged = this.lastSent.get(id) === value;
     if (unchanged && elapsed < STRENGTH_DURATION_MS / 2) return;
@@ -415,7 +415,7 @@ export class CoyoteBackend implements HapticBackend {
    * carrier a non-zero strength produces nothing. Sent with `im: true` so batches
    * replace rather than stack; restarting a constant carrier is inaudible.
    */
-  private pushCarrier(device: V4Device, ch: V4ChannelId, id: string, now: number): void {
+  private pushCarrier(device: Device, ch: ChannelId, id: string, now: number): void {
     if (now - (this.lastWaveformAt.get(id) ?? 0) < CARRIER_INTERVAL_MS) return;
     this.lastWaveformAt.set(id, now);
 
@@ -426,14 +426,14 @@ export class CoyoteBackend implements HapticBackend {
     this.socket.send((reqId) => buildAppendPulseData(reqId, device.id, ch, frames, duration, seq));
   }
 
-  private warnAboutChannel(device: V4Device, ch: V4ChannelId, id: string): void {
+  private warnAboutChannel(device: Device, ch: ChannelId, id: string): void {
     if (channelCeiling(device, ch) === 0 && !this.ceilingWarned.has(id)) {
       this.ceilingWarned.add(id);
       console.warn('[dglab] no usable limit reported for this channel, refusing to guess one', device.slotState);
     }
     if (isChannelMuted(device, ch) && !this.mutedWarned.has(id)) {
       this.mutedWarned.add(id);
-      console.warn(`[dglab] channel ${ch === V4Channel.A ? 'A' : 'B'} is muted in the DG-Lab app; it will stay silent`);
+      console.warn(`[dglab] channel ${ch === Channel.A ? 'A' : 'B'} is muted in the DG-Lab app; it will stay silent`);
     }
   }
 
@@ -454,7 +454,7 @@ export class CoyoteBackend implements HapticBackend {
     this.lastWaveformAt.clear();
     for (const device of this.coyotes()) {
       this.socket.send((reqId) => buildClear(reqId, device.id));
-      for (const ch of [V4Channel.A, V4Channel.B] as V4ChannelId[]) {
+      for (const ch of [Channel.A, Channel.B] as ChannelId[]) {
         this.socket.send((reqId) => buildResetIntensity(reqId, device.id, ch));
       }
     }
@@ -462,7 +462,7 @@ export class CoyoteBackend implements HapticBackend {
 
   // --- Internals ---
 
-  private coyotes(): V4Device[] {
+  private coyotes(): Device[] {
     return this.socket.devices.filter((d) => isCoyote(d.type));
   }
 
@@ -470,7 +470,7 @@ export class CoyoteBackend implements HapticBackend {
     const key = channelKey(channel);
     const refs: CoyoteChannelRef[] = [];
     for (const device of this.coyotes()) {
-      for (const ch of [V4Channel.A, V4Channel.B] as V4ChannelId[]) {
+      for (const ch of [Channel.A, Channel.B] as ChannelId[]) {
         if (this.assignments.get(featureId(device, ch)) === key) refs.push({ device, channel: ch });
       }
     }
@@ -501,7 +501,7 @@ export class CoyoteBackend implements HapticBackend {
       device.slotState?.markLight,
       device.slotState?.hasDevice,
       device.props?.power,
-      ...([V4Channel.A, V4Channel.B] as V4ChannelId[]).flatMap((ch) => [
+      ...([Channel.A, Channel.B] as ChannelId[]).flatMap((ch) => [
         isChannelMuted(device, ch),
         channelCeiling(device, ch),
         channelMode(device, ch),

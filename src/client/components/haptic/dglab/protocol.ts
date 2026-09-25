@@ -21,15 +21,15 @@ export type AppMessage =
   | { t: 'resp'; reqId: string; result?: unknown; error?: unknown }
   | { t: 'ev'; m?: string; e?: string; ev?: string; data?: unknown;[key: string]: unknown };
 
-export const V4ActionType = {
+export const ActionType = {
   AppendPulseData: 0,
   AddIntensity: 3,
   SetTempIntensity: 4,
   SetIntensity: 7,
 } as const;
 
-export const V4Channel = { A: 0, B: 1 } as const;
-export type V4ChannelId = (typeof V4Channel)[keyof typeof V4Channel];
+export const Channel = { A: 0, B: 1 } as const;
+export type ChannelId = (typeof Channel)[keyof typeof Channel];
 
 /** Pulse frame encoding version; 3 is the Coyote 3.0 `[freq×4, intensity×4]` layout. */
 const PULSE_VERSION = 3;
@@ -37,7 +37,7 @@ const PULSE_VERSION = 3;
 /** Priority is a strict `0 | 1 | 2`; anything else is rejected as `invalid_operate`. */
 const DEFAULT_PRIORITY = 1;
 
-export interface V4ChannelState {
+export interface ChannelState {
   isMuted?: boolean;
   warmUpScale?: number;
   intensityMax?: number;
@@ -45,9 +45,9 @@ export interface V4ChannelState {
   [key: string]: unknown;
 }
 
-export interface V4SlotState {
-  channelA?: V4ChannelState;
-  channelB?: V4ChannelState;
+export interface SlotState {
+  channelA?: ChannelState;
+  channelB?: ChannelState;
   /** Colour of the slot marker shown in the app. */
   markLight?: string;
   /** False while the slot is configured in the app but no hardware is connected. */
@@ -55,7 +55,7 @@ export interface V4SlotState {
   [key: string]: unknown;
 }
 
-export interface V4Device {
+export interface Device {
   /** Slot id used as `s` in every `device.op`. */
   id: string;
   /** The app's own slot number, shown in its UI. Distinct from `id`. */
@@ -69,7 +69,7 @@ export interface V4Device {
     channelBStatus?: number;
     [key: string]: unknown;
   };
-  slotState?: V4SlotState;
+  slotState?: SlotState;
 }
 
 export function isRelayFrame(value: unknown): value is RelayFrame {
@@ -108,13 +108,13 @@ export function buildDevicesGet(reqId: string): AppMessage {
 export function buildSetTempIntensity(
   reqId: string,
   slotId: string,
-  channel: V4ChannelId,
+  channel: ChannelId,
   value: number,
   durationMs: number,
 ): AppMessage {
   return buildRequest(reqId, 'device.op', {
     s: slotId,
-    t: V4ActionType.SetTempIntensity,
+    t: ActionType.SetTempIntensity,
     c: channel,
     v: Math.max(0, Math.round(value)),
     d: Math.max(1, Math.round(durationMs)),
@@ -133,14 +133,14 @@ export function buildSetTempIntensity(
 export function buildAppendPulseData(
   reqId: string,
   slotId: string,
-  channel: V4ChannelId,
+  channel: ChannelId,
   frames: string[],
   durationMs: number,
   seq: number,
 ): AppMessage {
   return buildRequest(reqId, 'device.op', {
     s: slotId,
-    t: V4ActionType.AppendPulseData,
+    t: ActionType.AppendPulseData,
     c: channel,
     v: frames,
     ver: PULSE_VERSION,
@@ -152,10 +152,10 @@ export function buildAppendPulseData(
 }
 
 /** Hard reset of a channel's base intensity. `SetIntensity` accepts no other value. */
-export function buildResetIntensity(reqId: string, slotId: string, channel: V4ChannelId): AppMessage {
+export function buildResetIntensity(reqId: string, slotId: string, channel: ChannelId): AppMessage {
   return buildRequest(reqId, 'device.op', {
     s: slotId,
-    t: V4ActionType.SetIntensity,
+    t: ActionType.SetIntensity,
     c: channel,
     v: 0,
     p: DEFAULT_PRIORITY,
@@ -178,7 +178,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
  * A device's own identifier is deliberately not used: the two differ, and the app
  * answers `slot_not_found` when the wrong one is sent.
  */
-export function parseDevice(value: unknown): V4Device | null {
+export function parseDevice(value: unknown): Device | null {
   const record = asRecord(value);
   if (!record) return null;
   const rawId = record.slotId ?? record.slot ?? record.s ?? record.sid ?? record.id ?? record.deviceId;
@@ -195,10 +195,10 @@ export function parseDevice(value: unknown): V4Device | null {
 }
 
 /** Devices carried by a `devices.snapshot` or the `added` half of a `devices.patch`. */
-export function parseDeviceList(value: unknown): V4Device[] {
+export function parseDeviceList(value: unknown): Device[] {
   const list = Array.isArray(value) ? value : asRecord(value)?.devices;
   if (!Array.isArray(list)) return [];
-  return list.map(parseDevice).filter((d): d is V4Device => d !== null);
+  return list.map(parseDevice).filter((d): d is Device => d !== null);
 }
 
 /**
@@ -208,8 +208,8 @@ export function parseDeviceList(value: unknown): V4Device[] {
  * `channelA.comfortLimit` in particular arrives with only the changed field. A
  * shallow merge silently drops `comfortMax`, which would raise the safety ceiling.
  */
-export function mergeSlotState(current: V4SlotState | undefined, patch: unknown): V4SlotState {
-  return deepMerge(current ?? {}, patch) as V4SlotState;
+export function mergeSlotState(current: SlotState | undefined, patch: unknown): SlotState {
+  return deepMerge(current ?? {}, patch) as SlotState;
 }
 
 function deepMerge(base: Record<string, unknown>, patch: unknown): Record<string, unknown> {

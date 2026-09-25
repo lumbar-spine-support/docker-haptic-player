@@ -7,10 +7,10 @@ import {
   parseDevice,
   parseDeviceList,
   buildDevicesGet,
-  V4ActionType,
+  ActionType,
   type AppMessage,
   type RelayFrame,
-  type V4Device,
+  type Device,
 } from './protocol';
 
 export type DglabSocketState = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -24,10 +24,10 @@ const DEVICE_REFRESH_MS = 30_000;
 const SENT_LOG_LIMIT = 200;
 
 const ACTION_NAMES: Record<number, string> = {
-  [V4ActionType.AppendPulseData]: 'AppendPulseData',
-  [V4ActionType.AddIntensity]: 'AddIntensity',
-  [V4ActionType.SetTempIntensity]: 'SetTempIntensity',
-  [V4ActionType.SetIntensity]: 'SetIntensity',
+  [ActionType.AppendPulseData]: 'AppendPulseData',
+  [ActionType.AddIntensity]: 'AddIntensity',
+  [ActionType.SetTempIntensity]: 'SetTempIntensity',
+  [ActionType.SetIntensity]: 'SetIntensity',
 };
 
 /** Set `localStorage['happy-dglab-debug'] = 'true'` to trace the wire protocol. */
@@ -58,7 +58,7 @@ export class DglabV4Socket {
   /** Our relay client id; the DG-Lab app pairs by passing this back as `tid`. */
   private clientId: string | null = null;
   private readonly attachedApps = new Set<string>();
-  private readonly deviceCache = new Map<string, V4Device>();
+  private readonly deviceCache = new Map<string, Device>();
   private readonly pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: number }>();
   private reqCounter = 0;
   private reconnectAttempts = 0;
@@ -69,16 +69,16 @@ export class DglabV4Socket {
   private readonly sentLog = new Map<string, { what: string; body: string }>();
 
   private readonly stateListeners: Array<Listener<DglabSocketState>> = [];
-  private readonly deviceListeners: Array<Listener<V4Device[]>> = [];
+  private readonly deviceListeners: Array<Listener<Device[]>> = [];
 
   onStateChange(l: Listener<DglabSocketState>): void { this.stateListeners.push(l); }
-  onDevicesChange(l: Listener<V4Device[]>): void { this.deviceListeners.push(l); }
+  onDevicesChange(l: Listener<Device[]>): void { this.deviceListeners.push(l); }
 
   get connectionState(): DglabSocketState { return this.state; }
   /** Value the DG-Lab app must pass as `?tid=`; null until the relay says hello. */
   get targetId(): string | null { return this.clientId; }
   get appCount(): number { return this.attachedApps.size; }
-  get devices(): V4Device[] { return [...this.deviceCache.values()]; }
+  get devices(): Device[] { return [...this.deviceCache.values()]; }
 
   connect(url: string): void {
     if (this.state === 'connecting' || this.state === 'connected') return;

@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-    V4ActionType,
-    V4Channel,
+    ActionType,
+    Channel,
     buildAppendPulseData,
     buildClear,
     buildDevicesGet,
@@ -29,10 +29,10 @@ test(`${TAG} devices.get is a plain request with no payload`, () => {
 });
 
 test(`${TAG} strength is sent as SetTempIntensity with im:true`, () => {
-    const data = opData(buildSetTempIntensity('r2', 'slot-1', V4Channel.B, 7.4, 300));
+    const data = opData(buildSetTempIntensity('r2', 'slot-1', Channel.B, 7.4, 300));
     assert.equal(data.s, 'slot-1');
-    assert.equal(data.t, V4ActionType.SetTempIntensity);
-    assert.equal(data.c, V4Channel.B);
+    assert.equal(data.t, ActionType.SetTempIntensity);
+    assert.equal(data.c, Channel.B);
     assert.equal(data.v, 7);
     assert.equal(data.d, 300);
     // Absolute values only work if the previous task is replaced rather than stacked.
@@ -41,22 +41,22 @@ test(`${TAG} strength is sent as SetTempIntensity with im:true`, () => {
 
 test(`${TAG} every operation uses a priority the schema accepts`, () => {
     const operations = [
-        buildSetTempIntensity('r', 's', V4Channel.A, 1, 300),
-        buildAppendPulseData('r', 's', V4Channel.A, ['0A0A0A0A64646464'], 1000, 1),
-        buildResetIntensity('r', 's', V4Channel.A),
+        buildSetTempIntensity('r', 's', Channel.A, 1, 300),
+        buildAppendPulseData('r', 's', Channel.A, ['0A0A0A0A64646464'], 1000, 1),
+        buildResetIntensity('r', 's', Channel.A),
     ];
     // Anything outside 0|1|2 is rejected wholesale as invalid_operate.
     for (const op of operations) assert.ok([0, 1, 2].includes(opData(op).p as number));
 });
 
 test(`${TAG} strength never goes negative and is always an integer`, () => {
-    assert.equal(opData(buildSetTempIntensity('r', 's', V4Channel.A, -5, 300)).v, 0);
-    assert.equal(opData(buildSetTempIntensity('r', 's', V4Channel.A, 3.6, 300)).v, 4);
+    assert.equal(opData(buildSetTempIntensity('r', 's', Channel.A, -5, 300)).v, 0);
+    assert.equal(opData(buildSetTempIntensity('r', 's', Channel.A, 3.6, 300)).v, 4);
 });
 
 test(`${TAG} pulse data carries the frame list, version and sequence`, () => {
-    const data = opData(buildAppendPulseData('r3', 'slot-1', V4Channel.A, ['0A0A0A0A64646464'], 1000, 12));
-    assert.equal(data.t, V4ActionType.AppendPulseData);
+    const data = opData(buildAppendPulseData('r3', 'slot-1', Channel.A, ['0A0A0A0A64646464'], 1000, 12));
+    assert.equal(data.t, ActionType.AppendPulseData);
     assert.deepEqual(data.v, ['0A0A0A0A64646464']);
     assert.equal(data.ver, 3);
     assert.equal(data.seq, 12);
@@ -66,8 +66,8 @@ test(`${TAG} pulse data carries the frame list, version and sequence`, () => {
 });
 
 test(`${TAG} reset uses SetIntensity, which only accepts zero`, () => {
-    const data = opData(buildResetIntensity('r4', 'slot-1', V4Channel.A));
-    assert.equal(data.t, V4ActionType.SetIntensity);
+    const data = opData(buildResetIntensity('r4', 'slot-1', Channel.A));
+    assert.equal(data.t, ActionType.SetIntensity);
     assert.equal(data.v, 0);
     assert.equal('im' in data, false);
 });
