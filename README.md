@@ -29,12 +29,17 @@ flowchart LR
   HAPPY[HAPPY\nServer]
   Intiface[Intiface\nCentral]
   Toys[Haptic\nPeripherals]
+  DGLab[DG-Lab 4\nApp]
+  Coyote[DG-Lab\nCoyote 3.0]
 
   Client -->|GET-API| HAPPY
   HAPPY -->|Serves| Client
   Client <-->|Buttplug.io-API| Intiface
   Intiface -->|Bluetooth / USB| Toys
   Media -->|Docker Mount| HAPPY
+  Client <-.->|WebSocket| HAPPY
+  HAPPY <-.->|DG-Lab Relay\nWebSocket| DGLab
+  DGLab -.->|Bluetooth| Coyote
 ```
 
 ## Installation
