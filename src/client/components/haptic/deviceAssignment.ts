@@ -1,4 +1,3 @@
-import type { ButtplugClientDevice } from 'buttplug';
 import {
   FUNSCRIPT_TYPES,
   channelKey,
@@ -7,7 +6,22 @@ import {
   type HapticChannel,
 } from '../../../shared/haptics';
 import { bindDragOnlyRange, bindDualRangeDragOnly, syncDualRangeFill, syncRangeFill } from '../../utils/rangeSlider';
-import type { ButtplugClientManager, DeviceFeature } from './buttplugClient';
+import { deviceAlertHtml, deviceBadgeHtml, deviceCardHtml, deviceDetailHtml, deviceFeatureHtml } from './templates';
+import type { DeviceFeature, FeatureKind, HapticBackend, HapticDevice } from './backend';
+
+/**
+ * Icon per actuator kind.
+ *
+ * Keyed by `FeatureKind`, not by funscript type: a scalar actuator is whatever the
+ * toy calls it, so it gets the generic vibrator glyph. `device-role-icon-generic`
+ * clears the mask so a Bootstrap Icons font glyph can be used instead.
+ */
+const FEATURE_ICON_CLASSES: Record<FeatureKind, string> = {
+  scalar: 'device-role-icon-vibrator',
+  rotate: 'device-role-icon-generic bi bi-arrow-repeat',
+  linear: 'device-role-icon-stroker',
+  estim: 'device-role-icon-estim',
+};
 
 /** Minimum gap (percentage points) enforced between the stroker min and max handles. */
 const MIN_GAP = 10;
@@ -21,16 +35,19 @@ const STEP = 5;
  * and its rotator from two different scripts.
  */
 export class DeviceAssignment {
-  private readonly buttplug: ButtplugClientManager;
+  private readonly buttplug: HapticBackend;
   private container: HTMLElement | null = null;
   /** Channels present in the current track; merged with the plain base types. */
   private trackChannels: HapticChannel[] = [];
+  /** Feature ids whose detail panel is open, so a re-render does not collapse them. */
+  private readonly expandedFeatures = new Set<string>();
 
-  constructor(buttplug: ButtplugClientManager) {
+  constructor(buttplug: HapticBackend) {
     this.buttplug = buttplug;
     buttplug.onDevicesChange(() => this.render());
     buttplug.onAssignmentsChange(() => this.render());
     buttplug.onStateChange(() => this.render());
+    buttplug.onDeviceStateChange?.(() => this.render());
   }
 
   /** Mounts and renders the device list into the provided container. */
@@ -76,27 +93,22 @@ export class DeviceAssignment {
     return channels;
   }
 
-  private buildDeviceCard(device: ButtplugClientDevice): HTMLElement {
-    const card = document.createElement('div');
-    card.className = 'device-card mb-2 p-2 border border-secondary rounded bg-dark';
+  private buildDeviceCard(device: HapticDevice): HTMLElement {
+    const badge = this.buttplug.getDeviceBadge?.(device.name) ?? null;
+    const alerts = this.buttplug.getDeviceAlerts?.(device.name) ?? [];
 
-    // --- Header row: name + battery ---
-    const header = document.createElement('div');
-    header.className = 'd-flex align-items-center mb-2';
+    const host = document.createElement('div');
+    host.innerHTML = deviceCardHtml({
+      name: device.name,
+      badge: badge ? deviceBadgeHtml(badge) : '',
+      alerts: alerts.map(deviceAlertHtml).join(''),
+    });
+    const card = host.firstElementChild as HTMLElement;
+    const controls = card.querySelector('[data-device-controls]') as HTMLElement;
+    const featureList = card.querySelector('[data-device-features]') as HTMLElement;
 
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'fw-semibold text-truncate flex-grow-1 small';
-    nameSpan.title = device.name;
-    nameSpan.textContent = device.name;
-
-    const battHeaderEl = document.createElement('div');
-    battHeaderEl.className = 'text-muted small flex-shrink-0';
+    const battHeaderEl = card.querySelector('[data-device-battery]') as HTMLElement;
     battHeaderEl.innerHTML = '<i class="bi bi-battery me-1"></i>…';
-
-    header.appendChild(nameSpan);
-    header.appendChild(battHeaderEl);
-    card.appendChild(header);
-
     void this.buttplug.getBatteryLevel(device).then((level) => {
       if (level === null) {
         battHeaderEl.textContent = '';
@@ -108,32 +120,61 @@ export class DeviceAssignment {
     const features = this.buttplug.getFeatures(device);
 
     // A strength slider only makes sense for actuators with an intensity (not pure position).
-    if (features.some((feature) => feature.kind === 'scalar' || feature.kind === 'rotate')) {
-      card.appendChild(this.buildStrengthRow(device));
+    if (features.some((feature) => feature.kind !== 'linear')) {
+      controls.appendChild(this.buildStrengthRow(device));
+    }
+
+    const frequency = this.buttplug.getCarrierFrequency?.(device.name);
+    if (typeof frequency === 'number') {
+      controls.appendChild(this.buildFrequencyRow(device, frequency));
     }
 
     if (features.length === 0) {
       const none = document.createElement('div');
       none.className = 'text-muted small';
       none.textContent = 'No controllable features.';
-      card.appendChild(none);
+      featureList.appendChild(none);
       return card;
     }
 
     for (const feature of features) {
-      card.appendChild(this.buildFeatureRow(feature));
+      featureList.appendChild(this.buildFeatureRow(feature));
     }
 
     // Position travel limits only make sense for a toy that reports a linear actuator.
     if (features.some((feature) => feature.kind === 'linear')) {
-      card.appendChild(this.buildStrokerRangeRow(device));
+      featureList.appendChild(this.buildStrokerRangeRow(device));
     }
 
     return card;
   }
 
+  /** Carrier frequency of a pulse-based device, e.g. a DG-Lab Coyote channel pair. */
+  private buildFrequencyRow(device: HapticDevice, initial: number): HTMLElement {
+    const { row, value } = buildControl('Pulse Frequency', String(initial));
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.className = 'form-range handle-only-range';
+    slider.min = '2';
+    slider.max = '100';
+    slider.step = '2';
+    slider.value = String(initial);
+    slider.setAttribute('aria-label', `Pulse frequency for ${device.name}`);
+    slider.addEventListener('input', () => {
+      const hz = Number(slider.value);
+      value.textContent = String(hz);
+      this.buttplug.setCarrierFrequency?.(device.name, hz);
+    });
+
+    row.appendChild(slider);
+    bindDragOnlyRange(slider);
+    syncRangeFill(slider);
+    return row;
+  }
+
   /** Per-toy strength, multiplied with the master strength when commands are sent. */
-  private buildStrengthRow(device: ButtplugClientDevice): HTMLElement {
+  private buildStrengthRow(device: HapticDevice): HTMLElement {
     const initial = Math.round(this.buttplug.getDeviceStrength(device.name) * 100);
     const { row, value } = buildControl('Strength', `${initial}%`);
 
@@ -158,7 +199,7 @@ export class DeviceAssignment {
   }
 
   /** Dual-handle travel limits for linear toys, rescaling stroker positions. */
-  private buildStrokerRangeRow(device: ButtplugClientDevice): HTMLElement {
+  private buildStrokerRangeRow(device: HapticDevice): HTMLElement {
     const initialMin = snap(this.buttplug.linearRangeMin * 100);
     const initialMax = snap(this.buttplug.linearRangeMax * 100);
     const { row, value } = buildControl('Position Limits', `${initialMin}% – ${initialMax}%`);
@@ -200,19 +241,34 @@ export class DeviceAssignment {
   }
 
   private buildFeatureRow(feature: DeviceFeature): HTMLElement {
-    const row = document.createElement('div');
-    row.className = 'd-flex align-items-center gap-2 mb-1';
+    const details = this.buttplug.getFeatureDetails?.(feature.id) ?? [];
+    const expanded = this.expandedFeatures.has(feature.id);
 
-    const label = document.createElement('span');
-    label.className = 'text-muted small text-truncate';
-    label.style.flex = '0 0 6.5rem';
-    label.title = feature.descriptor || feature.label;
-    label.textContent = feature.label;
+    const host = document.createElement('div');
+    host.innerHTML = deviceFeatureHtml({
+      // Ids must survive a re-render, and feature ids contain `#` and spaces.
+      detailsId: `feature-details-${hashId(feature.id)}`,
+      iconClass: FEATURE_ICON_CLASSES[feature.kind] ?? '',
+      label: feature.label,
+      ariaLabel: `${feature.deviceName} ${feature.label}`,
+      details: details.map(deviceDetailHtml).join(''),
+      expanded: String(expanded),
+      collapseClass: expanded ? 'collapse show' : 'collapse',
+    });
+    const row = host.firstElementChild as HTMLElement;
 
-    const select = document.createElement('select');
-    select.className = 'form-select form-select-sm bg-dark text-light border-secondary';
-    select.setAttribute('aria-label', `Assign script for ${feature.deviceName} ${feature.label}`);
+    if (details.length === 0) {
+      row.querySelector('.device-feature-chevron')?.classList.add('d-none');
+      row.querySelector('[data-bs-toggle="collapse"]')?.removeAttribute('data-bs-toggle');
+    }
 
+    // Tracked on `show`/`hide` rather than `shown`/`hidden` so a re-render that
+    // interrupts the transition still records the user's intent.
+    const panel = row.querySelector('.collapse');
+    panel?.addEventListener('show.bs.collapse', () => this.expandedFeatures.add(feature.id));
+    panel?.addEventListener('hide.bs.collapse', () => this.expandedFeatures.delete(feature.id));
+
+    const select = row.querySelector('[data-feature-select]') as HTMLSelectElement;
     const noneOpt = document.createElement('option');
     noneOpt.value = '';
     noneOpt.textContent = '— Assign Script —';
@@ -230,10 +286,15 @@ export class DeviceAssignment {
       this.buttplug.setFeatureChannel(feature.id, select.value ? parseChannelKey(select.value) : null);
     });
 
-    row.appendChild(label);
-    row.appendChild(select);
     return row;
   }
+}
+
+/** Stable, DOM-id-safe key for a feature id, which may contain `#` and spaces. */
+function hashId(value: string): string {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) | 0;
+  return Math.abs(hash).toString(36);
 }
 
 function snap(value: number): number {
@@ -246,10 +307,7 @@ function buildControl(title: string, initialValue: string): { row: HTMLElement; 
   row.className = 'settings-control mb-2';
 
   const label = document.createElement('label');
-  // Elements built via createElement have no whitespace text node between them
-  // (unlike the static HTML markup), so an explicit flex layout keeps title
-  // and value apart instead of visually running together.
-  label.className = 'form-label small d-flex justify-content-between';
+  label.className = 'form-label settings-label small';
 
   const text = document.createElement('span');
   text.textContent = title;

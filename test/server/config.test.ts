@@ -113,3 +113,30 @@ test(`${TAG} LOG_LEVEL is applied to the logger and invalid values fall back to 
         }
     });
 });
+
+test(`${TAG} DGLAB_ENABLED defaults to off`, async () => {
+    await withConfigPath(() => {
+        assert.equal(Config.load().client.dglabEnabled, false);
+    });
+});
+
+test(`${TAG} a boolean setting accepts the usual truthy spellings from the environment`, async () => {
+    for (const [raw, expected] of [['true', true], ['1', true], ['yes', true], ['on', true],
+    ['false', false], ['0', false], ['no', false], ['', false]] as const) {
+        await withConfigPath(() => {
+            process.env.DGLAB_ENABLED = raw;
+            try {
+                assert.equal(Config.load().client.dglabEnabled, expected, `for ${JSON.stringify(raw)}`);
+            } finally {
+                delete process.env.DGLAB_ENABLED;
+            }
+        });
+    }
+});
+
+test(`${TAG} a quoted boolean in settings.yaml is still coerced to a boolean`, async () => {
+    await withConfigPath((configPath) => {
+        fs.writeFileSync(configPath, 'DGLAB_ENABLED: "true"\n', 'utf-8');
+        assert.equal(Config.load().client.dglabEnabled, true);
+    });
+});

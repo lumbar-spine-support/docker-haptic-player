@@ -1,12 +1,16 @@
-import { fetchFunscript, fetchTrackDescription, fetchVersion, fetchAuthStatus, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
+import { fetchFunscript, fetchTrackDescription, fetchVersion, fetchAuthStatus, fetchClientConfig, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
 import { bindDragOnlyRange, syncRangeFill } from './utils/rangeSlider';
 import { resetScrollPosition } from '../shared/scroll';
 import { PlaybackSession, PlaybackQueue, PlaybackController } from './components/player';
 import type { PlayerFooterElement } from './components/player';
 import { ButtplugClientManager } from './components/haptic/buttplugClient';
+import { HapticBackendRegistry } from './components/haptic/backendRegistry';
+import { CoyoteBackend } from './components/haptic/dglab/coyoteBackend';
+import { pairingDeepLink } from './components/haptic/dglab/v4/protocol';
 import { FunscriptSync } from './components/funscriptSync';
 import { DeviceStatus } from './components/haptic/deviceStatus';
 import { DeviceAssignment } from './components/haptic/deviceAssignment';
+import type { HapticBackend } from './components/haptic/backend';
 import { HapticControls } from './components/hapticControls';
 import { Visualization } from './components/visualization';
 import { Markdown } from './components/markdown';
@@ -71,6 +75,7 @@ class App {
   private readonly detailTitlePlaylist = qs<HTMLElement>('#detail-title-playlist');
   private readonly detailSubtitlePlaylist = qs<HTMLElement>('#detail-subtitle-playlist');
   private readonly connectBtn = qs<HTMLButtonElement>('#btn-connect');
+  private readonly resetBtn = qs<HTMLButtonElement>('#btn-reset');
   private readonly intifaceInput = qs<HTMLInputElement>('#intiface-address');
   private readonly hapticSlider = qs<HTMLInputElement>('#haptic-strength');
   private readonly hapticLabel = qs<HTMLElement>('#haptic-strength-label');
@@ -92,13 +97,17 @@ class App {
   private readonly logoutBtn = qs<HTMLButtonElement>('#btn-logout');
 
   private readonly buttplug = new ButtplugClientManager();
+  /** Fans every haptic operation out across Intiface and, when enabled, DG-Lab. */
+  private readonly haptics = new HapticBackendRegistry();
   /** Owns the two interchangeable players; one of them is always the playing one. */
   private readonly session: PlaybackSession;
   private readonly queue = new PlaybackQueue();
   private readonly playback: PlaybackController;
   private readonly syncEngine: FunscriptSync;
   private readonly deviceStatus: DeviceStatus;
-  private readonly deviceAssignment: DeviceAssignment;
+  /** One device list per backend, rendered inside that backend's settings section. */
+  private readonly deviceAssignments: DeviceAssignment[] = [];
+  private trackChannels: HapticChannel[] = [];
   private readonly hapticControls: HapticControls;
   private readonly viz: Visualization;
   private readonly library: Library;
@@ -118,10 +127,10 @@ class App {
   private constructor(session: PlaybackSession) {
     this.session = session;
     this.queue.autoplay = localStorage.getItem(AUTOPLAY_KEY) !== 'false';
-    this.syncEngine = new FunscriptSync(session, this.buttplug);
-    this.deviceStatus = new DeviceStatus(this.buttplug);
-    this.deviceAssignment = new DeviceAssignment(this.buttplug);
-    this.hapticControls = new HapticControls(this.buttplug);
+    this.haptics.add(this.buttplug);
+    this.syncEngine = new FunscriptSync(session, this.haptics);
+    this.deviceStatus = new DeviceStatus(this.haptics);
+    this.hapticControls = new HapticControls(this.haptics);
     this.viz = new Visualization(session);
     this.viz.onSeek((time) => { void session.focusedStore.seek(time); });
 
@@ -151,23 +160,35 @@ class App {
     void this.bindLogout();
     this.footer?.bind(this.session, this.playback, (trackId) => this.navigateTo(trackHref(trackId)));
 
-    const assignContainer = qs<HTMLElement>('#device-assignment');
-    if (assignContainer) this.deviceAssignment.mount(assignContainer);
+    this.mountDeviceAssignment(this.buttplug, '#intiface-devices');
 
     const settingsPanel = document.getElementById('settings-panel');
     if (settingsPanel) {
       settingsPanel.addEventListener('show.bs.offcanvas', () => {
-        this.deviceAssignment.refresh();
+        for (const assignment of this.deviceAssignments) assignment.refresh();
       });
     }
 
     this.initHapticControls();
+    await this.initDglab();
     this.playback.onActiveTrack((track) => { void this.onActiveTrackChanged(track); });
 
     await this.library.load();
     await this.handleRouteChange();
 
+    // Closing or backgrounding the tab must silence the devices, not leave them running.
+    window.addEventListener('pagehide', () => { void this.haptics.stopAll(); });
+
     window.addEventListener('popstate', () => { void this.handleRouteChange(); });
+  }
+
+  private mountDeviceAssignment(backend: HapticBackend, containerSelector: string): void {
+    const container = qs<HTMLElement>(containerSelector);
+    if (!container) return;
+    const assignment = new DeviceAssignment(backend);
+    assignment.setAvailableChannels(this.trackChannels);
+    assignment.mount(container);
+    this.deviceAssignments.push(assignment);
   }
 
   private bindDetailControls(): void {
@@ -248,8 +269,19 @@ class App {
     if (this.intifaceInput) this.intifaceInput.value = initialHost;
 
     const syncConnectionButton = (): void => {
-      if (!this.connectBtn) return;
+      // Driven by the Intiface backend alone; the registry's state also covers DG-Lab.
       const state = this.buttplug.connectionState;
+      const statusEl = document.getElementById('intiface-status');
+      if (statusEl) {
+        statusEl.className = 'badge ' + (
+          state === 'connected' ? 'bg-success' :
+            state === 'connecting' ? 'bg-warning text-dark' :
+              state === 'error' ? 'bg-danger' :
+                'bg-secondary'
+        );
+        statusEl.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+      }
+      if (!this.connectBtn) return;
       this.connectBtn.disabled = state === 'connecting';
       this.connectBtn.classList.remove('btn-outline-primary', 'btn-outline-danger', 'btn-outline-secondary');
       if (state === 'connected') {
@@ -261,6 +293,12 @@ class App {
       } else {
         this.connectBtn.textContent = 'Connect';
         this.connectBtn.classList.add('btn-outline-primary');
+      }
+      if (this.resetBtn) {
+        this.resetBtn.addEventListener('click', () => {
+          if (this.intifaceInput) this.intifaceInput.value = formatIntifaceHost('localhost:12345');
+          localStorage.setItem(INTIFACE_ADDRESS_KEY, 'localhost:12345');
+        });
       }
     };
 
@@ -385,6 +423,95 @@ class App {
       this.updateHapticUpdateRateLabel(rate);
       this.syncEngine.setUpdateFrequencyHz(rate);
     });
+  }
+
+  /**
+   * Sets up the DG-Lab section, or removes it outright when the server flag is off.
+   *
+   * The backend is only constructed when enabled, so a disabled deployment never
+   * opens a relay socket.
+   */
+  private async initDglab(): Promise<void> {
+    const section = document.getElementById('dglab-section');
+    let config: Awaited<ReturnType<typeof fetchClientConfig>> | null = null;
+    try {
+      config = await fetchClientConfig();
+    } catch {
+      config = null;
+    }
+
+    if (!config?.dglabEnabled) {
+      section?.remove();
+      return;
+    }
+
+    const coyote = new CoyoteBackend();
+    this.haptics.add(coyote);
+    this.mountDeviceAssignment(coyote, '#dglab-devices');
+
+    const statusEl = document.getElementById('dglab-status');
+    const connectBtn = document.getElementById('btn-dglab-connect') as HTMLButtonElement | null;
+    const disconnectBtn = document.getElementById('btn-dglab-disconnect') as HTMLButtonElement | null;
+    const resetBtn = document.getElementById('btn-dglab-reset') as HTMLButtonElement | null;
+    const pairingEl = document.getElementById('dglab-pairing');
+    const linkEl = document.getElementById('dglab-pair-link') as HTMLAnchorElement | null;
+    const hostEl = document.getElementById('dglab-host') as HTMLInputElement | null;
+    const hostGroup = document.getElementById('dglab-host-group');
+    const urlGroup = document.getElementById('dglab-url-group');
+    const urlEl = document.getElementById('dglab-url') as HTMLInputElement | null;
+
+    const sync = (): void => {
+      const state = coyote.connectionState;
+      const paired = coyote.appCount > 0;
+      if (statusEl) {
+        statusEl.className = 'badge ' + (
+          paired ? 'bg-success' :
+            state === 'connected' ? 'bg-warning text-dark' :
+              state === 'connecting' ? 'bg-warning text-dark' :
+                state === 'error' ? 'bg-danger' : 'bg-secondary'
+        );
+        statusEl.textContent = paired ? 'Paired' : state === 'connected' ? 'Waiting for app' : state.charAt(0).toUpperCase() + state.slice(1);
+      }
+      const on = state === 'connected' || state === 'connecting';
+      hostGroup?.classList.toggle('d-none', on);
+      urlGroup?.classList.toggle('d-none', !on);
+      const url = coyote.pairingUrl;
+      if (urlEl) urlEl.value = url ?? '';
+      pairingEl?.classList.toggle('d-none', !url || paired);
+      if (url && linkEl) linkEl.href = pairingDeepLink(url);
+      if (hostEl && document.activeElement !== hostEl) hostEl.value = coyote.pairingHost;
+    };
+
+    coyote.onStateChange(() => sync());
+    coyote.onDevicesChange(() => sync());
+
+    connectBtn?.addEventListener('click', () => {
+      coyote.connect();
+      sync();
+    });
+
+    disconnectBtn?.addEventListener('click', () => {
+      coyote.disconnect();
+      sync();
+    });
+
+    urlEl?.addEventListener('focus', () => urlEl.select());
+
+    hostEl?.addEventListener('change', () => {
+      coyote.setPairingHost(hostEl.value);
+      sync();
+    });
+
+    resetBtn?.addEventListener('click', () => {
+      coyote.resetPairingHost();
+      if (hostEl) {
+        hostEl.blur();
+        hostEl.value = coyote.pairingHost;
+      }
+      sync();
+    });
+
+    sync();
   }
 
   private initBlurContent(): void {
@@ -621,8 +748,9 @@ class App {
   /** Tell the status badges and the assignment UI which channels this track carries. */
   private publishChannels(scripts: LoadedScript[]): void {
     const channels = scripts.map((script) => script.channel);
+    this.trackChannels = channels;
     this.deviceStatus.setAvailableChannels(channels);
-    this.deviceAssignment.setAvailableChannels(channels);
+    for (const assignment of this.deviceAssignments) assignment.setAvailableChannels(channels);
   }
 
   private fetchTrackScripts(track: TrackInfo): Promise<LoadedScript[]> {

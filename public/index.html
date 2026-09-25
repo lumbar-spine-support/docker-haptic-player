@@ -30,6 +30,8 @@
         <button id="btn-view-list" class="btn btn-outline-primary" title="List view"><i
             class="bi bi-list-ul"></i></button>
       </div>
+      <button id="btn-logout" class="btn btn-outline-primary d-none" type="button" title="Lock" aria-label="Lock"><i
+          class="bi bi-lock-fill"></i></button>
       <button id="btn-settings" class="btn btn-outline-primary" type="button" data-bs-toggle="offcanvas"
         data-bs-target="#settings-panel" aria-controls="settings-panel" title="Settings"><i
           class="bi bi-gear-fill"></i></button>
@@ -299,25 +301,22 @@
     <hr>
     <div class="offcanvas-body pt-0 d-flex flex-column">
       <div class="settings-section">
-        <div class="d-flex align-items-center gap-2 mb-2">
+        <h6 class="settings-header">
           <span>Intiface</span>
           <span id="intiface-status" class="badge bg-secondary">Disconnected</span>
-        </div>
-        <div class="input-group">
+        </h6>
+        <div class="input-group input-group-sm mb-3">
           <span class="input-group-text bg-dark text-light border-secondary">ws://</span>
           <input id="intiface-address" type="text" class="form-control form-control-sm border-secondary"
             value="localhost:12345" placeholder="localhost:12345" aria-label="Intiface websocket host and port" />
+          <button id="btn-reset" class="btn btn-sm btn-outline-primary" type="button">
+            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+          </button>
           <button id="btn-connect" class="btn btn-sm btn-outline-primary">Connect</button>
         </div>
-      </div>
 
-      <div class="settings-section">
-        <div id="device-assignment"></div>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-control mb-3">
-          <label for="haptic-strength" class="form-label">
+        <div class="settings-control">
+          <label for="haptic-strength" class="form-label settings-label mb-0">
             <span>Master Strength</span>
             <span id="haptic-strength-label" class="text-muted">100%</span>
           </label>
@@ -325,8 +324,8 @@
             value="100" />
         </div>
 
-        <div class="settings-control mb-3">
-          <label for="haptic-delay" class="form-label">
+        <div class="settings-control">
+          <label for="haptic-delay" class="form-label settings-label mb-0">
             <span>Delay Correction</span>
             <span id="haptic-delay-label" class="text-muted">0ms</span>
           </label>
@@ -334,34 +333,57 @@
             max="200" step="50" value="0" />
         </div>
 
-        <div class="settings-section">
-          <div class="settings-control mb-2">
-            <label for="haptic-update-rate" class="form-label">
-              <span>Update Frequency</span>
-              <span id="haptic-update-rate-label" class="text-muted">30Hz</span>
-            </label>
-            <input id="haptic-update-rate" type="range" class="form-range handle-only-range" min="10" max="60" step="10"
-              value="30" />
-          </div>
+        <div class="settings-control">
+          <label for="haptic-update-rate" class="form-label settings-label mb-0">
+            <span>Update Frequency</span>
+            <span id="haptic-update-rate-label" class="text-muted">30Hz</span>
+          </label>
+          <input id="haptic-update-rate" type="range" class="form-range handle-only-range" min="10" max="60" step="10"
+            value="30" />
         </div>
 
+        <div id="intiface-devices"></div>
+      </div>
+
+      <div class="settings-section" id="dglab-section">
         <hr>
-
-        <div class="settings-section">
-          <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" role="switch" id="blur-content-toggle" />
-            <label class="form-check-label" for="blur-content-toggle">
-              Blur Content
-            </label>
-          </div>
+        <h6 class="settings-header">
+          <span>DG-Lab Socket v4</span>
+          <span id="dglab-status" class="badge bg-secondary">Disconnected</span>
+        </h6>
+        <div id="dglab-host-group" class="input-group input-group-sm">
+          <span class="input-group-text bg-dark text-light border-secondary">ws://</span>
+          <input id="dglab-host" type="text" class="form-control form-control-sm border-secondary"
+            placeholder="192.168.1.10:3000" aria-label="Address the DG-Lab app should connect to" />
+          <button id="btn-dglab-reset" class="btn btn-sm btn-outline-primary" type="button">
+            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+          </button>
+          <button id="btn-dglab-connect" class="btn btn-sm btn-outline-primary" type="button">Enable</button>
         </div>
+        <div id="dglab-url-group" class="input-group input-group-sm d-none">
+          <input id="dglab-url" type="text" class="form-control form-control-sm border-secondary" readonly
+            placeholder="Waiting for relay…" aria-label="WebSocket URL for the DG-Lab app" />
+          <button id="btn-dglab-disconnect" class="btn btn-sm btn-outline-danger" type="button">Disable</button>
+        </div>
+        <div id="dglab-pairing" class="d-none">
+          <a id="dglab-pair-link" class="btn btn-sm btn-secondary w-100 mt-2" href="#" target="_blank" rel="noopener"><i
+              class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Open DG-Lab</a>
+        </div>
+        <div id="dglab-devices" class="mt-3"></div>
+      </div>
 
+      <div class="settings-section">
+        <hr>
+        <h6 class="settings-header">Appearance</h6>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" role="switch" id="blur-content-toggle" />
+          <label class="form-check-label" for="blur-content-toggle">
+            Blur Content
+          </label>
+        </div>
       </div>
 
       <div class="mt-auto pt-3 d-flex flex-column align-items-center gap-2">
-        <button id="btn-logout" class="btn btn btn-outline-secondary d-none">
-          <i class="bi bi-lock-fill" aria-hidden="true"></i>Lock
-        </button>
         <span id="app-version" class="badge bg-secondary" title="Application version">v…</span>
       </div>
     </div>

@@ -12,7 +12,7 @@ export namespace Config {
   export const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv'];
   export const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'wav', 'flac'];
 
-  export type ConfigEntry = number | string | string[];
+  export type ConfigEntry = number | string | boolean | string[];
 
   /** Stores the application configuration. Can be loaded from YAML or environment variables. */
   export interface ServerConfig {
@@ -36,6 +36,7 @@ export namespace Config {
   export interface ClientConfig {
     [key: string]: ConfigEntry;
     videoSeekInterval: number;
+    dglabEnabled: boolean;
   }
 
   export interface Config {
@@ -98,6 +99,7 @@ export namespace Config {
 
   export const DEFAULT_CLIENT_CONFIG: ClientConfig = {
     videoSeekInterval: 10,
+    dglabEnabled: false,
   };
 
   export const DEFAULTS = { ...DEFAULT_SERVER_CONFIG, ...DEFAULT_CLIENT_CONFIG };
@@ -110,6 +112,7 @@ export namespace Config {
     trustProxy: 'Number of reverse proxy hops to trust for X-Forwarded-* headers. 0 for direct LAN access, 1 behind nginx/Traefik',
     logLevel: `Verbosity of the console log: ${LOG_LEVELS.join(', ')}`,
     videoSeekInterval: 'Default skip interval in seconds for the seek buttons (TODO: unused)',
+    dglabEnabled: '(EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control',
     funscriptSuffixSeparator: 'Character that separates filename from funscript suffix',
     funscriptSuffixStroker: 'Suffix for stroker funscript files',
     funscriptSuffixButtplug: 'Suffix for buttplug funscript files',
@@ -126,6 +129,7 @@ export namespace Config {
     trustProxy: 'TRUST_PROXY',
     logLevel: 'LOG_LEVEL',
     videoSeekInterval: 'VIDEO_SEEK_INTERVAL',
+    dglabEnabled: 'DGLAB_ENABLED',
     funscriptSuffixSeparator: 'FUNSCRIPT_SUFFIX_SEPARATOR',
     funscriptSuffixStroker: 'FUNSCRIPT_SUFFIX_STROKER',
     funscriptSuffixButtplug: 'FUNSCRIPT_SUFFIX_BUTTPLUG',
@@ -148,6 +152,9 @@ export namespace Config {
         break;
       case 'number':
         config[key] = Number(stringValue);
+        break;
+      case 'boolean':
+        config[key] = ['1', 'true', 'yes', 'on'].includes(stringValue.trim().toLowerCase());
         break;
       case 'object':
         if (Array.isArray(config[key])) {
@@ -199,10 +206,13 @@ export namespace Config {
       const val = loaded[envKey];
 
       if (val !== undefined && key) {
-        if (SERVER_KEYS.has(key)) {
-          resultServer[key] = val;
-        } else if (CLIENT_KEYS.has(key)) {
-          resultClient[key] = val;
+        const target = SERVER_KEYS.has(key) ? resultServer : CLIENT_KEYS.has(key) ? resultClient : null;
+        if (!target) continue;
+        // YAML is untyped, so a quoted "true"/"10" still has to land as the declared type.
+        if (typeof val === 'string' && typeof target[key] !== 'string') {
+          applyConfigValue(target, key, val);
+        } else {
+          target[key] = val;
         }
       }
     }

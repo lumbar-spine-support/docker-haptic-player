@@ -9,6 +9,17 @@ This is a TypeScript application split into two clear runtime layers:
 
 The server is intentionally stateless with respect to playback. All live playback, footer state, haptic timing, and Intiface device connection state live in the browser.
 
+The one carve-out is the optional **DG-Lab V4 relay** (`/ws/dglab`). A browser cannot accept
+WebSocket connections, so pairing a phone-hosted DG-Lab app with the player needs a meeting
+point. The relay is a dumb passthrough: it pairs one controller with one or more apps and
+forwards opaque payloads. It never parses a device command, so all haptic logic still lives in
+the browser and all safety limits still live in the DG-Lab app.
+
+A controller's id is derived from its access token rather than being random, so the pairing URL
+survives reloads. Its slot also outlives its socket by a grace period: switching to the DG-Lab
+app backgrounds the browser and mobile Chrome may close the WebSocket, so the relay holds the
+slot, accepts the app that arrives meanwhile, and hands it to the tab when it returns.
+
 ## High-level system architecture
 
 ### Server responsibilities
@@ -21,6 +32,8 @@ The server is intentionally stateless with respect to playback. All live playbac
   - `/api/artwork/:trackId`
   - `/api/funscript/:trackId/:filename`
   - `/api/auth/login`, `/api/auth/logout`, `/api/auth/status`
+  - `/api/config` (the client-visible half of the configuration only)
+  - `/ws/dglab` (WebSocket relay, only when `DGLAB_ENABLED` is on)
 - Serve compiled frontend assets from `public/`
 - Gate every asset and API route behind a valid access token
 - Write a level-filtered log of startup, connection, and authentication events to the docker console
@@ -32,7 +45,31 @@ The server is intentionally stateless with respect to playback. All live playbac
 - Maintain the **two-player model**
 - Keep the persistent footer in sync with the active playback player
 - Drive haptic output through Buttplug/Intiface
+- Drive haptic output through the DG-Lab V4 relay when enabled
 - Manage local UI preferences in `localStorage`
+
+## Haptic backends
+
+`HapticBackend` (`src/client/components/haptic/backend.ts`) is the single interface the sync
+engine and the settings UI talk to. Two implementations exist:
+
+- `ButtplugClientManager` — Intiface over WebSocket.
+- `CoyoteBackend` — DG-Lab Coyote 3.0 through the relay. Funscript position maps to channel
+  strength; the waveform is a flat carrier, because strength only scales pulses the device is
+  already emitting.
+
+`HapticBackendRegistry` implements the same interface by fanning out across both, so one
+funscript can drive an Intiface toy and a Coyote simultaneously. `FunscriptSync` only ever
+sees the registry.
+
+### Coyote update rate
+
+The Coyote consumes one pulse frame per ~100 ms tick, so roughly 10 Hz is the ceiling for how
+closely it can track a dense script. A frame nominally carries four 25 ms amplitude sub-steps,
+which would allow 40 Hz, but every waveform DG-Lab ships holds amplitude constant across a
+frame and modulating the sub-steps produced no output on real hardware. Pulse batches are sent
+with `im: true` so each replaces the last: appending instead builds an unbounded backlog and
+the device ends up playing minutes-old frames.
 
 ## Two-player model
 

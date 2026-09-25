@@ -1,5 +1,5 @@
 import { channelKey, type HapticChannel } from '../../../shared/haptics';
-import type { ConnectionState, ButtplugClientManager } from './buttplugClient';
+import type { HapticBackend } from './backend';
 
 type DeviceStatusValue = 'connected' | 'disconnected';
 
@@ -21,13 +21,13 @@ const STATUS_LABELS: Record<DeviceStatusValue, string> = {
  * while Intiface itself is up.
  */
 export class DeviceStatus {
-  private readonly buttplug: ButtplugClientManager;
+  private readonly buttplug: HapticBackend;
   private availableChannels: HapticChannel[] = [];
 
-  constructor(buttplug: ButtplugClientManager) {
+  constructor(buttplug: HapticBackend) {
     this.buttplug = buttplug;
 
-    buttplug.onStateChange((state) => this.handleConnectionState(state));
+    buttplug.onStateChange(() => this.refresh());
     buttplug.onDevicesChange(() => this.refresh());
     buttplug.onAssignmentsChange(() => this.refresh());
 
@@ -37,21 +37,6 @@ export class DeviceStatus {
   /** Call when the track changes to update which channels are available. */
   setAvailableChannels(channels: HapticChannel[]): void {
     this.availableChannels = channels;
-    this.refresh();
-  }
-
-  private handleConnectionState(state: ConnectionState): void {
-    const connEl = document.getElementById('intiface-status');
-    if (!connEl) return;
-
-    connEl.className = 'badge ' + (
-      state === 'connected' ? 'bg-success' :
-        state === 'connecting' ? 'bg-warning text-dark' :
-          state === 'error' ? 'bg-danger' :
-            'bg-secondary'
-    );
-    connEl.textContent = state.charAt(0).toUpperCase() + state.slice(1);
-
     this.refresh();
   }
 

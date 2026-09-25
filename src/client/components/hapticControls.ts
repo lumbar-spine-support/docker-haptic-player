@@ -1,4 +1,4 @@
-import type { ButtplugClientManager } from './haptic/buttplugClient';
+import type { HapticBackend } from './haptic/backend';
 
 /**
  * Binds the master haptic strength slider in the player UI.
@@ -7,9 +7,9 @@ import type { ButtplugClientManager } from './haptic/buttplugClient';
  * multiplied on top of this value.
  */
 export class HapticControls {
-  private readonly buttplug: ButtplugClientManager;
+  private readonly buttplug: HapticBackend;
 
-  constructor(buttplug: ButtplugClientManager) {
+  constructor(buttplug: HapticBackend) {
     this.buttplug = buttplug;
   }
 
@@ -40,9 +40,9 @@ const RANGE_STEP = 5;
  * travel independently of the master haptic strength.
  */
 export class StrokerRangeControls {
-  private readonly buttplug: ButtplugClientManager;
+  private readonly buttplug: HapticBackend;
 
-  constructor(buttplug: ButtplugClientManager) {
+  constructor(buttplug: HapticBackend) {
     this.buttplug = buttplug;
   }
 

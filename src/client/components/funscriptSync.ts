@@ -1,6 +1,6 @@
 import type { Funscript, FunscriptAction } from '../../shared/types';
 import type { HapticChannel } from '../../shared/haptics';
-import type { ButtplugClientManager } from './haptic/buttplugClient';
+import type { HapticBackend } from './haptic/backend';
 import type { PlaybackSession } from './player';
 
 interface LoadedScript {
@@ -43,9 +43,9 @@ export class FunscriptSync {
   private delayMs = 0;
   private updateIntervalMs = 1000 / 30;
   private readonly session: PlaybackSession;
-  private readonly buttplug: ButtplugClientManager;
+  private readonly buttplug: HapticBackend;
 
-  constructor(session: PlaybackSession, buttplug: ButtplugClientManager) {
+  constructor(session: PlaybackSession, buttplug: HapticBackend) {
     this.session = session;
     this.buttplug = buttplug;
 
