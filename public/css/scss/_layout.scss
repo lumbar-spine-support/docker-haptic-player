@@ -47,6 +47,28 @@ body.blur-content media-container {
   overflow: hidden;
 }
 
+#track-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+#track-table thead th {
+  border-top: var(--bs-border-width) solid var(--bs-secondary);
+  border-bottom: var(--bs-border-width) solid var(--bs-secondary);
+}
+
+#track-table thead th:first-child {
+  border-left: var(--bs-border-width) solid var(--bs-secondary);
+  border-top-left-radius: var(--bs-border-radius);
+  border-bottom-left-radius: var(--bs-border-radius);
+}
+
+#track-table thead th:last-child {
+  border-right: var(--bs-border-width) solid var(--bs-secondary);
+  border-top-right-radius: var(--bs-border-radius);
+  border-bottom-right-radius: var(--bs-border-radius);
+}
+
 .d-md-table-cell {
   overflow: hidden; // Contain blur in table view
 }
