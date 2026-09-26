@@ -26,12 +26,6 @@ Funscripts must at least contain an `actions` field with an array of `at/pos` st
 ```json
 // <audio_or_video_name>.<toy-suffix>.funscript
 {
-  "metadata": {
-    "title": "",
-    "creator": "",
-    "tags": [],
-    "chapters": [] // Currently not used; may be used in the future to show chapters in video player.
-  },
   "actions": [
     {"at": 0,   "pos": 0},
     {"at": 100, "pos": 100},

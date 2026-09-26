@@ -8,15 +8,16 @@ Create a `docker-compose.yml`. If you have one media directory with multiple sub
 
 ```yaml
 services:
-  app:
-    image: ghcr.io/lumbar-spine-support/docker-haptic-player:latest
+  happy:
+    image: ghcr.io/lumbar-spine-support/docker-haptic-player:stable
     ports:
-      - "8069:3000"
+      - "8069:8069"
     environment:
-      PASSWORD: "change-me"
+      PASSWORD: "happy"
+      PORT: 8069
     volumes:
-      - ./media:/media:ro # Audio, Video, Playlists, Funscripts (read-access)
-      - ./config:/config # Persistent application settings (read/write access)
+      - ./media:/media:ro
+      - ./config:/config # write-access required
     restart: unless-stopped
 ```
 
@@ -58,16 +59,4 @@ This takes effect immediately, no restart needed. You can also open the settings
 
 ## Running behind a reverse proxy
 
-On a LAN over plain HTTP the defaults are correct and nothing needs changing. Behind a TLS-terminating proxy, set `TRUST_PROXY=1` and forward the protocol so the session cookie can be marked `Secure`:
-
-```nginx
-location / {
-    proxy_pass http://happy:3000;
-    proxy_set_header Host              $host;
-    proxy_set_header X-Real-IP         $remote_addr;
-    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-```
-
-Leave `TRUST_PROXY` at `0` when the container is reachable directly, otherwise clients could spoof `X-Forwarded-For` and bypass the login rate limit.
+*TODO*
