@@ -26,7 +26,8 @@ test(`${TAG} GET /api/docs/:page returns markdown`, async () => {
     const { status, headers, text } = await httpGet(testServer.port, '/api/docs/library');
     assert.equal(status, 200);
     assert.match(String(headers['content-type']), /text\/markdown/);
-    assert.match(text, /^# Library Setup/);
+    assert.match(text, /# Library Setup/);
+    assert.match(text, /```json/);
 });
 
 test(`${TAG} GET /api/docs/:page rejects unknown and malformed pages`, async () => {
