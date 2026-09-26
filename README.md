@@ -1,10 +1,15 @@
 # HAPPY ⸺ Docker Haptic Player
 
+![GitHub package.json version](https://img.shields.io/github/package-json/v/lumbar-spine-support/docker-haptic-player)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/docker-haptic-player/.github%2Fworkflows%2Frelease.yml?branch=main&logo=docker&label=build)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/docker-haptic-player/.github%2Fworkflows%2Ftest.yml?branch=main&logo=github&label=Tests)
+
+
 **HAPPY** is a self-hosted **hap**tic **p**la**y**er for audio and video files.
 
 ![Preview](./docs/screenshots/library-landscape.jpg)
 
-Key features:
+⭐ Key features:
 
 - Easily self-hostable as a prebuilt docker container.
 - [Intiface](https://intiface.com/) interface for wide-raning haptic toys support.
@@ -14,11 +19,11 @@ Key features:
 - Minimally intrusive: no internet required, only read-access to your media volume.
 - No SQL database; everything is stored in the media files themselves and optionally markdown files.
 
-Experimental features:
+🧪 Experimental features:
 
 - [Dungeon Lab](https://www.dungeon-lab.com/) Coyote 3.0 E-stim haptic support
 
-What it tries not to be:
+❌ What it tries not to be:
 
 - A funscript editor. There are plenty of good tools already.
 - A media file metadata editor. Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Puddletag](https://docs.puddletag.net/) (Linux) instead.
