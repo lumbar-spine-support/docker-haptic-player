@@ -200,7 +200,6 @@ export class CoyoteBackend implements HapticBackend {
   /** Empty means "use the browser's own host". */
   private hostOverride = '';
 
-  masterStrength = 1.0;
   /** The Coyote has no linear actuator; kept only to satisfy the interface. */
   readonly linearRangeMin = 0;
   readonly linearRangeMax = 1;
@@ -392,7 +391,7 @@ export class CoyoteBackend implements HapticBackend {
 
       const status = channelStatus(device, ch);
       const usable = status !== STATUS_NO_CIRCUIT && status !== STATUS_DAMAGED && status !== STATUS_MASKED;
-      const strength = this.masterStrength * this.getDeviceStrength(deviceName(device));
+      const strength = this.getDeviceStrength(deviceName(device));
       const value = usable ? mapIntensity(intensity, strength, channelCeiling(device, ch)) : 0;
 
       this.pushStrength(device, ch, id, value, now);

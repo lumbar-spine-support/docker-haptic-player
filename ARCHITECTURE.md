@@ -359,7 +359,7 @@ Buttplug device management lives in `src/client/components/haptic/buttplugClient
 - Each feature is assigned to at most one channel, so one toy can run its vibrator
   and its rotator from two different scripts
 - Several features (across devices) may share a channel
-- Strength is multiplied per device on top of the master strength
+- Strength is set per device; there is no master strength
 - Assignments and strengths persist locally in the browser
 - A channel shows as disconnected while no connected feature is assigned to it
 

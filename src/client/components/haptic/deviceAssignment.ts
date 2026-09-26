@@ -173,7 +173,7 @@ export class DeviceAssignment {
     return row;
   }
 
-  /** Per-toy strength, multiplied with the master strength when commands are sent. */
+  /** Per-toy strength applied when commands are sent. */
   private buildStrengthRow(device: HapticDevice): HTMLElement {
     const initial = Math.round(this.buttplug.getDeviceStrength(device.name) * 100);
     const { row, value } = buildControl('Strength', `${initial}%`);

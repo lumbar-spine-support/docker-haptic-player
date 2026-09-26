@@ -26,7 +26,6 @@ export class HapticBackendRegistry implements HapticBackend {
   private readonly assignmentListeners: AssignmentListener[] = [];
   private readonly deviceStateListeners: Array<() => void> = [];
 
-  private strength = 1.0;
   private rangeMin = 0;
   private rangeMax = 1;
 
@@ -36,7 +35,6 @@ export class HapticBackendRegistry implements HapticBackend {
       this.rangeMin = backend.linearRangeMin;
       this.rangeMax = backend.linearRangeMax;
     }
-    backend.masterStrength = this.strength;
     backend.onStateChange(() => this.emitState());
     backend.onDevicesChange(() => this.emitDevices());
     backend.onAssignmentsChange(() => this.emitAssignments());
@@ -61,12 +59,6 @@ export class HapticBackendRegistry implements HapticBackend {
 
   get devices(): HapticDevice[] {
     return this.backends.flatMap((b) => b.devices);
-  }
-
-  get masterStrength(): number { return this.strength; }
-  set masterStrength(value: number) {
-    this.strength = value;
-    for (const backend of this.backends) backend.masterStrength = value;
   }
 
   get linearRangeMin(): number { return this.rangeMin; }

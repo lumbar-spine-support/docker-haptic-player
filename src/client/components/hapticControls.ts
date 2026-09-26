@@ -1,43 +1,12 @@
 import type { HapticBackend } from './haptic/backend';
 
-/**
- * Binds the master haptic strength slider in the player UI.
- *
- * Per-device strength lives in the device cards (`DeviceAssignment`) and is
- * multiplied on top of this value.
- */
-export class HapticControls {
-  private readonly buttplug: HapticBackend;
-
-  constructor(buttplug: HapticBackend) {
-    this.buttplug = buttplug;
-  }
-
-  /** Wire up the slider element and set the initial value. */
-  init(sliderEl: HTMLInputElement, labelEl: HTMLElement | null, initialValue: number): void {
-    sliderEl.value = String(initialValue);
-    this.updateDisplay(labelEl, initialValue);
-    this.buttplug.masterStrength = initialValue / 100;
-
-    sliderEl.addEventListener('input', () => {
-      const value = Number(sliderEl.value);
-      this.buttplug.masterStrength = value / 100;
-      this.updateDisplay(labelEl, value);
-    });
-  }
-
-  private updateDisplay(labelEl: HTMLElement | null, value: number): void {
-    if (labelEl) labelEl.textContent = `${value}%`;
-  }
-}
-
 /** Minimum gap (percentage points) enforced between the min and max handles. */
 const MIN_GAP = 10;
 const RANGE_STEP = 5;
 
 /**
  * Binds the dual-handle Min/Max Position slider that rescales stroker (linear)
- * travel independently of the master haptic strength.
+ * travel independently of per-device strength.
  */
 export class StrokerRangeControls {
   private readonly buttplug: HapticBackend;

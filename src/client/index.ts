@@ -11,7 +11,6 @@ import { FunscriptSync } from './components/funscriptSync';
 import { DeviceStatus } from './components/haptic/deviceStatus';
 import { DeviceAssignment } from './components/haptic/deviceAssignment';
 import type { HapticBackend } from './components/haptic/backend';
-import { HapticControls } from './components/hapticControls';
 import { Visualization } from './components/visualization';
 import { Markdown } from './components/markdown';
 import { Library } from './components/library';
@@ -29,8 +28,9 @@ import '@/components/videojs/player';
 import '@/components/videojs/skins/video/minimal/element';
 
 const INTIFACE_ADDRESS_KEY = 'happy-intiface-address';
-const HAPTIC_STRENGTH_KEY = 'happy-haptic-strength';
-const HAPTIC_DELAY_KEY = 'happy-haptic-delay-ms';
+const INTIFACE_DELAY_KEY = 'happy-haptic-delay-ms';
+const DGLAB_DELAY_KEY = 'happy-dglab-delay-ms';
+const DELAY_LIMIT_MS = 500;
 const HAPTIC_UPDATE_RATE_KEY = 'happy-haptic-update-rate-hz';
 const AUTOPLAY_KEY = 'happy-autoplay';
 const BLUR_CONTENT_KEY = 'happy-blur-content';
@@ -77,10 +77,6 @@ class App {
   private readonly connectBtn = qs<HTMLButtonElement>('#btn-connect');
   private readonly resetBtn = qs<HTMLButtonElement>('#btn-reset');
   private readonly intifaceInput = qs<HTMLInputElement>('#intiface-address');
-  private readonly hapticSlider = qs<HTMLInputElement>('#haptic-strength');
-  private readonly hapticLabel = qs<HTMLElement>('#haptic-strength-label');
-  private readonly hapticDelaySlider = qs<HTMLInputElement>('#haptic-delay');
-  private readonly hapticDelayLabel = qs<HTMLElement>('#haptic-delay-label');
   private readonly vizContainer = qs<HTMLElement>('#visualization');
   private readonly descriptionSection = qs<HTMLElement>('#track-description-section');
   private readonly descriptionEl = qs<HTMLElement>('#track-description');
@@ -103,12 +99,14 @@ class App {
   private readonly session: PlaybackSession;
   private readonly queue = new PlaybackQueue();
   private readonly playback: PlaybackController;
-  private readonly syncEngine: FunscriptSync;
+  /** One engine per backend, so each can apply its own delay correction. */
+  private readonly syncEngines: FunscriptSync[] = [];
+  private readonly intifaceSync: FunscriptSync;
+  private activeScripts: LoadedScript[] = [];
   private readonly deviceStatus: DeviceStatus;
   /** One device list per backend, rendered inside that backend's settings section. */
   private readonly deviceAssignments: DeviceAssignment[] = [];
   private trackChannels: HapticChannel[] = [];
-  private readonly hapticControls: HapticControls;
   private readonly viz: Visualization;
   private readonly library: Library;
 
@@ -128,9 +126,8 @@ class App {
     this.session = session;
     this.queue.autoplay = localStorage.getItem(AUTOPLAY_KEY) !== 'false';
     this.haptics.add(this.buttplug);
-    this.syncEngine = new FunscriptSync(session, this.haptics);
+    this.intifaceSync = this.createSyncEngine(this.buttplug);
     this.deviceStatus = new DeviceStatus(this.haptics);
-    this.hapticControls = new HapticControls(this.haptics);
     this.viz = new Visualization(session);
     this.viz.onSeek((time) => { void session.focusedStore.seek(time); });
 
@@ -382,33 +379,38 @@ class App {
     }
   }
 
+  private createSyncEngine(backend: HapticBackend): FunscriptSync {
+    const engine = new FunscriptSync(this.session, backend);
+    const rate = Number(this.hapticUpdateRateSlider?.value);
+    if (Number.isFinite(rate) && rate > 0) engine.setUpdateFrequencyHz(rate);
+    engine.loadScripts(this.activeScripts);
+    this.syncEngines.push(engine);
+    return engine;
+  }
+
+  private bindDelaySlider(engine: FunscriptSync, sliderId: string, storageKey: string): void {
+    const slider = qs<HTMLInputElement>(`#${sliderId}`);
+    const label = qs<HTMLElement>(`#${sliderId}-label`);
+    if (!slider) return;
+    const saved = Number(localStorage.getItem(storageKey) ?? 0);
+    const initial = Number.isFinite(saved) ? Math.max(-DELAY_LIMIT_MS, Math.min(DELAY_LIMIT_MS, saved)) : 0;
+    const apply = (delay: number): void => {
+      if (label) label.textContent = `${delay > 0 ? '+' : ''}${delay}ms`;
+      engine.setDelayMs(delay);
+    };
+    bindDragOnlyRange(slider);
+    slider.value = String(initial);
+    syncRangeFill(slider);
+    apply(Number(slider.value));
+    slider.addEventListener('input', () => {
+      const delay = Number(slider.value);
+      localStorage.setItem(storageKey, String(delay));
+      apply(delay);
+    });
+  }
+
   private initHapticControls(): void {
-    if (!this.hapticSlider) return;
-    const savedStrength = Number(localStorage.getItem(HAPTIC_STRENGTH_KEY) ?? '100');
-    const initialStrength = Number.isFinite(savedStrength)
-      ? Math.max(0, Math.min(100, savedStrength))
-      : 100;
-    bindDragOnlyRange(this.hapticSlider);
-    this.hapticControls.init(this.hapticSlider, this.hapticLabel, initialStrength);
-    syncRangeFill(this.hapticSlider);
-    this.hapticSlider.addEventListener('input', () => {
-      localStorage.setItem(HAPTIC_STRENGTH_KEY, this.hapticSlider?.value ?? String(initialStrength));
-      this.syncEngine.resyncNow();
-    });
-    if (!this.hapticDelaySlider) return;
-    const savedDelay = Number(localStorage.getItem(HAPTIC_DELAY_KEY) ?? 0);
-    const initialDelay = Number.isFinite(savedDelay) ? Math.max(-200, Math.min(200, savedDelay)) : 0;
-    bindDragOnlyRange(this.hapticDelaySlider);
-    this.hapticDelaySlider.value = String(initialDelay);
-    syncRangeFill(this.hapticDelaySlider);
-    this.updateDelayLabel(initialDelay);
-    this.syncEngine.setDelayMs(initialDelay);
-    this.hapticDelaySlider.addEventListener('input', () => {
-      const delay = Number(this.hapticDelaySlider?.value ?? 0);
-      localStorage.setItem(HAPTIC_DELAY_KEY, String(delay));
-      this.updateDelayLabel(delay);
-      this.syncEngine.setDelayMs(delay);
-    });
+    this.bindDelaySlider(this.intifaceSync, 'haptic-delay', INTIFACE_DELAY_KEY);
     if (!this.hapticUpdateRateSlider) return;
     const savedRate = Number(localStorage.getItem(HAPTIC_UPDATE_RATE_KEY) ?? 30);
     const initialRate = Number.isFinite(savedRate) ? Math.max(10, Math.min(240, savedRate)) : 30;
@@ -416,12 +418,12 @@ class App {
     this.hapticUpdateRateSlider.value = String(initialRate);
     syncRangeFill(this.hapticUpdateRateSlider);
     this.updateHapticUpdateRateLabel(initialRate);
-    this.syncEngine.setUpdateFrequencyHz(initialRate);
+    for (const engine of this.syncEngines) engine.setUpdateFrequencyHz(initialRate);
     this.hapticUpdateRateSlider.addEventListener('input', () => {
       const rate = Number(this.hapticUpdateRateSlider?.value ?? 30);
       localStorage.setItem(HAPTIC_UPDATE_RATE_KEY, String(rate));
       this.updateHapticUpdateRateLabel(rate);
-      this.syncEngine.setUpdateFrequencyHz(rate);
+      for (const engine of this.syncEngines) engine.setUpdateFrequencyHz(rate);
     });
   }
 
@@ -447,6 +449,7 @@ class App {
 
     const coyote = new CoyoteBackend();
     this.haptics.add(coyote);
+    this.bindDelaySlider(this.createSyncEngine(coyote), 'dglab-delay', DGLAB_DELAY_KEY);
     this.mountDeviceAssignment(coyote, '#dglab-devices');
 
     const statusEl = document.getElementById('dglab-status');
@@ -702,7 +705,8 @@ class App {
 
   /** Another file took over playback: repoint haptics and the OS media controls. */
   private async onActiveTrackChanged(track: TrackInfo | null): Promise<void> {
-    this.syncEngine.clearScripts();
+    this.activeScripts = [];
+    for (const engine of this.syncEngines) engine.clearScripts();
     if (!track) return;
     this.applyMediaSessionMetadata(track);
     // A queue step swaps the media under the file page, so the page (URL, tags,
@@ -712,9 +716,10 @@ class App {
     }
     const scripts = await this.fetchTrackScripts(track);
     if (this.session.activeTrackId !== track.id) return;
-    this.syncEngine.loadScripts(scripts);
+    this.activeScripts = scripts;
+    for (const engine of this.syncEngines) engine.loadScripts(scripts);
     this.publishChannels(scripts);
-    this.syncEngine.resyncNow();
+    for (const engine of this.syncEngines) engine.resyncNow();
   }
 
   private renderTrackDescription(markdown: string): void {
@@ -781,12 +786,6 @@ class App {
       album: track.album,
       artwork,
     });
-  }
-
-  private updateDelayLabel(delayMs: number): void {
-    if (!this.hapticDelayLabel) return;
-    const prefix = delayMs > 0 ? '+' : '';
-    this.hapticDelayLabel.textContent = `${prefix}${delayMs}ms`;
   }
 
   private updateHapticUpdateRateLabel(rateHz: number): void {

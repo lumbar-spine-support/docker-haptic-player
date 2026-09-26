@@ -67,11 +67,8 @@ export class ButtplugClientManager implements HapticBackend {
 
     /** Feature id → channel key. */
     private readonly featureAssignments = new Map<string, string>();
-    /** Device name → strength multiplier 0–1, applied on top of `masterStrength`. */
+    /** Device name → strength multiplier 0–1. */
     private readonly deviceStrengths = new Map<string, number>();
-
-    /** Master strength multiplier 0–1 applied to vibration/rotation commands. */
-    masterStrength = 1.0;
 
     /** Min/max output range (0–1) that linear (stroker) positions are rescaled into. */
     linearRangeMin = 0;
@@ -228,7 +225,7 @@ export class ButtplugClientManager implements HapticBackend {
         if (this.state !== 'connected') return;
 
         for (const { device, feature } of this.resolve(channel)) {
-            const strength = this.masterStrength * this.getDeviceStrength(device.name);
+            const strength = this.getDeviceStrength(device.name);
             if (feature.kind === 'scalar') {
                 const value = clamp01(intensity * strength);
                 void device.scalar(new ScalarSubcommand(feature.index, value, feature.actuator))
@@ -248,7 +245,7 @@ export class ButtplugClientManager implements HapticBackend {
     sendLinear(channel: HapticChannel, position: number, durationMs: number): void {
         if (this.state !== 'connected') return;
 
-        // Stroker travel is rescaled into the configured min/max range, not the master strength.
+        // Stroker travel is rescaled into the configured min/max range, not the device strength.
         const scaled = this.linearRangeMin + clamp01(position) * (this.linearRangeMax - this.linearRangeMin);
         // Buttplug's LinearCmd requires an integer (u32) duration in ms.
         const duration = Math.max(1, Math.round(durationMs));

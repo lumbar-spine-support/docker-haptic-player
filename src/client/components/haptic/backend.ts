@@ -103,8 +103,6 @@ export interface HapticBackend {
    */
   onDeviceStateChange?(listener: () => void): void;
 
-  /** Master strength multiplier 0–1 applied to continuous output. */
-  masterStrength: number;
   /** Min/max output range (0–1) that linear (stroker) positions are rescaled into. */
   readonly linearRangeMin: number;
   readonly linearRangeMax: number;
