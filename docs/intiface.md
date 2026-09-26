@@ -1,6 +1,6 @@
 [← Back to Table of Content](index.md)
 
-# Intiface Central
+# Intiface Central Integration
 
 For haptic support install [Intiface Central](https://intiface.com/#intiface-central). It connects to your toys directly and provides a generic API for haptic control, so HAPPY works with arbitrary haptic toys.
 

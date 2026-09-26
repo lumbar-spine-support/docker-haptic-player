@@ -1,6 +1,6 @@
 [← Back to Table of Content](index.md)
 
-# DG-Lab Coyote 3.0 (experimental)
+# DG-Lab Coyote 3.0
 
 >⚠️ Please read through the manufacturers instructions first!
 
