@@ -417,11 +417,11 @@ class App {
     return engine;
   }
 
-  private bindDelaySlider(engine: FunscriptSync, sliderId: string, storageKey: string): void {
+  private bindDelaySlider(engine: FunscriptSync, sliderId: string, storageKey: string, fallback = 0): void {
     const slider = qs<HTMLInputElement>(`#${sliderId}`);
     const label = qs<HTMLElement>(`#${sliderId}-label`);
     if (!slider) return;
-    const saved = Number(localStorage.getItem(storageKey) ?? 0);
+    const saved = Number(localStorage.getItem(storageKey) ?? fallback);
     const initial = Number.isFinite(saved) ? Math.max(-DELAY_LIMIT_MS, Math.min(DELAY_LIMIT_MS, saved)) : 0;
     const apply = (delay: number): void => {
       if (label) label.textContent = `${delay > 0 ? '+' : ''}${delay}ms`;
@@ -439,32 +439,7 @@ class App {
   }
 
   private initHapticControls(): void {
-    if (!this.hapticSlider) return;
-    const savedStrength = Number(localStorage.getItem(HAPTIC_STRENGTH_KEY) ?? this.settings.hapticMasterStrength);
-    const initialStrength = Number.isFinite(savedStrength)
-      ? Math.max(0, Math.min(100, savedStrength))
-      : 100;
-    bindDragOnlyRange(this.hapticSlider);
-    this.hapticControls.init(this.hapticSlider, this.hapticLabel, initialStrength);
-    syncRangeFill(this.hapticSlider);
-    this.hapticSlider.addEventListener('input', () => {
-      localStorage.setItem(HAPTIC_STRENGTH_KEY, this.hapticSlider?.value ?? String(initialStrength));
-      this.syncEngine.resyncNow();
-    });
-    if (!this.hapticDelaySlider) return;
-    const savedDelay = Number(localStorage.getItem(HAPTIC_DELAY_KEY) ?? this.settings.hapticDelay);
-    const initialDelay = Number.isFinite(savedDelay) ? Math.max(-200, Math.min(200, savedDelay)) : 0;
-    bindDragOnlyRange(this.hapticDelaySlider);
-    this.hapticDelaySlider.value = String(initialDelay);
-    syncRangeFill(this.hapticDelaySlider);
-    this.updateDelayLabel(initialDelay);
-    this.syncEngine.setDelayMs(initialDelay);
-    this.hapticDelaySlider.addEventListener('input', () => {
-      const delay = Number(this.hapticDelaySlider?.value ?? 0);
-      localStorage.setItem(HAPTIC_DELAY_KEY, String(delay));
-      this.updateDelayLabel(delay);
-      this.syncEngine.setDelayMs(delay);
-    });
+    this.bindDelaySlider(this.intifaceSync, 'haptic-delay', INTIFACE_DELAY_KEY, this.settings.hapticDelay);
     if (!this.hapticUpdateRateSlider) return;
     const savedRate = Number(localStorage.getItem(HAPTIC_UPDATE_RATE_KEY) ?? this.settings.hapticFrequency);
     const initialRate = Number.isFinite(savedRate) ? Math.max(10, Math.min(240, savedRate)) : 30;
