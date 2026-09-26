@@ -29,7 +29,7 @@ export interface HappyApp extends express.Express {
   dglabRelay?: DglabRelay;
 }
 
-export function createApp(serverConfig?: Config.ServerConfig, clientConfig?: Config.ClientConfig): HappyApp {
+export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Config.ClientConfig): HappyApp {
   if (!serverConfig) {
     const fullConfig = Config.load();
     serverConfig = fullConfig.server;

@@ -75,10 +75,10 @@ export async function startTestServer(
         configDir,
         ...overrides,
     };
-    const clientConfig: Config.ClientConfig = {
+    const clientConfig = {
         ...Config.DEFAULT_CLIENT_CONFIG,
         ...clientOverrides,
-    };
+    } as Config.ClientConfig;
 
     const { createApp, attachUpgradeHandlers } = await import('../../src/server/index');
     const app = createAppFn ? createAppFn(config) : createApp(config, clientConfig);
