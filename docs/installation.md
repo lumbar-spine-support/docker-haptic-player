@@ -31,32 +31,19 @@ volumes:
   - ./config:/config # write-access required
 ```
 
-Start the app with `docker compose up -d`. After a few seconds it is reachable at `http://<HOST>:8069`.
+Start the app with `docker compose up`. After a few seconds it is reachable at `http://<HOST>:8069`.
+To populate your library with actual media, see [docs/library.md](library.md)
 
-On first start a `settings.yaml` is created in the `/config` mount. See [Configuration](configuration.md).
+On first start a `settings.yaml` is created in the `/config` mount. You may also pass those settings as environment variables to the Docker container as shown in the example above using `PORT` and `PASSWORD`. See [Configuration](configuration.md) for details on each setting.
 
-## Authentication
+## Running without Docker
 
-HAPPY is protected by a single shared password. Nothing — not the page, not the JavaScript bundle, not the API — is served before you sign in. There are no user accounts.
+If you want to avoid docker, you can install with `npm` and run the server using `node`.
+However, unless you are doing development, this is not recommended.
 
-| Setting | Default | Description |
-| --- | --- | --- |
-| `PASSWORD` | `happy` | The password for the login screen. **Change this.** Set it to an empty string to disable authentication entirely. |
-| `CONFIG_PATH` | `/config` | Directory holding `settings.yaml` and `tokens.txt`. Must be writable to stay signed in across restarts. |
-| `TRUST_PROXY` | `0` | Number of reverse proxy hops to trust. Use `1` when running behind nginx/Traefik. |
-
-Signing in stores an access token in an `HttpOnly` cookie and appends it to `tokens.txt` in the config directory. Because that directory is the `/config` mount, you stay signed in across container restarts and image upgrades.
-
-If the config directory is not writable, the server logs a `[tokens]` warning at startup and keeps sessions in memory only — login works, but every restart requires signing in again.
-
-**To sign every device out, delete the token file:**
-
-```bash
-rm ./config/tokens.txt
+```shell
+npm install
+node dist/server/index.js
 ```
 
-This takes effect immediately, no restart needed. You can also open the settings panel and use *Sign out* to revoke only the current device.
-
-## Running behind a reverse proxy
-
-*TODO*
+The server should be reachable at `http://localhost:3000`. To adjust settings, you need to use environment variables in your terminal context. See [docs/configuration.md](configuration.md).

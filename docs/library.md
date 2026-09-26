@@ -43,7 +43,7 @@ file.vibrator.balls.funscript
 ```
 
 Funscripts without a recognised toy suffix (`file.funscript`) are still picked up and listed as
-**Generic**. They can be assigned to any device just like typed scripts.
+*Generic*. They can be assigned to any device just like typed scripts.
 
 If your funscripts follow another naming pattern, e.g. `file-prostate.funscript` instead of `file.buttplug.funscript` you can change the seperator character and expected suffixes (see [docs/configuration.md](configuration.md)).
 
@@ -61,6 +61,7 @@ tags:
 ---
 
 This is a description that will be rendered using Markdown-it.
+You can display [links](https://github.com), **bold-text** and more.
 ```
 
 ## Media Metadata
@@ -68,3 +69,9 @@ This is a description that will be rendered using Markdown-it.
 The server uses [music-metadata](https://www.npmjs.com/package/music-metadata) to extract cover art, artist, date and name from the media files themselves.
 The markdown files are only used to add a description with markup and tagging, both of which are not natively supported by `.mp3`, `.mp4` or similar files.
 Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Puddletag](https://docs.puddletag.net/) (Linux) to add metadata to your files.
+
+Metadata HAPPY parses using `music-metadata`:
+- Album Cover
+- Album Artist
+- Track Artist
+- Release Year

@@ -2,11 +2,9 @@
 
 # Configuration
 
-After the first container start, a `settings.yaml` is created in the directory mounted at `/config`.
+After the first container start, a `settings.yaml` is created in the directory mounted at `/config`. Changing these settings  only gets picked up after a server restart, so keep that in mind. If new settings become available or deprecated with updates, the server will automatically append or comment out those settings.
 
 Every YAML setting can also be set as an environment variable. Environment variables take precedence over YAML settings, so a `/config` mount is optional if you set everything in your `docker-compose.yml`.
-
-Authentication settings (`PASSWORD`, `TRUST_PROXY`, `CONFIG_PATH`) are described in [Installation](installation.md#authentication). The DG-Lab switch is described in [DG-Lab Coyote 3.0](dg-lab.md).
 
 <!-- ENV_OPTIONS -->
 
