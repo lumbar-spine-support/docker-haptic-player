@@ -15,6 +15,7 @@ import {
     type ConnectionState,
     type DeviceFeature,
     type DeviceListener,
+    type FeatureDetail,
     type FeatureKind,
     type HapticBackend,
     type HapticDevice,
@@ -30,6 +31,8 @@ const LINEAR_RANGE_KEY = 'happy-stroker-range';
 /** A Buttplug actuator, which additionally carries its wire-level actuator type. */
 interface ButtplugFeature extends DeviceFeature {
     actuator: ActuatorType;
+    /** Device-reported resolution; commands are quantised to 0..stepCount. */
+    stepCount: number;
 }
 
 function makeFeatureId(deviceName: string, kind: FeatureKind, index: number): string {
@@ -69,6 +72,8 @@ export class ButtplugClientManager implements HapticBackend {
     private readonly featureAssignments = new Map<string, string>();
     /** Device name → strength multiplier 0–1. */
     private readonly deviceStrengths = new Map<string, number>();
+    /** Feature id → last value sent, in device steps (signed for rotation direction). */
+    private readonly lastSteps = new Map<string, number>();
 
     /** Min/max output range (0–1) that linear (stroker) positions are rescaled into. */
     linearRangeMin = 0;
@@ -111,7 +116,7 @@ export class ButtplugClientManager implements HapticBackend {
         const features: ButtplugFeature[] = [];
         const counts = new Map<string, number>();
 
-        const push = (kind: FeatureKind, index: number, actuator: ActuatorType, descriptor: string): void => {
+        const push = (kind: FeatureKind, index: number, actuator: ActuatorType, descriptor: string, stepCount: number): void => {
             const name = actuator === ActuatorType.Unknown ? kindLabel(kind) : String(actuator);
             const ordinal = (counts.get(name) ?? 0) + 1;
             counts.set(name, ordinal);
@@ -121,6 +126,7 @@ export class ButtplugClientManager implements HapticBackend {
                 kind,
                 index,
                 actuator,
+                stepCount,
                 descriptor,
                 label: ordinal > 1 ? `${name} ${ordinal}` : name,
             });
@@ -136,16 +142,33 @@ export class ButtplugClientManager implements HapticBackend {
                 scalarRotatesToDrop--;
                 continue;
             }
-            push('scalar', attr.Index, attr.ActuatorType, attr.FeatureDescriptor);
+            push('scalar', attr.Index, attr.ActuatorType, attr.FeatureDescriptor, attr.StepCount);
         }
         for (const attr of rotateAttrs) {
-            push('rotate', attr.Index, ActuatorType.Rotate, attr.FeatureDescriptor);
+            push('rotate', attr.Index, ActuatorType.Rotate, attr.FeatureDescriptor, attr.StepCount);
         }
         for (const attr of device.messageAttributes.LinearCmd ?? []) {
-            push('linear', attr.Index, ActuatorType.Position, attr.FeatureDescriptor);
+            push('linear', attr.Index, ActuatorType.Position, attr.FeatureDescriptor, attr.StepCount);
         }
 
         return features;
+    }
+
+    /** Current output, range and resolution of one actuator, for its detail panel. */
+    getFeatureDetails(featureId: string): FeatureDetail[] {
+        for (const device of this.getConnectedDevices()) {
+            const feature = this.buttplugFeatures(device).find((f) => f.id === featureId);
+            if (!feature) continue;
+            const steps = feature.stepCount;
+            const low = feature.kind === 'rotate' ? -steps : 0;
+            const current = this.lastSteps.get(featureId) ?? 0;
+            return [
+                { label: 'Value', value: `${current}` },
+                { label: 'Limits', value: `[${low}, ${steps}]` },
+                { label: 'Step Limit', value: `[0, ${steps}]` },
+            ];
+        }
+        return [];
     }
 
     /** Assign one actuator to a channel, or pass null to unassign it. */
@@ -228,10 +251,13 @@ export class ButtplugClientManager implements HapticBackend {
             const strength = this.getDeviceStrength(device.name);
             if (feature.kind === 'scalar') {
                 const value = clamp01(intensity * strength);
+                this.lastSteps.set(feature.id, Math.round(value * feature.stepCount));
                 void device.scalar(new ScalarSubcommand(feature.index, value, feature.actuator))
                     .catch((err) => console.debug('[buttplug] scalar failed:', err));
             } else if (feature.kind === 'rotate') {
                 const { speed, clockwise } = positionToRotate(intensity);
+                const rotateSteps = Math.round(clamp01(speed * strength) * feature.stepCount);
+                this.lastSteps.set(feature.id, clockwise ? rotateSteps : -rotateSteps);
                 const cmd = new RotateCmd(
                     [new RotateSubcommand(feature.index, clamp01(speed * strength), clockwise)],
                     device.index,
@@ -252,6 +278,7 @@ export class ButtplugClientManager implements HapticBackend {
 
         for (const { device, feature } of this.resolve(channel)) {
             if (feature.kind !== 'linear') continue;
+            this.lastSteps.set(feature.id, Math.round(scaled * feature.stepCount));
             const cmd = new LinearCmd([new VectorSubcommand(feature.index, scaled, duration)], device.index);
             void device.send(cmd).catch((err) => console.debug('[buttplug] linear failed:', err));
         }
@@ -274,6 +301,7 @@ export class ButtplugClientManager implements HapticBackend {
     /** Stop all devices immediately. */
     async stopAll(): Promise<void> {
         if (!this.client || this.state !== 'connected') return;
+        this.lastSteps.clear();
         for (const device of this.getConnectedDevices()) {
             void device.stop().catch(() => undefined);
         }

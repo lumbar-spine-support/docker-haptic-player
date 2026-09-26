@@ -26,6 +26,8 @@ const FEATURE_ICON_CLASSES: Record<FeatureKind, string> = {
 /** Minimum gap (percentage points) enforced between the stroker min and max handles. */
 const MIN_GAP = 10;
 const STEP = 5;
+/** How often open detail panels are refreshed, so live values like "Current" track output. */
+const DETAILS_REFRESH_MS = 250;
 
 /**
  * Renders a card per connected device inside a given container element.
@@ -41,6 +43,8 @@ export class DeviceAssignment {
   private trackChannels: HapticChannel[] = [];
   /** Feature ids whose detail panel is open, so a re-render does not collapse them. */
   private readonly expandedFeatures = new Set<string>();
+  /** Detail panel body per feature id, from the latest render. */
+  private detailPanels = new Map<string, HTMLElement>();
 
   constructor(buttplug: HapticBackend) {
     this.buttplug = buttplug;
@@ -54,6 +58,17 @@ export class DeviceAssignment {
   mount(container: HTMLElement): void {
     this.container = container;
     this.render();
+    window.setInterval(() => this.refreshOpenDetails(), DETAILS_REFRESH_MS);
+  }
+
+  /** Rewrites only the open detail panels; a full render would interrupt slider drags. */
+  private refreshOpenDetails(): void {
+    for (const id of this.expandedFeatures) {
+      const panel = this.detailPanels.get(id);
+      if (!panel?.isConnected) continue;
+      const html = (this.buttplug.getFeatureDetails?.(id) ?? []).map(deviceDetailHtml).join('');
+      if (panel.innerHTML !== html) panel.innerHTML = html;
+    }
   }
 
   /** Re-render the device list and re-fetch battery levels. Call when the sidebar is opened. */
@@ -73,6 +88,7 @@ export class DeviceAssignment {
 
     const devices = this.buttplug.devices;
     container.innerHTML = '';
+    this.detailPanels = new Map();
 
     if (devices.length === 0) {
       return;
@@ -265,6 +281,8 @@ export class DeviceAssignment {
     // Tracked on `show`/`hide` rather than `shown`/`hidden` so a re-render that
     // interrupts the transition still records the user's intent.
     const panel = row.querySelector('.collapse');
+    const body = row.querySelector<HTMLElement>('.device-feature-details');
+    if (body) this.detailPanels.set(feature.id, body);
     panel?.addEventListener('show.bs.collapse', () => this.expandedFeatures.add(feature.id));
     panel?.addEventListener('hide.bs.collapse', () => this.expandedFeatures.delete(feature.id));
 
