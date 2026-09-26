@@ -1,4 +1,4 @@
-import { fetchFunscript, fetchTrackDescription, fetchVersion, fetchAuthStatus, fetchClientSettings, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
+import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
 import { bindDragOnlyRange, syncRangeFill } from './utils/rangeSlider';
 import { resetScrollPosition } from '../shared/scroll';
 import { PlaybackSession, PlaybackQueue, PlaybackController } from './components/player';
@@ -66,6 +66,9 @@ class App {
   private readonly libraryView = qs<HTMLElement>('#library-view');
   private readonly playerView = qs<HTMLElement>('#player-view');
   private readonly detailView = qs<HTMLElement>('#detail-view');
+  private readonly docsView = qs<HTMLElement>('#docs-view');
+  private readonly docsContent = qs<HTMLElement>('#docs-content');
+  private readonly docsButton = qs<HTMLAnchorElement>('#btn-docs');
   private readonly detailList = qs<HTMLElement>('#detail-list');
   private readonly detailTitle = qs<HTMLElement>('#detail-title');
   private readonly detailSubtitle = qs<HTMLElement>('#detail-subtitle');
@@ -206,6 +209,18 @@ class App {
     window.addEventListener('pagehide', () => { void this.haptics.stopAll(); });
 
     window.addEventListener('popstate', () => { void this.handleRouteChange(); });
+
+    if (this.docsButton) this.docsButton.href = buildUrl('docs', 'index');
+    this.docsButton?.addEventListener('click', (event) => {
+      event.preventDefault();
+      this.navigateTo(buildUrl('docs', 'index'));
+    });
+    this.docsContent?.addEventListener('click', (event) => {
+      const link = (event.target as Element).closest<HTMLAnchorElement>('a[data-doc-link]');
+      if (!link || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      event.preventDefault();
+      this.navigateTo(link.href);
+    });
   }
 
   private mountDeviceAssignment(backend: HapticBackend, containerSelector: string): void {
@@ -558,8 +573,13 @@ class App {
     const view = params.get('view');
     const id = params.get('id');
     const tags = params.getAll('tag');
+    this.docsView?.classList.add('d-none');
     if (tags.length > 0) {
       this.library.setActiveTags(tags);
+    }
+    if (view === 'docs') {
+      await this.showDocs(id || 'index');
+      return;
     }
     if (view === 'player' && id) {
       resetScrollPosition();
@@ -575,6 +595,33 @@ class App {
       return;
     }
     this.showLibrary(false);
+  }
+
+  private async showDocs(page: string): Promise<void> {
+    this.currentTrackId = null;
+    this.detailContext = null;
+    this.libraryView?.classList.add('d-none');
+    this.playerView?.classList.add('d-none');
+    this.detailView?.classList.add('d-none');
+    this.docsView?.classList.remove('d-none');
+    this.library.setViewToggleVisible(false);
+    document.title = 'Documentation — HAPPY';
+    if (!this.docsContent) return;
+    let markdown: string;
+    try {
+      markdown = await fetchDoc(page);
+    } catch (err) {
+      console.warn(`[docs] Failed to load page "${page}":`, err);
+      markdown = `# Page not found\n\n[Back to the documentation overview](index.md)`;
+    }
+    this.docsContent.innerHTML = Markdown.renderDoc(markdown, {
+      pageHref: (target, hash) => `${buildUrl('docs', target)}${hash}`,
+      assetHref: docAssetUrl,
+    });
+    const hash = location.hash.slice(1);
+    const anchor = hash ? document.getElementById(decodeURIComponent(hash)) : null;
+    if (anchor) anchor.scrollIntoView();
+    else window.scrollTo(0, 0);
   }
 
   private showLibrary(pushState: boolean): void {

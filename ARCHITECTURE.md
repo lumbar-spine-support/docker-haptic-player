@@ -438,3 +438,9 @@ dist/                   Compiled server output
 - `src/server/services/artworkCache.ts` owns the on-disk cover cache, including negative entries
 - `src/server/utils/logger.ts` owns the log level; every server module logs through `createLogger('[tag]')` instead of `console`
 - `src/shared/types.ts` provides shared contracts between server responses and client consumers
+
+## Documentation
+
+- User docs live in `docs/*.md` and are served in-app at `/docs/<page>`. When a change affects user-facing behavior, settings or setup, update the matching page in the same change.
+- Keep `README.md` a minimal quick start (Intiface basics, Docker Compose, library layout) that links to `docs/`. Do not move details back into it.
+- Link between docs with relative paths (`library.md#funscripts`, `screenshots/x.jpg`) so they work on GitHub and in the app. Page names must match `[a-z0-9-]+`.

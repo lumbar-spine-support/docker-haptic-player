@@ -28,6 +28,8 @@ COPY --from=builder /app/dist/server ./dist/server
 
 COPY --from=builder /app/public ./public
 
+COPY docs/ ./docs/
+
 VOLUME ["/media", "/config"]
 
 EXPOSE 3000
