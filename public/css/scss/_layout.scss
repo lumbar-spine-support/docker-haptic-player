@@ -154,6 +154,47 @@ body.blur-content media-container {
   }
 }
 
+.docs-content {
+  max-width: 60rem;
+
+  img,
+  pre {
+    max-width: 100%;
+  }
+
+  pre {
+    overflow-x: auto;
+    padding: var(--app-space-2);
+    border-radius: var(--bs-border-radius);
+    background: #1e1e1e;
+    color: #d4d4d4;
+
+    code {
+      padding: 0;
+      background: transparent;
+      color: inherit;
+    }
+  }
+
+  code {
+    padding: 0.1em 0.35em;
+    border-radius: var(--bs-border-radius-sm);
+    background: #1e1e1e;
+    color: #d4d4d4;
+  }
+
+  table {
+    margin-bottom: 1rem;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: var(--app-space-1) var(--app-space-2);
+    border: 1px solid var(--bs-border-color);
+  }
+}
+
 .playlist-summary {
   width: 100%;
   padding: var(--app-space-5);

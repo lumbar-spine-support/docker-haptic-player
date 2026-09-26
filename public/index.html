@@ -32,6 +32,8 @@
       </div>
       <button id="btn-logout" class="btn btn-outline-primary d-none" type="button" title="Lock" aria-label="Lock"><i
           class="bi bi-lock-fill"></i></button>
+      <a id="btn-docs" class="btn btn-outline-primary" href="?view=docs&amp;id=index" title="Documentation"
+        aria-label="Documentation"><i class="bi bi-question-circle-fill"></i></a>
       <button id="btn-settings" class="btn btn-outline-primary" type="button" data-bs-toggle="offcanvas"
         data-bs-target="#settings-panel" aria-controls="settings-panel" title="Settings"><i
           class="bi bi-gear-fill"></i></button>
@@ -255,6 +257,10 @@
           <div id="track-tags" class="d-flex flex-wrap gap-2 justify-content-center"></div>
         </section>
       </div>
+    </section>
+
+    <section id="docs-view" class="d-none py-1">
+      <article id="docs-content" class="docs-content mx-auto"></article>
     </section>
   </main>
 
