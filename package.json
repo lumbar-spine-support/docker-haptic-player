@@ -13,7 +13,8 @@
     "build:css": "npx sass public/css/app.scss:public/css/app.css public/css/auth.scss:public/auth/auth.css --style=compressed --quiet-deps --silence-deprecation=import,global-builtin,if-function,color-functions",
     "test": "NODE_ENV=test node --import tsx --test $(find test/server test/client -name '*.test.ts')",
     "test:watch": "NODE_ENV=test node --import tsx --test --watch $(find test/server test/client -name '*.test.ts')",
-    "screenshot": "node scripts/screenshot-app.js"
+    "screenshot": "node scripts/screenshot-app.js",
+    "docs:env": "node --import tsx scripts/update-env-docs.js"
   },
   "dependencies": {
     "@videojs/html": "^10.0.0-rc.2",

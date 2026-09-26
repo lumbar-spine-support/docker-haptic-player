@@ -1,6 +1,6 @@
 # HAPPY ⸺ Docker Haptic Player
 
-![GitHub package.json version](https://img.shields.io/github/package-json/v/lumbar-spine-support/docker-haptic-player)
+![GitHub package.json version](https://img.shields.io/github/package-json/v/lumbar-spine-support/docker-haptic-player?label=stable)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/docker-haptic-player/.github%2Fworkflows%2Frelease.yml?branch=main&logo=docker&label=build)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/docker-haptic-player/.github%2Fworkflows%2Ftest.yml?branch=main&logo=github&label=Tests)
 
@@ -11,13 +11,11 @@
 
 ⭐ Key features:
 
-- Easily self-hostable as a prebuilt docker container.
+- Easily self-hosted using the prebuilt Docker image.
 - [Intiface](https://intiface.com/) interface for wide-raning haptic toys support.
 - Multiple `.funscript` files can be played in parallel.
 - Modern [Video.JS v10](https://videojs.org/blog/videojs-v10-release-candidate) framework for audio and video playback.
 - [Bootstrap](https://getbootstrap.com/) OLED-friendly, mobile-first UI.
-- Minimally intrusive: no internet required, only read-access to your media volume.
-- No SQL database; everything is stored in the media files themselves and optionally markdown files.
 
 🧪 Experimental features:
 
@@ -28,9 +26,18 @@
 - A funscript editor. There are plenty of good tools already.
 - A media file metadata editor. Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Puddletag](https://docs.puddletag.net/) (Linux) instead.
 
+Planned features
+
+- [ ] Video.JS player improvements
+  - [ ] Funscript chapters shown in Video.JS player for navigation.
+  - [ ] VR Video support once Video.JS v10 matures.
+- [ ] Playlist editor and a seperate mount with write-access.
+
 ## Quick Start
 
 ### 1. Docker Compose Setup
+
+Create a [service](https://docs.docker.com/reference/compose-file/services/) in a `docker-compose.yml` and run it using `docker compose up`. The web interface should be accessible shortly after.
 
 ```yaml
 services:
@@ -47,7 +54,7 @@ services:
     restart: unless-stopped
 ```
 
-→ Details: [docs/installation.md](docs/installation.md), [docs/configuration.md](docs/configuration.md)
+→  [docs/installation.md](docs/installation.md), [docs/configuration.md](docs/configuration.md)
 
 ### 2. Media Library Setup
 
@@ -62,7 +69,7 @@ media/
 └── playlists/favorites.m3u
 ```
 
-→ Details: [docs/library.md](docs/library.md)
+→  [docs/library.md](docs/library.md)
 
 ### 3. Intiface Central (Required for Haptic Support)
 
@@ -70,7 +77,7 @@ Install [Intiface Central](https://intiface.com/#intiface-central). It is recomm
 
 Once Intiface server is running and your toys are connected, find the IP-address of the device running Intiface. If you are running Intiface on the same device as your HAPPY client will be running (ideally your phone), you can leave the IP-address in HAPPY as `localhost`. Open the settings panel in HAPPY and enter the IP-address, then press connect. You should now see a list of your toys and their features. You can now assign individual features of each toy to a funscript.
 
-→ Details: [docs/intiface.md](docs/intiface.md)
+→  [docs/intiface.md](docs/intiface.md)
 
 ## Documentation
 
@@ -85,14 +92,11 @@ All docs are also built into the app at `http://<HOST>:8069/docs`.
 
 ## Planned Features
 
-- [ ] Video.JS player improvements
-  - [ ] Funscript chapters shown in Video.JS player for navigation.
-  - [ ] VR Video support once Video.JS v10 matures.
-- [ ] Playlist editor and a seperate mount with write-access.
+
 
 ## Screenshots
 
-| Library View                                    | Player View                                   |
+| Library View     x                               | Player View                                   |
 | ----------------------------------------------- | --------------------------------------------- |
 | ![Library Screenshot](docs/screenshots/library.jpg) | ![Player Screenshot](docs/screenshots/player.jpg) |
 
