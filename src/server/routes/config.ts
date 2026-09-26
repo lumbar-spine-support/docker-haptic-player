@@ -9,7 +9,6 @@ export function createConfigRouter(clientConfig: Config.ClientConfig): Router {
     videoSeekInterval: Number(clientConfig.videoSeekInterval),
     blurContent: Boolean(clientConfig.blurContent),
     hapticFrequency: Number(clientConfig.hapticFrequency),
-    hapticMasterStrength: Number(clientConfig.hapticMasterStrength),
     hapticDelay: Number(clientConfig.hapticDelay),
     dglabEnabled: Boolean(clientConfig.dglabEnabled),
   };

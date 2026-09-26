@@ -1,3 +1,5 @@
+[← Back to Table of Content](index.md)
+
 # Authentication
 
 HAPPY has a very simple authentication system. A single shared password. Nothing — not the page, not the JavaScript bundle, not the API — is served before you sign in. There are no user accounts. Not sure why you would need that for a porn stash...

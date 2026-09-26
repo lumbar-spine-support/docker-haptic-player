@@ -40,7 +40,6 @@ const FALLBACK_SETTINGS: ClientSettings = {
   videoSeekInterval: 10,
   blurContent: false,
   hapticFrequency: 30,
-  hapticMasterStrength: 100,
   hapticDelay: 0,
   dglabEnabled: false,
 };
