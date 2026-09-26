@@ -23,15 +23,14 @@
 
 ❌ What it tries not to be:
 
-- A funscript editor. There are plenty of good tools already.
+- A funscript editor. There are plenty of good tools already ([HapticsEditor-v2](https://github.com/ilor1/HapticsEditor-v2)).
 - A media file metadata editor. Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Puddletag](https://docs.puddletag.net/) (Linux) instead.
 
-Planned features
+🚀 Planned:
 
-- [ ] Video.JS player improvements
-  - [ ] Funscript chapters shown in Video.JS player for navigation.
-  - [ ] VR Video support once Video.JS v10 matures.
-- [ ] Playlist editor and a seperate mount with write-access.
+- [ ] Chapters shown in Video.JS player for navigation.
+- [ ] VR Video support once Video.JS v10 matures and VR plugins arrive.
+- [ ] Playlist/Queue editor and a seperate mount with write-access.
 
 ## Quick Start
 
@@ -81,7 +80,7 @@ Once Intiface server is running and your toys are connected, find the IP-address
 
 ## Documentation
 
-All docs are also built into the app at `http://<HOST>:8069/docs`.
+Note: All docs are also available through the web interface at `http://<HOST>:8069/docs`.
 
 - [Overview](docs/index.md)
 - [Installation](docs/installation.md)
@@ -89,10 +88,6 @@ All docs are also built into the app at `http://<HOST>:8069/docs`.
 - [DG-Lab Coyote 3.0 (experimental)](docs/dg-lab.md)
 - [Library Setup](docs/library.md)
 - [Configuration](docs/configuration.md)
-
-## Planned Features
-
-
 
 ## Screenshots
 
