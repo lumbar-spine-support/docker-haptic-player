@@ -1,3 +1,5 @@
+[← Back to Documentation](index.md)
+
 # DG-Lab Coyote 3.0 (experimental)
 
 The Coyote is not supported by Intiface, so HAPPY can talk to it directly through the official

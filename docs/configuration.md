@@ -1,3 +1,5 @@
+[← Back to Table of Content](index.md)
+
 # Configuration
 
 After the first container start, a `settings.yaml` is created in the directory mounted at `/config`.

@@ -1,3 +1,5 @@
+[← Back to Documentation](index.md)
+
 # Library Setup
 
 HAPPY works with just your audio and video files. For tagging, descriptions and haptic sync, use this structure:

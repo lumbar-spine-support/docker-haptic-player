@@ -1,3 +1,5 @@
+[← Back to Documentation](index.md)
+
 # Installation
 
 ## Docker Compose
