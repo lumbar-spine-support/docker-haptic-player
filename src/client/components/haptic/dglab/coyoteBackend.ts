@@ -321,8 +321,12 @@ export class CoyoteBackend implements HapticBackend {
 
   getDeviceAlerts(name: string): DeviceAlert[] {
     const source = this.coyotes().find((d) => deviceName(d) === name);
-    if (!source || isSlotConnected(source)) return [];
-    return [{ level: 'warning', message: 'Paired in the app but no device connected' }];
+    if (!source) return [];
+    if (!isSlotConnected(source)) return [{ level: 'danger', message: 'Device not connected to DG-Lab' }];
+    if (isChannelMuted(source, Channel.A) && isChannelMuted(source, Channel.B)) {
+      return [{ level: 'warning', message: 'Both output channels muted in DG-Lab' }];
+    }
+    return [];
   }
 
   getFeatureDetails(id: string): FeatureDetail[] {
