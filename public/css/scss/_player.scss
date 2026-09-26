@@ -24,10 +24,6 @@
   height: 48px;
   object-fit: cover;
   flex: 0 0 48px;
-
-  @include mobile-only {
-    display: none;
-  }
 }
 
 .icon-rotate-180 {
@@ -35,7 +31,6 @@
   transform: rotate(180deg);
 }
 
-.player-footer-nav,
 .player-footer-play-pause,
 .player-footer-mute {
   @include button-square(2.5rem);
@@ -52,11 +47,6 @@
   &:disabled {
     opacity: 0.5;
   }
-}
-
-.player-footer-volume {
-  display: flex;
-  align-items: center;
 }
 
 .vjs-now-playing-overlay {
