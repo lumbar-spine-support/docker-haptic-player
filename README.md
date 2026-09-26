@@ -29,12 +29,13 @@ What it tries not to be:
 
 ```yaml
 services:
-  app:
+  happy:
     image: ghcr.io/lumbar-spine-support/docker-haptic-player:stable
     ports:
-      - "8069:3000"
+      - "8069:8069"
     environment:
-      PASSWORD: "change-me"
+      PASSWORD: "happy"
+      PORT: 8069
     volumes:
       - ./media:/media:ro
       - ./config:/config
