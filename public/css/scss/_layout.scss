@@ -154,6 +154,22 @@ body.blur-content media-container {
   }
 }
 
+.player-description,
+.docs-content {
+  blockquote {
+    margin: 0 0 1rem;
+    padding: 0.5em 1em;
+    border-left: 0.25em solid var(--bs-secondary-color);
+    border-radius: var(--bs-border-radius);
+    background: #1e1e1e;
+    color: #fff;
+
+    > :last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
 .docs-content {
   max-width: 60rem;
 
