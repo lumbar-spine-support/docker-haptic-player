@@ -45,7 +45,7 @@ file.vibrator.balls.funscript
 Funscripts without a recognised toy suffix (`file.funscript`) are still picked up and listed as
 *Generic*. They can be assigned to any device just like typed scripts.
 
-If your funscripts follow another naming pattern, e.g. `file-prostate.funscript` instead of `file.buttplug.funscript` you can change the seperator character and expected suffixes (see [docs/configuration.md](configuration.md)).
+If your funscripts follow another naming pattern, e.g. `file-prostate.funscript` instead of `file.buttplug.funscript` you can change the separator character and expected suffixes (see [docs/configuration.md](configuration.md)).
 
 ## Markdown Descriptors
 
