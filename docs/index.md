@@ -23,7 +23,7 @@ flowchart LR
   Client <-->|Buttplug.io-API| Intiface
   Intiface -->|Bluetooth / USB| Toys
   Media -->|Docker Mount| HAPPY
-  Client <-.->|WebSocket| HAPPY
+  Client <-.->|DG-Lab Relay\nWebSocket| HAPPY
   HAPPY <-.->|DG-Lab Relay\nWebSocket| DGLab
   DGLab -.->|Bluetooth| Coyote
 ```
