@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import yaml from 'js-yaml';
 
 import { Config } from '../../src/server/config';
 import { DEFAULT_LOG_LEVEL, getLogLevel } from '../../src/server/utils/logger';
@@ -40,6 +41,34 @@ test(`${TAG} load writes a default settings.yaml and returns built-in defaults w
         assert.equal(config.client.videoSeekInterval, DEFAULTS.videoSeekInterval);
         assert.deepEqual(config.server.ignoreExt, DEFAULTS.ignoreExt);
     });
+});
+
+test(`${TAG} a newly created settings.yaml is seeded with environment variable overrides`, async () => {
+    const env = { PORT: '8123', PASSWORD: 'envpass', DEFAULT_BLUR_CONTENT: 'true', IGNORE_EXT: 'txt, nfo' };
+    const original = Object.fromEntries(Object.keys(env).map(k => [k, process.env[k]]));
+    Object.assign(process.env, env);
+    try {
+        await withConfigPath((configPath) => {
+            assert.equal(fs.existsSync(configPath), false);
+            const config = Config.load();
+            assert.equal(config.server.port, 8123);
+            assert.equal(config.server.password, 'envpass');
+            assert.equal(config.client.blurContent, true);
+            assert.deepEqual(config.server.ignoreExt, ['txt', 'nfo']);
+
+            const written = yaml.load(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
+            assert.equal(written.PORT, 8123);
+            assert.equal(written.PASSWORD, 'envpass');
+            assert.equal(written.DEFAULT_BLUR_CONTENT, true);
+            assert.deepEqual(written.IGNORE_EXT, ['txt', 'nfo']);
+            assert.equal(written.DEFAULT_HAPTIC_FREQUENCY, DEFAULTS.hapticFrequency);
+        });
+    } finally {
+        for (const [k, v] of Object.entries(original)) {
+            if (v === undefined) delete process.env[k];
+            else process.env[k] = v;
+        }
+    }
 });
 
 test(`${TAG} CONFIG_PATH names the directory holding settings.yaml and tokens.txt`, async () => {

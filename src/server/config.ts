@@ -238,13 +238,15 @@ export namespace Config {
 
   /** Create default settings.yaml content with descriptions */
   function getDefaultSettingsYaml(): string {
+    const env = loadEnv({ ...DEFAULT_SERVER_CONFIG }, { ...DEFAULT_CLIENT_CONFIG });
+    const values: Record<string, ConfigEntry> = { ...env.server, ...env.client };
     let yamlContent = '';
     for (const key in DEFAULTS) {
       const name = ENV_NAMES[key];
       // configDir has no YAML form; it is where this very file lives.
       if (!name) continue;
       const desc = DESCRIPTIONS[key] ?? '';
-      const value = DEFAULTS[key];
+      const value = values[key];
       yamlContent += `# ${desc}\n${name}: ${JSON.stringify(value)}\n\n`;
     }
     return yamlContent;
