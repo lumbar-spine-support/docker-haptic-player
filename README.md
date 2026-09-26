@@ -6,14 +6,17 @@
 
 Key features:
 
+- Easily self-hostable as a prebuilt docker container.
+- [Intiface](https://intiface.com/) interface for wide-raning haptic toys support.
+- Multiple `.funscript` files can be played in parallel.
+- Modern [Video.JS v10](https://videojs.org/blog/videojs-v10-release-candidate) framework for audio and video playback.
+- [Bootstrap](https://getbootstrap.com/) OLED-friendly, mobile-first UI.
 - Minimally intrusive: no internet required, only read-access to your media volume.
 - No SQL database; everything is stored in the media files themselves and optionally markdown files.
-- [Intiface Central](https://intiface.com/) as robust hardware bridge to your haptic toys.
-- Widespread `.funscript` format is used for haptic control
-- Multiple haptic toys in parallel are supported!
-- Modern [Video.JS v10](https://videojs.org/blog/videojs-v10-release-candidate) framework for audio and video playback.
-- Modern [Bootstrap](https://getbootstrap.com/) OLED-friendly, mobile-first UI.
-- Prebuilt Docker image for easy setup.
+
+Experimental features:
+
+- [Dungeon Lab](https://www.dungeon-lab.com/) Coyote 3.0 E-stim haptic support
 
 What it tries not to be:
 
@@ -22,18 +25,12 @@ What it tries not to be:
 
 ## Quick Start
 
-### 1. Intiface Central
-
-Install [Intiface Central](https://intiface.com/#intiface-central), press the big "play" button to start its server, then "start scan" to find your toys.
-
-→ Details: [docs/intiface.md](docs/intiface.md)
-
-### 2. Docker Compose
+### 1. Docker Compose Setup
 
 ```yaml
 services:
   app:
-    image: ghcr.io/lumbar-spine-support/docker-haptic-player:latest
+    image: ghcr.io/lumbar-spine-support/docker-haptic-player:stable
     ports:
       - "8069:3000"
     environment:
@@ -44,27 +41,30 @@ services:
     restart: unless-stopped
 ```
 
-Run `docker compose up -d` and open `http://<HOST>:8069`.
-
 → Details: [docs/installation.md](docs/installation.md), [docs/configuration.md](docs/configuration.md)
 
-### 3. Media Library
+### 2. Media Library Setup
 
-Put your files into `./media`. Funscripts and optional descriptions are matched by file name:
+Put your files into the folder you mounted as `./media`. Funscripts and optional descriptions are matched by file name not by folder.
 
 ```
 media/
+├── audio.mp3
+├── audio.vibrator.mp3
 ├── video.mp4
 ├── video.stroker.funscript
-├── video.md               (optional: tags, description)
 └── playlists/favorites.m3u
 ```
 
 → Details: [docs/library.md](docs/library.md)
 
-### 4. Connect
+### 3. Intiface Central (Required for Haptic Support)
 
-Open the settings panel in HAPPY, press **Connect** to reach Intiface and assign your toys to the file's funscripts.
+Install [Intiface Central](https://intiface.com/#intiface-central). It is recommended to install it on the device you are using to listen/watch your files.
+
+Once Intiface server is running and your toys are connected, find the IP-address of the device running Intiface. If you are running Intiface on the same device as your HAPPY client will be running (ideally your phone), you can leave the IP-address in HAPPY as `localhost`. Open the settings panel in HAPPY and enter the IP-address, then press connect. You should now see a list of your toys and their features. You can now assign individual features of each toy to a funscript.
+
+→ Details: [docs/intiface.md](docs/intiface.md)
 
 ## Documentation
 
