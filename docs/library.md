@@ -1,4 +1,4 @@
-[← Back to Documentation](index.md)
+[← Back to Table of Content](index.md)
 
 # Library Setup
 
