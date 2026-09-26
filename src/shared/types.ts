@@ -119,7 +119,6 @@ export interface ClientSettings {
   videoSeekInterval: number;
   blurContent: boolean;
   hapticFrequency: number;
-  hapticMasterStrength: number;
   hapticDelay: number;
   dglabEnabled: boolean;
 }

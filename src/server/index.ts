@@ -10,6 +10,7 @@ import { createFunscriptRouter } from './routes/funscript';
 import { createVersionRouter } from './routes/version';
 import { createAuthRouter } from './routes/auth';
 import { createConfigRouter } from './routes/config';
+import { createDocsRouter } from './routes/docs';
 import { createAuthMiddleware } from './middleware/auth';
 import { createTokenStore } from './services/tokenStore';
 import { createArtworkCache } from './services/artworkCache';
@@ -53,6 +54,15 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
   app.use('/api/artwork', createArtworkRouter(config, artworkCache));
   app.use('/api/funscript', createFunscriptRouter(config));
   app.use('/api/version', createVersionRouter());
+  app.use('/api/docs', createDocsRouter(path.join(__dirname, '..', '..', 'docs')));
+  // Relative redirects keep working when a reverse proxy serves HAPPY under a sub-path.
+  app.get('/docs', (req, res) => {
+    res.redirect(`${req.path.endsWith('/') ? '../' : './'}?view=docs&id=index`);
+  });
+  app.get('/docs/:page', (req, res) => {
+    const up = req.path.endsWith('/') ? '../../' : '../';
+    res.redirect(`${up}?view=docs&id=${encodeURIComponent(req.params.page)}`);
+  });
   app.use(errorMiddleware);
 
   // Disabled means the endpoint does not exist at all, not that it rejects.

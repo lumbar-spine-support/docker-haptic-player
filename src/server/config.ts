@@ -38,7 +38,6 @@ export namespace Config {
     videoSeekInterval: number;
     blurContent: boolean;
     hapticFrequency: number;
-    hapticMasterStrength: number;
     hapticDelay: number;
     dglabEnabled: boolean;
   }
@@ -105,7 +104,6 @@ export namespace Config {
     videoSeekInterval: 10,
     blurContent: false,
     hapticFrequency: 30,
-    hapticMasterStrength: 100,
     hapticDelay: 0,
     dglabEnabled: false,
   };
@@ -113,24 +111,23 @@ export namespace Config {
   export const DEFAULTS = { ...DEFAULT_SERVER_CONFIG, ...DEFAULT_CLIENT_CONFIG };
 
   export const DESCRIPTIONS: Record<string, string> = {
-    port: 'HTTP port of the web interface',
-    mediaDir: 'Directory that contains media files',
+    port: 'HTTP port of the web interface.',
+    mediaDir: 'Directory that contains media files (inside container).',
     ignoreExt: 'File extensions to ignore (without leading dot)',
     password: 'Web interface access password. Leave empty to disable authentication',
     trustProxy: 'Number of reverse proxy hops to trust for X-Forwarded-* headers. 0 for direct LAN access, 1 behind nginx/Traefik',
     logLevel: `Verbosity of the console log: ${LOG_LEVELS.join(', ')}`,
-    videoSeekInterval: 'Default skip interval in seconds for the seek buttons (TODO: unused)',
-    blurContent: 'Default setting for blurring of images and videos. Can be changed in client.',
-    hapticFrequency: 'Default haptic update frequency in Hz. Can be changed in client.',
-    hapticMasterStrength: 'Default haptic master strength in percent. Can be changed in client.',
-    hapticDelay: 'Default haptic delay in milliseconds to sync video and haptics. Can be changed in client.',
-    dglabEnabled: '(EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control',
-    funscriptSuffixSeparator: 'Character that separates filename from funscript suffix',
-    funscriptSuffixStroker: 'Suffix for stroker funscript files',
-    funscriptSuffixButtplug: 'Suffix for buttplug funscript files',
-    funscriptSuffixVibrator: 'Suffix for vibrator funscript files',
-    funscriptSuffixEstim: 'Suffix for estim funscript files',
-    funscriptSuffixMachine: 'Suffix for machine funscript files',
+    videoSeekInterval: 'Seek interval in seconds when double-tapping/clicking.',
+    blurContent: 'Enable to blur images and videos. Can be toggled in web interface.',
+    hapticFrequency: 'Intiface Haptic update frequency in Hz. Smaller values are usually more stable but less precise. Can be changed in web interface.',
+    hapticDelay: 'Default haptic delay in milliseconds to sync video and haptics. Can be changed in web interface.',
+    dglabEnabled: '(EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control.',
+    funscriptSuffixSeparator: 'Single character that separates filename from funscript suffix',
+    funscriptSuffixStroker: 'Suffix associated with stroker funscript',
+    funscriptSuffixButtplug: 'Suffix associated with buttplug funscript',
+    funscriptSuffixVibrator: 'Suffix associated with vibrator funscript',
+    funscriptSuffixEstim: 'Suffix associated with estim funscript',
+    funscriptSuffixMachine: 'Suffix associated with machine funscript',
   };
 
   export const ENV_NAMES: Record<string, string> = {
@@ -143,7 +140,6 @@ export namespace Config {
     videoSeekInterval: 'VIDEO_SEEK_INTERVAL',
     blurContent: 'DEFAULT_BLUR_CONTENT',
     hapticFrequency: 'DEFAULT_HAPTIC_FREQUENCY',
-    hapticMasterStrength: 'DEFAULT_HAPTIC_MASTER_STRENGTH',
     hapticDelay: 'DEFAULT_HAPTIC_DELAY',
     dglabEnabled: 'DGLAB_ENABLED',
     funscriptSuffixSeparator: 'FUNSCRIPT_SUFFIX_SEPARATOR',

@@ -55,6 +55,21 @@ export async function fetchTrackDescription(trackId: string): Promise<string> {
   return res.text();
 }
 
+/** Fetches a documentation page as raw markdown. */
+export async function fetchDoc(page: string): Promise<string> {
+  const res = await fetch(`${BASE}api/docs/${encodeURIComponent(page)}`);
+  if (!res.ok) {
+    handleUnauthorized(res, 'Docs fetch');
+    throw new Error(`Docs fetch failed: ${res.status}`);
+  }
+  return res.text();
+}
+
+/** Builds the URL of an image referenced from a documentation page. */
+export function docAssetUrl(relativePath: string): string {
+  return `${BASE}api/docs/assets/${relativePath.split('/').map(encodeURIComponent).join('/')}`;
+}
+
 /**
  * Builds the artwork URL for a track's embedded cover image.
  *
