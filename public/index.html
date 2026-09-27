@@ -262,26 +262,68 @@
     </section>
   </main>
 
-  <player-footer id="player-footer" class="player-footer d-none bg-dark border-top border-secondary">
-    <button data-footer="info"
-      class="btn btn-dark text-start d-flex align-items-center gap-2 flex-grow-1 min-w-0 p-0 border-0" type="button">
-      <img data-footer="art" src="" alt="" class="rounded player-footer-art" />
-      <div class="min-w-0 flex-grow-1">
-        <div data-footer="title" class="fw-semibold text-truncate"></div>
-        <div data-footer="subtitle" class="text-muted small text-truncate"></div>
-      </div>
-    </button>
-    <button data-footer="play-pause"
-      class="btn btn-primary btn-sm rounded-circle player-footer-play-pause flex-shrink-0" type="button"
-      aria-label="Play">
-      <i class="bi bi-play-fill" aria-hidden="true"></i>
-    </button>
-    <div id="player-footer-volume" class="player-footer-volume position-relative flex-shrink-0">
-      <button data-footer="mute" class="btn btn-dark btn-sm rounded-circle player-footer-mute flex-shrink-0"
-        type="button" aria-label="Mute" aria-pressed="false">
-        <i class="bi bi-volume-up-fill" aria-hidden="true"></i>
+  <player-footer id="player-footer" class="player-footer d-none">
+    <div data-footer="backdrop" class="player-queue-backdrop d-none"></div>
+    <section data-footer="queue" class="player-queue d-none bg-black border-top border-secondary" id="player-queue"
+      aria-label="Up next">
+      <table class="table table-dark table-sm table-hover align-middle mb-0 player-queue-table">
+        <tbody data-footer="queue-list"></tbody>
+      </table>
+      <div data-footer="queue-empty" class="px-3 py-3 text-muted small d-none">Nothing queued.</div>
+    </section>
+    <div data-footer="actions" class="player-queue-actions d-none" role="toolbar" aria-label="Queue actions">
+      <button data-footer="prev" class="btn btn-dark btn-sm rounded-circle" type="button" aria-label="Previous track">
+        <i class="bi bi-skip-backward-fill" aria-hidden="true"></i>
+      </button>
+      <button data-footer="play-pause" class="btn btn-primary btn-sm rounded-circle" type="button" aria-label="Play">
+        <i class="bi bi-play-fill" aria-hidden="true"></i>
+      </button>
+      <button data-footer="next" class="btn btn-dark btn-sm rounded-circle" type="button" aria-label="Next track">
+        <i class="bi bi-skip-forward-fill" aria-hidden="true"></i>
+      </button>
+      <button data-footer="add" class="btn btn-dark btn-sm rounded-circle ms-auto" type="button"
+        aria-label="Add current page to queue">
+        <i class="bi bi-plus-circle-fill" aria-hidden="true"></i>
+      </button>
+      <button data-footer="clear" class="btn btn-dark btn-sm rounded-circle" type="button" aria-label="Clear queue">
+        <i class="bi bi-trash3-fill" aria-hidden="true"></i>
+      </button>
+      <button data-footer="save" class="btn btn-dark btn-sm rounded-circle" type="button"
+        aria-label="Save queue as M3U">
+        <i class="bi bi-floppy-fill" aria-hidden="true"></i>
       </button>
     </div>
+    <div data-footer="bar" class="player-footer-bar">
+      <button data-footer="info"
+        class="btn btn-dark text-start d-flex align-items-center gap-2 flex-grow-1 min-w-0 p-0 border-0" type="button">
+        <img data-footer="art" src="" alt="" class="rounded player-footer-art" />
+        <div class="min-w-0 flex-grow-1">
+          <div data-footer="title" class="fw-semibold text-truncate"></div>
+          <div data-footer="subtitle" class="text-muted small text-truncate"></div>
+        </div>
+      </button>
+      <div id="player-footer-volume" class="player-footer-volume position-relative flex-shrink-0">
+        <button data-footer="mute" class="btn btn-dark btn-sm rounded-circle player-footer-mute flex-shrink-0"
+          type="button" aria-label="Mute" aria-pressed="false">
+          <i class="bi bi-volume-up-fill" aria-hidden="true"></i>
+        </button>
+      </div>
+      <span data-footer="bar-play" class="d-flex flex-shrink-0">
+        <button data-footer="play-pause" class="btn btn-primary btn-sm rounded-circle player-footer-play-pause"
+          type="button" aria-label="Play">
+          <i class="bi bi-play-fill" aria-hidden="true"></i>
+        </button>
+      </span>
+      <button data-footer="queue-toggle"
+        class="btn btn-dark btn-sm rounded-circle player-footer-queue-toggle flex-shrink-0" type="button"
+        aria-label="Queue" aria-controls="player-queue" aria-expanded="false">
+        <i class="bi bi-list-ul" aria-hidden="true"></i>
+      </button>
+    </div>
+    <button data-footer="bubble" class="btn btn-primary rounded-circle player-queue-bubble d-none" type="button"
+      aria-label="Show queue">
+      <i class="bi bi-list-ul" aria-hidden="true"></i>
+    </button>
   </player-footer>
 
   <div class="offcanvas offcanvas-end border-secondary border-top-0 border-bottom-0 border-end-0" tabindex="-1"

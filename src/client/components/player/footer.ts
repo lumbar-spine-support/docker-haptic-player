@@ -3,6 +3,7 @@ import type { VideoPlayerStore } from '@videojs/html';
 import { StoreController } from '@videojs/store/html';
 import type { PlaybackSession } from './session';
 import type { PlaybackController } from './controller';
+import { QueueList } from './queueList';
 
 type PlaybackSlice = ReturnType<typeof selectPlayback>;
 type VolumeSlice = ReturnType<typeof selectVolume>;
@@ -22,6 +23,10 @@ export class PlayerFooterElement extends UIElement {
     #playback: StoreController<VideoPlayerStore, PlaybackSlice>[] = [];
     #volume: StoreController<VideoPlayerStore, VolumeSlice>[] = [];
     #onOpenTrack: ((trackId: string) => void) | null = null;
+    #queueList: QueueList | null = null;
+    #queueOpen = false;
+    /** Bar shown on the playing file's page, where it normally collapses to the bubble. */
+    #expanded = false;
 
     /** Wires the bar to the session; called once the players have upgraded. */
     bind(
@@ -35,7 +40,12 @@ export class PlayerFooterElement extends UIElement {
         this.#playback = session.stores.map((store) => new StoreController(this, store, selectPlayback));
         this.#volume = session.stores.map((store) => new StoreController(this, store, selectVolume));
         session.onChange(() => this.requestUpdate());
+        controller.onQueueChange(() => {
+            if (this.#queueOpen) this.#renderQueue();
+            this.requestUpdate();
+        });
         this.#bindControls();
+        this.#bindQueue();
         this.requestUpdate();
     }
 
@@ -44,14 +54,92 @@ export class PlayerFooterElement extends UIElement {
     }
 
 
+    #bindQueue(): void {
+        const body = this.#part<HTMLTableSectionElement>('queue-list');
+        const panel = this.#part('queue');
+        if (body && panel) {
+            this.#queueList = new QueueList(body, panel, {
+                onMove: (from, to) => this.#controller?.moveUpcoming(from, to),
+                onSelect: (index) => { void this.#controller?.jumpTo(index); },
+                onRemove: (index) => this.#controller?.removeUpcoming(index),
+            });
+        }
+        this.#part('queue-toggle')?.addEventListener('click', () => {
+            if (this.#queueOpen) this.#closeQueue();
+            else this.#openQueue();
+        });
+        this.#part('bubble')?.addEventListener('click', () => {
+            if (this.#bubbleDragged) return;
+            this.#expanded = true;
+            this.#openQueue();
+        });
+        this.#bindBubbleDrag();
+        this.#part('clear')?.addEventListener('click', () => this.#controller?.clearQueue());
+        this.#part('add')?.addEventListener('click', () => {
+            const trackId = this.#session?.focusedTrackId;
+            if (trackId) this.#controller?.enqueue(trackId);
+        });
+        this.#part('backdrop')?.addEventListener('click', () => this.#closeQueue());
+        this.#part('bar')?.addEventListener('click', (event) => {
+            if (this.#expanded && !(event.target as HTMLElement).closest('button')) this.#closeQueue();
+        });
+    }
+
+    #bubbleDragged = false;
+
+    #bindBubbleDrag(): void {
+        const bubble = this.#part('bubble');
+        if (!bubble) return;
+        let start: { x: number; y: number; right: number; bottom: number } | null = null;
+        bubble.addEventListener('pointerdown', (event) => {
+            const rect = bubble.getBoundingClientRect();
+            start = { x: event.clientX, y: event.clientY, right: innerWidth - rect.right, bottom: innerHeight - rect.bottom };
+            this.#bubbleDragged = false;
+            bubble.setPointerCapture(event.pointerId);
+        });
+        bubble.addEventListener('pointermove', (event) => {
+            if (!start) return;
+            const dx = event.clientX - start.x, dy = event.clientY - start.y;
+            if (Math.hypot(dx, dy) > 5) this.#bubbleDragged = true;
+            if (!this.#bubbleDragged) return;
+            bubble.style.right = `${Math.max(0, Math.min(innerWidth - bubble.offsetWidth, start.right - dx))}px`;
+            bubble.style.bottom = `${Math.max(0, Math.min(innerHeight - bubble.offsetHeight, start.bottom - dy))}px`;
+        });
+        bubble.addEventListener('pointerup', () => { start = null; });
+        bubble.addEventListener('pointercancel', () => { start = null; });
+    }
+
+    #openQueue(): void {
+        this.#queueOpen = true;
+        this.#renderQueue();
+        this.requestUpdate();
+    }
+
+    /** Closing while expanded also drops back to the bubble. */
+    #closeQueue(): void {
+        this.#queueOpen = false;
+        this.#expanded = false;
+        this.requestUpdate();
+    }
+
+    #renderQueue(): void {
+        const tracks = this.#controller?.upcoming ?? [];
+        this.#queueList?.render(tracks);
+        this.#part('queue-empty')?.classList.toggle('d-none', tracks.length > 0);
+    }
+
     #bindControls(): void {
         this.#part('info')?.addEventListener('click', () => {
+            if (this.#expanded) {
+                this.#closeQueue();
+                return;
+            }
             const trackId = this.#session?.activeTrackId;
             if (trackId) this.#onOpenTrack?.(trackId);
         });
-        this.#part('play-pause')?.addEventListener('click', () => {
-            void this.#playbackSlice?.togglePaused();
-        });
+        for (const playPause of this.querySelectorAll('[data-footer="play-pause"]')) {
+            playPause.addEventListener('click', () => { void this.#playbackSlice?.togglePaused(); });
+        }
         this.#part('prev')?.addEventListener('click', () => { void this.#controller?.step(-1); });
         this.#part('next')?.addEventListener('click', () => { void this.#controller?.step(1); });
         this.#part('mute')?.addEventListener('click', () => { this.#volumeSlice?.toggleMuted(); });
@@ -73,9 +161,24 @@ export class PlayerFooterElement extends UIElement {
         super.update(changed);
         const session = this.#session;
         const request = session?.activeRequest ?? null;
-        const hideFooter = !request || session?.focusedIsActive;
-        this.classList.toggle('d-none', hideFooter);
-        if (hideFooter) return;
+        const hasQueue = this.#controller?.hasQueue ?? false;
+        if (!request || !hasQueue) this.#queueOpen = false;
+        if (!request) {
+            this.#expanded = false;
+        } else if (!session?.focusedIsActive) {
+            this.#expanded = false;
+        }
+        const bubble = !!request && !!session?.focusedIsActive && !this.#expanded;
+        const hideBar = !request || bubble;
+        const showQueue = !hideBar && this.#queueOpen;
+        this.classList.toggle('d-none', !request || (bubble && !hasQueue));
+        this.#part('bar')?.classList.toggle('d-none', hideBar);
+        this.#part('bubble')?.classList.toggle('d-none', !bubble || !hasQueue);
+        this.#part('queue')?.classList.toggle('d-none', !showQueue);
+        this.#part('actions')?.classList.toggle('d-none', !showQueue);
+        this.#part('backdrop')?.classList.toggle('d-none', !showQueue);
+        this.#part('queue-toggle')?.setAttribute('aria-expanded', String(showQueue));
+        if (hideBar) return;
 
         const art = this.#part<HTMLImageElement>('art');
         if (art && art.src !== request.poster) art.src = request.poster;
@@ -85,12 +188,16 @@ export class PlayerFooterElement extends UIElement {
         if (subtitle) subtitle.textContent = request.artist;
 
         const paused = this.#playbackSlice?.paused ?? true;
-        const playPause = this.#part('play-pause');
-        if (playPause) {
+        const playPauseButtons = this.querySelectorAll('[data-footer="play-pause"]');
+        for (const playPause of playPauseButtons) {
             playPause.setAttribute('aria-label', paused ? 'Play' : 'Pause');
             const icon = playPause.querySelector('i');
             if (icon) icon.className = paused ? 'bi bi-play-fill' : 'bi bi-pause-fill';
         }
+        this.#part('bar-play')?.classList.toggle('d-none', hasQueue);
+        this.#part('queue-toggle')?.classList.toggle('d-none', !hasQueue);
+        const add = this.#part<HTMLButtonElement>('add');
+        if (add) add.disabled = !session?.focusedTrackId;
 
         const steps = this.#controller?.canStep ?? { prev: false, next: false };
         const prev = this.#part<HTMLButtonElement>('prev');

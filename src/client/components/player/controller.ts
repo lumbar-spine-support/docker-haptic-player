@@ -45,13 +45,59 @@ export class PlaybackController {
         const from = source ?? SINGLE;
         this.queue.load(this.contextFor(track, from), trackId, from);
         this.applyRepeat();
+        await this.play(trackId);
+    }
+
+    /** Starts a track already positioned in the queue, keeping its order. */
+    private async play(trackId: string): Promise<void> {
+        const track = this.library.getTrack(trackId);
+        if (!track) return;
         this.publishCanStep();
         await this.session.start(this.toRequest(track));
     }
 
     async step(direction: -1 | 1): Promise<void> {
         const id = this.queue.step(direction);
-        if (id) await this.activate(id, this.queue.source);
+        if (id) await this.play(id);
+    }
+
+    get upcoming(): TrackInfo[] {
+        return this.queue.upcoming
+            .map((id) => this.library.getTrack(id))
+            .filter((track): track is TrackInfo => !!track);
+    }
+
+    moveUpcoming(from: number, to: number): void {
+        this.queue.moveUpcoming(from, to);
+        this.publishCanStep();
+    }
+
+    get hasQueue(): boolean { return this.queue.size > 1; }
+
+    /** Adds a track to the very end of the queue. */
+    enqueue(trackId: string): void {
+        if (!this.library.getTrack(trackId)) return;
+        this.queue.append(trackId);
+        this.publishCanStep();
+    }
+
+    removeUpcoming(index: number): void {
+        this.queue.removeUpcoming(index);
+        this.publishCanStep();
+    }
+
+    clearQueue(): void {
+        this.queue.clear();
+        this.publishCanStep();
+    }
+
+    async jumpTo(index: number): Promise<void> {
+        const id = this.queue.jumpTo(index);
+        if (id) await this.play(id);
+    }
+
+    onQueueChange(listener: () => void): () => void {
+        return this.queue.onChange(listener);
     }
 
     get canStep(): { prev: boolean; next: boolean } {
@@ -93,7 +139,7 @@ export class PlaybackController {
         }
         if (getRepeatMode() !== 'queue') return;
         const id = this.queue.restart();
-        if (id) await this.activate(id, this.queue.source);
+        if (id) await this.play(id);
     }
 
     /** Repeat-one is the media element's own loop; the other modes leave it off. */

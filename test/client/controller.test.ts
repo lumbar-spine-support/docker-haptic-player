@@ -172,3 +172,76 @@ test(`${TAG} loading the next track does not advance the queue a second time`, a
     await settle();
     assert.equal(queue.currentId, 't2');
 });
+
+const ids = (tracks: TrackInfo[]) => tracks.map((t) => t.id);
+
+test(`${TAG} a reordered queue survives stepping`, async () => {
+    const { queue, controller } = setup();
+    await controller.activate('t1', { type: 'album', id: ALBUM.id });
+    controller.moveUpcoming(1, 0);
+    assert.deepEqual(ids(controller.upcoming), ['t3', 't2']);
+
+    await controller.step(1);
+    assert.equal(queue.currentId, 't3');
+    assert.deepEqual(ids(controller.upcoming), ['t2']);
+});
+
+test(`${TAG} stepping back returns the current track to upcoming`, async () => {
+    const { controller } = setup();
+    await controller.activate('t2', { type: 'album', id: ALBUM.id });
+    await controller.step(-1);
+    assert.deepEqual(ids(controller.upcoming), ['t2', 't3']);
+});
+
+test(`${TAG} jumping turns skipped tracks into history`, async () => {
+    const { queue, controller } = setup();
+    await controller.activate('t1', { type: 'album', id: ALBUM.id });
+    await controller.jumpTo(1);
+    assert.equal(queue.currentId, 't3');
+    assert.deepEqual(controller.upcoming, []);
+    assert.deepEqual(controller.canStep, { prev: true, next: false });
+});
+
+test(`${TAG} repeat queue keeps the reordered order`, async () => {
+    const { queue, controller, session } = setup();
+    await controller.activate('t1', { type: 'album', id: ALBUM.id });
+    controller.moveUpcoming(1, 0);
+    await controller.jumpTo(1);
+    setRepeatMode('queue');
+
+    await session.end();
+    await settle();
+    assert.equal(queue.currentId, 't1');
+    assert.deepEqual(ids(controller.upcoming), ['t3', 't2']);
+});
+
+test(`${TAG} clearing keeps only the current track`, async () => {
+    const { queue, controller } = setup();
+    await controller.activate('t2', { type: 'album', id: ALBUM.id });
+    controller.clearQueue();
+    assert.equal(queue.currentId, 't2');
+    assert.equal(controller.hasQueue, false);
+    assert.deepEqual(controller.canStep, { prev: false, next: false });
+});
+
+test(`${TAG} enqueue appends to the end and remove drops an upcoming track`, async () => {
+    const { controller } = setup();
+    await controller.activate('t1');
+    assert.equal(controller.hasQueue, false);
+    controller.enqueue('t3');
+    controller.enqueue('t2');
+    assert.deepEqual(ids(controller.upcoming), ['t3', 't2']);
+    controller.removeUpcoming(0);
+    assert.deepEqual(ids(controller.upcoming), ['t2']);
+});
+
+test(`${TAG} queue changes are reported`, async () => {
+    const { controller } = setup();
+    let count = 0;
+    controller.onQueueChange(() => count++);
+    await controller.activate('t1', { type: 'album', id: ALBUM.id });
+    controller.moveUpcoming(0, 1);
+    await controller.step(1);
+    await controller.jumpTo(0);
+    assert.equal(count, 4);
+});

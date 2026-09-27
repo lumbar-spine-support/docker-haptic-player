@@ -129,7 +129,7 @@ with `PlaybackSession`, `PlaybackQueue` and `PlaybackController`.
 - `currentTrackId`: file page the user is browsing
 - `PlaybackSession.activeSlot` / `activeTrackId`: slot that owns playback and the footer
 - `PlaybackSession.focusedTrackId`: slot shown on the browsed file page
-- `PlaybackQueue`: ordered track ids plus the album/playlist they came from
+- `PlaybackQueue`: ordered track ids plus the album/playlist they came from. Tracks before the current index are history; the footer's "Up next" panel shows and reorders the rest. Only starting a new track rebuilds it; stepping, jumping and repeat-queue keep the user's order
 - `pageScripts`: funscripts loaded for the browsed file
 
 ### Player slots
@@ -434,7 +434,8 @@ dist/                   Compiled server output
 
 - `src/client/components/player/session.ts` owns the two Video.js player slots and their active/focus roles
 - `src/client/components/player/queue.ts` holds queue order only; it never drives the session
-- `src/client/components/player/controller.ts` joins session + queue + library and exposes browse/activate/step
+- `src/client/components/player/controller.ts` joins session + queue + library and exposes browse/activate/step/jumpTo/moveUpcoming
+- `src/client/components/player/queueList.ts` renders the upcoming table with pointer-based drag reordering
 - `src/client/components/player/footer.ts` is a `UIElement` bound to the active slot's store via `StoreController`
 - `src/client/components/funscriptSync.ts` isolates playback-time → device-command logic
 - `src/client/components/haptic/buttplugClient.ts` isolates Intiface connection and command routing
