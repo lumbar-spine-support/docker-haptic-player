@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.7.0...docker-haptic-player-v0.8.0) (2026-09-27)
+
+
+### Features
+
+* funscript viz refactor and more fluid implementation ([53da5db](https://github.com/lumbar-spine-support/docker-haptic-player/commit/53da5dbddeaf9d0ab10ad08db1a3a716b1b22d2d))
+* interpolation method can be chosen at server startup time: none, linear or pchip ([10b2456](https://github.com/lumbar-spine-support/docker-haptic-player/commit/10b2456890df9169505b499c783d93d48f691136))
+
+
+### Bug Fixes
+
+* css of tables and long text in documentation markdown ([2e6e58a](https://github.com/lumbar-spine-support/docker-haptic-player/commit/2e6e58a4dedb638cb0a16d9986d54d819d1660bf))
+* hide cast button + picture-in-picture button for audio files ([9887fca](https://github.com/lumbar-spine-support/docker-haptic-player/commit/9887fca76d67c8c90300c8879fc28e280e384e06))
+* missing artifaces in docker image ([c84a4e8](https://github.com/lumbar-spine-support/docker-haptic-player/commit/c84a4e817904f47bc574a5b92b4240c364f83288))
+
 ## [0.7.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.6.0...docker-haptic-player-v0.7.0) (2026-09-27)
 
 
