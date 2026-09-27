@@ -221,7 +221,9 @@ export namespace Config {
         const target = SERVER_KEYS.has(key) ? resultServer : CLIENT_KEYS.has(key) ? resultClient : null;
         if (!target) continue;
         // YAML is untyped, so a quoted "true"/"10" still has to land as the declared type.
-        if (typeof val === 'string' && typeof target[key] !== 'string') {
+        if (val === null && typeof target[key] === 'string') {
+          target[key] = '';
+        } else if (typeof val === 'string' && typeof target[key] !== 'string') {
           applyConfigValue(target, key, val);
         } else {
           target[key] = val;
