@@ -6,7 +6,8 @@ import type { PlayerFooterElement } from './components/player';
 import { ButtplugClientManager } from './components/haptic/buttplugClient';
 import { HapticBackendRegistry } from './components/haptic/backendRegistry';
 import { CoyoteBackend } from './components/haptic/dglab/coyoteBackend';
-import { pairingDeepLink } from './components/haptic/dglab/v4/protocol';
+import QRCode from 'qrcode';
+import { pairingDeepLink, pairingQrPayload } from './components/haptic/dglab/v4/protocol';
 import { FunscriptSync } from './components/funscriptSync';
 import { DeviceStatus } from './components/haptic/deviceStatus';
 import { DeviceAssignment } from './components/haptic/deviceAssignment';
@@ -500,6 +501,8 @@ class App {
     const hostGroup = document.getElementById('dglab-host-group');
     const urlGroup = document.getElementById('dglab-url-group');
     const urlEl = document.getElementById('dglab-url') as HTMLInputElement | null;
+    const qrEl = document.getElementById('dglab-pair-qr') as HTMLImageElement | null;
+    let qrUrl: string | null = null;
 
     const sync = (): void => {
       const state = coyote.connectionState;
@@ -520,6 +523,12 @@ class App {
       if (urlEl) urlEl.value = url ?? '';
       pairingEl?.classList.toggle('d-none', !url || paired);
       if (url && linkEl) linkEl.href = pairingDeepLink(url);
+      if (url && !paired && qrEl && url !== qrUrl) {
+        qrUrl = url;
+        QRCode.toDataURL(pairingQrPayload(url), { width: 240, margin: 1 })
+          .then((data) => { if (qrUrl === url) qrEl.src = data; })
+          .catch((err: unknown) => console.warn('[dglab] QR generation failed', err));
+      }
       if (hostEl && document.activeElement !== hostEl) hostEl.value = coyote.pairingHost;
     };
 

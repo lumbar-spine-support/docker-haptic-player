@@ -28,7 +28,7 @@ Make sure that you applied the settings to both channel A and B in case you are 
 
 1. Open HAPPY and the settings sidebar, then press **Enable** in the DG-Lab section.
 2. On the phone running the DG-Lab 4 app, tap **Open DG-Lab**. If HAPPY is open on a desktop
-   browser instead, copy the shown URL and send it to the phone running DG-Lab and enter the address manually in *Socket Control*.
+   browser instead, either copy the URL enter the server URL in DG-Lab app or scan the QR code shown from the DG-Lab app.
 3. Return to HAPPY web interface. You should now see a green badge indicating successful pairing. The Coyote's two channels should appear in Device Assignment and can be
    assigned to any funscript like a toy connected through Intiface.
 4. Have fun and **stay safe**!
