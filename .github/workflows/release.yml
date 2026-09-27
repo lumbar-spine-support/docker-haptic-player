@@ -80,10 +80,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
         run: |
-          package_link="https://github.com/lumbar-spine-support/docker-haptic-player/pkgs/container/docker-haptic-player/1299909013?tag=stable"
+          package_link="https://github.com/${{ github.repository }}/pkgs/container/${{ github.event.repository.name }}"
+          image_ref="ghcr.io/${{ github.repository }}:${RELEASE_TAG##*-v}"
           body="$(gh release view "$RELEASE_TAG" --json body --jq .body)"
-          if [[ "$body" != *"$package_link"* ]]; then
-            notes="$(printf '%s\n\nDocker image: %s' "$body" "$package_link")"
+          if [[ "$body" != *"$image_ref"* ]]; then
+            notes="$(printf '%s\n\nDocker image: %s\n\n```\ndocker pull %s\n```' "$body" "$package_link" "$image_ref")"
             gh release edit "$RELEASE_TAG" --notes "$notes"
           fi
 
