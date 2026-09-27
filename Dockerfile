@@ -27,6 +27,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist/server ./dist/server
+COPY --from=builder /app/dist/shared ./dist/shared
 
 COPY --from=builder /app/public ./public
 
