@@ -10,23 +10,22 @@ Every YAML setting can also be set as an environment variable. Environment varia
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `PORT` | `3000` | HTTP port of the web interface |
-| `MEDIA_DIR` | `/media` | Directory that contains media files |
+| `PORT` | `3000` | HTTP port of the web interface. |
+| `MEDIA_DIR` | `/media` | Directory that contains media files (inside container). |
 | `IGNORE_EXT` | *(empty)* | File extensions to ignore (without leading dot) |
 | `PASSWORD` | `happy` | Web interface access password. Leave empty to disable authentication |
 | `TRUST_PROXY` | `0` | Number of reverse proxy hops to trust for X-Forwarded-* headers. 0 for direct LAN access, 1 behind nginx/Traefik |
 | `LOG_LEVEL` | `info` | Verbosity of the console log: error, warn, info, debug |
-| `FUNSCRIPT_SUFFIX_SEPARATOR` | `.` | Character that separates filename from funscript suffix |
-| `FUNSCRIPT_SUFFIX_STROKER` | `stroker` | Suffix for stroker funscript files |
-| `FUNSCRIPT_SUFFIX_BUTTPLUG` | `buttplug` | Suffix for buttplug funscript files |
-| `FUNSCRIPT_SUFFIX_VIBRATOR` | `vibrator` | Suffix for vibrator funscript files |
-| `FUNSCRIPT_SUFFIX_ESTIM` | `estim` | Suffix for estim funscript files |
-| `FUNSCRIPT_SUFFIX_MACHINE` | `machine` | Suffix for machine funscript files |
-| `VIDEO_SEEK_INTERVAL` | `10` | Default skip interval in seconds for the seek buttons (TODO: unused) |
-| `DEFAULT_BLUR_CONTENT` | `false` | Default setting for blurring of images and videos. Can be changed in client. |
-| `DEFAULT_HAPTIC_FREQUENCY` | `30` | Default haptic update frequency in Hz. Can be changed in client. |
-| `DEFAULT_HAPTIC_MASTER_STRENGTH` | `100` | Default haptic master strength in percent. Can be changed in client. |
-| `DEFAULT_HAPTIC_DELAY` | `0` | Default haptic delay in milliseconds to sync video and haptics. Can be changed in client. |
-| `DGLAB_ENABLED` | `false` | (EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control |
+| `FUNSCRIPT_SUFFIX_SEPARATOR` | `.` | Single character that separates filename from funscript suffix |
+| `FUNSCRIPT_SUFFIX_STROKER` | `stroker` | Suffix associated with stroker funscript |
+| `FUNSCRIPT_SUFFIX_BUTTPLUG` | `buttplug` | Suffix associated with buttplug funscript |
+| `FUNSCRIPT_SUFFIX_VIBRATOR` | `vibrator` | Suffix associated with vibrator funscript |
+| `FUNSCRIPT_SUFFIX_ESTIM` | `estim` | Suffix associated with estim funscript |
+| `FUNSCRIPT_SUFFIX_MACHINE` | `machine` | Suffix associated with machine funscript |
+| `VIDEO_SEEK_INTERVAL` | `10` | Seek interval in seconds when double-tapping/clicking. |
+| `DEFAULT_BLUR_CONTENT` | `false` | Enable to blur images and videos. Can be toggled in web interface. |
+| `DEFAULT_HAPTIC_FREQUENCY` | `30` | Intiface Haptic update frequency in Hz. Smaller values are usually more stable but less precise. Can be changed in web interface. |
+| `DEFAULT_HAPTIC_DELAY` | `0` | Default haptic delay in milliseconds to sync video and haptics. Can be changed in web interface. |
+| `DGLAB_ENABLED` | `false` | (EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control. |
 
 <!-- /ENV_OPTIONS -->

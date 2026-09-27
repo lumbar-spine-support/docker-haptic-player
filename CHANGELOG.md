@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.5.0...docker-haptic-player-v0.6.0) (2026-09-27)
+
+
+### Features
+
+* allow more funscript zoom ([3ea06dd](https://github.com/lumbar-spine-support/docker-haptic-player/commit/3ea06dd8d8bbe7f843bab2f70c32cdb94eaabfff))
+* artist tag filtering ([bdf85a5](https://github.com/lumbar-spine-support/docker-haptic-player/commit/bdf85a569b370b6cfdde85193cae16dbf7dda5dd))
+* coyote 3.0 ui provides proper warnings/errors regarding channel muting and device connection state ([b18205a](https://github.com/lumbar-spine-support/docker-haptic-player/commit/b18205a1966b920c927be75fa0580f5fd6446afe))
+* details for intiface channels added; now you can see what the maximum values, step limits and current values are ([e477a21](https://github.com/lumbar-spine-support/docker-haptic-player/commit/e477a218357bc6e25a4b3be7d747a2593a2dddb4))
+* improve responsiveness by caching artworks and lazy loading ([21a853d](https://github.com/lumbar-spine-support/docker-haptic-player/commit/21a853d571f8bdf643dfec0e1d54fb0f4ef84fb2))
+* improved and configurable logging for debugging ([c4efbb9](https://github.com/lumbar-spine-support/docker-haptic-player/commit/c4efbb95dd16559db111c10c6223490771a3dbea))
+* improved configuration handling ([d4c6663](https://github.com/lumbar-spine-support/docker-haptic-player/commit/d4c6663cf9c4c3b1e2257d5e4e50441181d2b63a))
+* markdown documentation ([69f9d99](https://github.com/lumbar-spine-support/docker-haptic-player/commit/69f9d998e1520c54403be6a60022b6cabb506df7))
+
+
+### Bug Fixes
+
+* ENV not overwriting settings.yaml default upon first server start ([2b9a259](https://github.com/lumbar-spine-support/docker-haptic-player/commit/2b9a25959b07e03bebe30ddfb3ef58ee7149be35))
+
 ## [0.5.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.4.0...docker-haptic-player-v0.5.0) (2026-09-23)
 
 
