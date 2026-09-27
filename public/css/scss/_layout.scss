@@ -199,7 +199,13 @@ body.blur-content media-container {
     color: #d4d4d4;
   }
 
+  min-width: 0;
+  overflow-wrap: break-word;
+
   table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
     margin-bottom: 1rem;
     border-collapse: collapse;
   }
