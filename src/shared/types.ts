@@ -1,5 +1,7 @@
 /** Types shared between the server API and the browser client. */
 
+import type { InterpolationMethod } from './interpolation';
+
 export type Album = 'album';
 export type Single = 'single';
 export type Audio = 'audio';
@@ -121,6 +123,8 @@ export interface ClientSettings {
   hapticFrequency: number;
   hapticDelay: number;
   dglabEnabled: boolean;
+  funscriptInterpolationMethod: InterpolationMethod;
+  funscriptColorGradient: boolean;
   /** Process-local token allowing a remote playback receiver to fetch media only. */
   mediaAccessToken: string | null;
 }

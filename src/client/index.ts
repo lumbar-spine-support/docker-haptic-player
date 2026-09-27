@@ -35,6 +35,7 @@ const DELAY_LIMIT_MS = 500;
 const HAPTIC_UPDATE_RATE_KEY = 'happy-haptic-update-rate-hz';
 const AUTOPLAY_KEY = 'happy-autoplay';
 const BLUR_CONTENT_KEY = 'happy-blur-content';
+const COLOR_GRADIENT_KEY = 'happy-color-gradient';
 
 /** Used when the server config cannot be reached. */
 const FALLBACK_SETTINGS: ClientSettings = {
@@ -43,6 +44,8 @@ const FALLBACK_SETTINGS: ClientSettings = {
   hapticFrequency: 30,
   hapticDelay: 0,
   dglabEnabled: false,
+  funscriptInterpolationMethod: 'pchip',
+  funscriptColorGradient: false,
   mediaAccessToken: null,
 };
 
@@ -103,6 +106,7 @@ class App {
   private readonly hapticUpdateRateLabel = qs<HTMLElement>('#haptic-update-rate-label');
   private readonly footer = qs<PlayerFooterElement>('#player-footer');
   private readonly blurContentToggle = qs<HTMLInputElement>('#blur-content-toggle');
+  private readonly colorGradientToggle = qs<HTMLInputElement>('#color-gradient-toggle');
   private readonly versionBadge = qs<HTMLElement>('#app-version');
   private readonly logoutBtn = qs<HTMLButtonElement>('#btn-logout');
 
@@ -181,11 +185,14 @@ class App {
       console.warn('Falling back to built-in client settings:', err);
     }
     setMediaAccessToken(this.settings.mediaAccessToken);
+    for (const engine of this.syncEngines) engine.setInterpolation(this.settings.funscriptInterpolationMethod);
+    this.viz.setInterpolation(this.settings.funscriptInterpolationMethod);
     this.applySeekInterval();
     this.library.bindControls();
     this.bindDetailControls();
     this.bindSidebarControls();
     this.initBlurContent();
+    this.initColorGradient();
     this.bindZoomControls();
     void this.showVersion();
     void this.bindLogout();
@@ -429,6 +436,7 @@ class App {
     const engine = new FunscriptSync(this.session, backend);
     const rate = Number(this.hapticUpdateRateSlider?.value);
     if (Number.isFinite(rate) && rate > 0) engine.setUpdateFrequencyHz(rate);
+    engine.setInterpolation(this.settings.funscriptInterpolationMethod);
     engine.loadScripts(this.activeScripts);
     this.syncEngines.push(engine);
     return engine;
@@ -576,6 +584,19 @@ class App {
       });
     }
     document.body.classList.toggle('blur-content', blurEnabled);
+  }
+
+  private initColorGradient(): void {
+    const stored = localStorage.getItem(COLOR_GRADIENT_KEY);
+    const enabled = stored === null ? this.settings.funscriptColorGradient : stored === 'true';
+    this.viz.setColorGradient(enabled);
+    if (!this.colorGradientToggle) return;
+    this.colorGradientToggle.checked = enabled;
+    this.colorGradientToggle.addEventListener('change', () => {
+      const isChecked = this.colorGradientToggle?.checked ?? false;
+      localStorage.setItem(COLOR_GRADIENT_KEY, String(isChecked));
+      this.viz.setColorGradient(isChecked);
+    });
   }
 
   private async handleRouteChange(): Promise<void> {

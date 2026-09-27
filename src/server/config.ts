@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import { createLogger, DEFAULT_LOG_LEVEL, isLogLevel, LOG_LEVELS, setLogLevel } from './utils/logger';
+import { DEFAULT_INTERPOLATION_METHOD, INTERPOLATION_METHODS, isInterpolationMethod } from '../shared/interpolation';
 
 export namespace Config {
 
@@ -40,6 +41,8 @@ export namespace Config {
     hapticFrequency: number;
     hapticDelay: number;
     dglabEnabled: boolean;
+    funscriptInterpolationMethod: string;
+    funscriptColorGradient: boolean;
   }
 
   export interface Config {
@@ -106,6 +109,8 @@ export namespace Config {
     hapticFrequency: 30,
     hapticDelay: 0,
     dglabEnabled: false,
+    funscriptInterpolationMethod: DEFAULT_INTERPOLATION_METHOD,
+    funscriptColorGradient: false,
   };
 
   export const DEFAULTS = { ...DEFAULT_SERVER_CONFIG, ...DEFAULT_CLIENT_CONFIG };
@@ -122,6 +127,8 @@ export namespace Config {
     hapticFrequency: 'Intiface Haptic update frequency in Hz. Smaller values are usually more stable but less precise. Can be changed in web interface.',
     hapticDelay: 'Default haptic delay in milliseconds to sync video and haptics. Can be changed in web interface.',
     dglabEnabled: '(EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control.',
+    funscriptInterpolationMethod: `How positions between funscript points are computed for haptics and the timeline: ${INTERPOLATION_METHODS.join(', ')}. none holds each position until the next point; strokers follow pchip as linear`,
+    funscriptColorGradient: 'Colour the timeline graph on a heat scale by movement speed (blue = slow, red = fast). Can be toggled in web interface.',
     funscriptSuffixSeparator: 'Single character that separates filename from funscript suffix',
     funscriptSuffixStroker: 'Suffix associated with stroker funscript',
     funscriptSuffixButtplug: 'Suffix associated with buttplug funscript',
@@ -142,6 +149,8 @@ export namespace Config {
     hapticFrequency: 'DEFAULT_HAPTIC_FREQUENCY',
     hapticDelay: 'DEFAULT_HAPTIC_DELAY',
     dglabEnabled: 'DGLAB_ENABLED',
+    funscriptInterpolationMethod: 'FUNSCRIPT_INTERPOLATION_METHOD',
+    funscriptColorGradient: 'FUNSCRIPT_COLOR_GRADIENT',
     funscriptSuffixSeparator: 'FUNSCRIPT_SUFFIX_SEPARATOR',
     funscriptSuffixStroker: 'FUNSCRIPT_SUFFIX_STROKER',
     funscriptSuffixButtplug: 'FUNSCRIPT_SUFFIX_BUTTPLUG',
@@ -346,7 +355,12 @@ export namespace Config {
       server.logLevel = DEFAULT_LOG_LEVEL;
     }
     server.logLevel = setLogLevel(String(server.logLevel));
-    return { server, client: envOverridden.client };
+    const client = envOverridden.client;
+    if (!isInterpolationMethod(client.funscriptInterpolationMethod)) {
+      log.warn(`Unknown ${ENV_NAMES.funscriptInterpolationMethod} "${client.funscriptInterpolationMethod}", falling back to "${DEFAULT_INTERPOLATION_METHOD}". Valid methods: ${INTERPOLATION_METHODS.join(', ')}`);
+      client.funscriptInterpolationMethod = DEFAULT_INTERPOLATION_METHOD;
+    }
+    return { server, client };
   }
 
 }

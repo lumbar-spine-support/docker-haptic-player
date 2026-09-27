@@ -1,11 +1,16 @@
 import type { Funscript, FunscriptAction } from '../../shared/types';
 import type { HapticChannel } from '../../shared/haptics';
+import { bracketIndex, DEFAULT_INTERPOLATION_METHOD, positionAt, prepareScript, type InterpolationMethod, type PreparedScript } from '../../shared/interpolation';
 import type { HapticBackend } from './haptic/backend';
 import type { PlaybackSession } from './player';
 
+/** Travel time for a stroker jump without interpolation; as fast as devices reliably accept. */
+const STEP_MOVE_MS = 50;
+
 interface LoadedScript {
   channel: HapticChannel;
-  actions: FunscriptAction[];
+  source: readonly FunscriptAction[];
+  prepared: PreparedScript;
   /** performance.now() timestamp before which no new linear move should be issued. */
   moveLockedUntil: number;
   /** Last position (0–1) sent for a linear (stroker) role; avoids redundant re-sends. */
@@ -42,6 +47,7 @@ export class FunscriptSync {
   private isPlaying = false;
   private delayMs = 0;
   private updateIntervalMs = 1000 / 30;
+  private interpolation: InterpolationMethod = DEFAULT_INTERPOLATION_METHOD;
   private readonly session: PlaybackSession;
   private readonly buttplug: HapticBackend;
 
@@ -63,7 +69,8 @@ export class FunscriptSync {
   loadScripts(scripts: Array<{ channel: HapticChannel; funscript: Funscript }>): void {
     this.scripts = scripts.map(({ channel, funscript }) => ({
       channel,
-      actions: [...funscript.actions].sort((a, b) => a.at - b.at),
+      source: funscript.actions,
+      prepared: prepareScript(funscript.actions, this.interpolation),
       moveLockedUntil: 0,
       lastSentPos: null,
     }));
@@ -78,6 +85,13 @@ export class FunscriptSync {
   /** Applies a playback-time offset in milliseconds, then resynchronizes output. */
   setDelayMs(delayMs: number): void {
     this.delayMs = delayMs;
+    this.resyncNow();
+  }
+
+  /** Sets how positions between script points are derived, then resynchronizes output. */
+  setInterpolation(method: InterpolationMethod): void {
+    this.interpolation = method;
+    for (const script of this.scripts) script.prepared = prepareScript(script.source, method);
     this.resyncNow();
   }
 
@@ -185,8 +199,8 @@ export class FunscriptSync {
 
     // Outside the scripted range this resolves to 0, actively forcing the device off
     // instead of holding onto whatever was last (possibly only partially) sent.
-    const pos = this.interpolatedPosition(script.actions, nowMs) ?? 0;
-    this.buttplug.sendContinuous(script.channel, pos);
+    const pos = positionAt(script.prepared, nowMs);
+    this.buttplug.sendContinuous(script.channel, pos === null ? 0 : pos / 100);
 
     if (this.buttplug.hasLinearFor(script.channel)) {
       this.updateStroker(script, nowMs, now, force);
@@ -197,7 +211,7 @@ export class FunscriptSync {
   private updateStroker(script: LoadedScript, nowMs: number, now: number, force: boolean): void {
     if (!force && now < script.moveLockedUntil) return;
 
-    const target = this.nextStrokerWaypoint(script.actions, nowMs);
+    const target = this.nextStrokerWaypoint(script.prepared, nowMs);
     if (!target) return;
     if (!force && script.lastSentPos === target.pos) return;
 
@@ -206,43 +220,24 @@ export class FunscriptSync {
     script.moveLockedUntil = now + target.durationMs;
   }
 
-  /** Linearly interpolate the 0–1 intensity at `atMs`; null when outside the scripted range. */
-  private interpolatedPosition(actions: FunscriptAction[], atMs: number): number | null {
-    if (actions.length === 0) return null;
-    if (atMs < actions[0].at || atMs > actions[actions.length - 1].at) return null;
-
-    const idx = this.findBracketIndex(actions, atMs);
-    const prev = actions[idx];
-    const next = actions[Math.min(idx + 1, actions.length - 1)];
-    if (next.at === prev.at) return prev.pos / 100;
-
-    const t = (atMs - prev.at) / (next.at - prev.at);
-    return (prev.pos + (next.pos - prev.pos) * t) / 100;
-  }
-
-  /** Find the next waypoint for a linear device: its target position and time to reach it. */
+  /**
+   * Next move for a linear device. Without interpolation it jumps to the point just
+   * reached; otherwise it travels to the upcoming point (pchip degrades to linear).
+   */
   private nextStrokerWaypoint(
-    actions: FunscriptAction[],
+    { actions, method }: PreparedScript,
     atMs: number,
   ): { pos: number; durationMs: number } | null {
-    if (actions.length < 2) return null;
-    if (atMs < actions[0].at || atMs >= actions[actions.length - 1].at) return null;
+    if (actions.length === 0 || atMs < actions[0].at) return null;
+    const idx = bracketIndex(actions, atMs);
 
-    const idx = this.findBracketIndex(actions, atMs);
+    if (method === 'none') {
+      if (atMs > actions[actions.length - 1].at + STEP_MOVE_MS) return null;
+      return { pos: actions[idx].pos / 100, durationMs: STEP_MOVE_MS };
+    }
+
     const next = actions[idx + 1];
     if (!next) return null;
-
     return { pos: next.pos / 100, durationMs: Math.max(1, next.at - atMs) };
-  }
-
-  /** Binary search for the last action index with `at <= atMs`. */
-  private findBracketIndex(actions: FunscriptAction[], atMs: number): number {
-    let lo = 0;
-    let hi = actions.length - 1;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1;
-      if (actions[mid].at <= atMs) lo = mid; else hi = mid - 1;
-    }
-    return lo;
   }
 }

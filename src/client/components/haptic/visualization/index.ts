@@ -1,15 +1,17 @@
 import type { Funscript } from '../../../../shared/types';
 import { channelKey, channelLabel, type HapticChannel } from '../../../../shared/haptics';
+import { DEFAULT_INTERPOLATION_METHOD, prepareScript, type InterpolationMethod, type PreparedScript } from '../../../../shared/interpolation';
 import { ROLE_ICON_CLASSES } from '../../../utils/hapticIcons';
 import type { PlaybackSession } from '../../player';
 import { emptyStateHtml, scriptRowHtml } from './templates';
-import { MediaClock, stepPoints } from './geometry';
+import { curvePoints, heatColor, MediaClock } from './geometry';
 
 interface ScriptRenderer {
   channel: HapticChannel;
   canvas: HTMLCanvasElement;
   wrapper: HTMLDivElement;
   funscript: Funscript;
+  prepared: PreparedScript;
   /** CSS pixel size; the backing buffer is this times devicePixelRatio. */
   width: number;
   height: number;
@@ -34,6 +36,8 @@ export class Visualization {
   private readonly mediaClock = new MediaClock();
   private readonly resizeObserver = new ResizeObserver(() => this.resizeCanvases());
   private colors = { line: '#6c757d', cursor: '#0d6efd' };
+  private interpolation: InterpolationMethod = DEFAULT_INTERPOLATION_METHOD;
+  private colorGradient = false;
 
   /** Horizontal zoom factor (1 = full view, 2 = 2× zoom, etc.) */
   zoomLevel = 1;
@@ -101,7 +105,15 @@ export class Visualization {
       canvas.addEventListener('pointerdown', (event) => this.handleSeek(event, canvas));
       container.appendChild(wrapper);
 
-      this.renderers.push({ channel, canvas, wrapper, funscript, width: 0, height: 0 });
+      this.renderers.push({
+        channel,
+        canvas,
+        wrapper,
+        funscript,
+        prepared: prepareScript(funscript.actions, this.interpolation),
+        width: 0,
+        height: 0,
+      });
       this.resizeObserver.observe(canvas);
     }
 
@@ -117,6 +129,18 @@ export class Visualization {
 
   onSeek(handler: (time: number) => void): void {
     this.seekHandler = handler;
+  }
+
+  setInterpolation(method: InterpolationMethod): void {
+    this.interpolation = method;
+    for (const r of this.renderers) r.prepared = prepareScript(r.funscript.actions, method);
+    this.redraw();
+  }
+
+  /** Colour the graph by movement speed instead of a single theme colour. */
+  setColorGradient(enabled: boolean): void {
+    this.colorGradient = enabled;
+    this.redraw();
   }
 
   isLocked(): boolean {
@@ -191,7 +215,7 @@ export class Visualization {
     currentTime: number,
     duration: number,
   ): void {
-    const { canvas, funscript, width: W, height: H } = r;
+    const { canvas, prepared, width: W, height: H } = r;
     const ctx = canvas.getContext('2d');
     if (!ctx || W <= 0) return;
 
@@ -205,18 +229,36 @@ export class Visualization {
     const spanMs = (endSec - startSec) * 1000;
     // Keep the stroke inside the canvas at pos 0/100.
     const inset = 1;
+    const snap = prepared.method !== 'pchip';
     const toX = (ms: number): number => ((ms - startMs) / spanMs) * W;
-    const toY = (pos: number): number => Math.round(inset + (1 - pos / 100) * (H - 2 * inset)) + 0.5;
+    const toY = (pos: number): number => {
+      const y = inset + (1 - pos / 100) * (H - 2 * inset);
+      return snap ? Math.round(y) + 0.5 : y;
+    };
 
-    const points = stepPoints(funscript.actions, Math.max(0, startMs), Math.min(duration * 1000, startMs + spanMs));
-    if (points.length > 0) {
-      ctx.beginPath();
-      ctx.strokeStyle = this.colors.line;
-      ctx.lineWidth = 1;
-      ctx.lineJoin = 'miter';
-      for (const [i, [ms, pos]] of points.entries()) {
-        if (i === 0) ctx.moveTo(toX(ms), toY(pos));
-        else ctx.lineTo(toX(ms), toY(pos));
+    const points = curvePoints(
+      prepared,
+      Math.max(0, startMs),
+      Math.min(duration * 1000, startMs + spanMs),
+      (spanMs / W) * 2,
+    );
+    if (points.length > 1) {
+      ctx.lineWidth = this.colorGradient ? 1.5 : 1;
+      ctx.lineJoin = 'round';
+      let color = '';
+      for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1]!;
+        const point = points[i]!;
+        const next = this.colorGradient ? heatColor(point.speed) : this.colors.line;
+        // Consecutive segments of the same colour share one path.
+        if (next !== color) {
+          if (color) ctx.stroke();
+          color = next;
+          ctx.strokeStyle = color;
+          ctx.beginPath();
+          ctx.moveTo(toX(prev.ms), toY(prev.pos));
+        }
+        ctx.lineTo(toX(point.ms), toY(point.pos));
       }
       ctx.stroke();
     }

@@ -1,46 +1,70 @@
-import type { FunscriptAction } from '../../../../shared/types';
+import { bracketIndex, positionAt, segmentPosition, segmentSpeed, type PreparedScript } from '../../../../shared/interpolation';
 
-/** Index of the first action with `at >= ms` (actions must be sorted by `at`). */
-export function lowerBound(actions: readonly FunscriptAction[], ms: number): number {
-    let lo = 0;
-    let hi = actions.length;
-    while (lo < hi) {
-        const mid = (lo + hi) >>> 1;
-        if (actions[mid]!.at < ms) lo = mid + 1;
-        else hi = mid;
-    }
-    return lo;
+export interface CurvePoint {
+    ms: number;
+    pos: number;
+    /** |d pos / dt| in position units per second of the segment ending at this point. */
+    speed: number;
 }
 
 /**
- * Polyline vertices of a sample-and-hold plot over [startMs, endMs], as
- * (ms, pos) pairs. Each position is held until the next action; the line only
- * covers the span between the first and last action.
+ * Polyline of the precomputed curve over [startMs, endMs], clipped to the
+ * scripted range. PCHIP segments are sampled every `resolutionMs`.
  */
-export function stepPoints(
-    actions: readonly FunscriptAction[],
+export function curvePoints(
+    script: PreparedScript,
     startMs: number,
     endMs: number,
-): Array<[number, number]> {
+    resolutionMs: number,
+): CurvePoint[] {
+    const { actions, method } = script;
     if (actions.length === 0 || endMs <= startMs) return [];
-    const first = actions[0]!;
-    const last = actions[actions.length - 1]!;
-    const from = Math.max(startMs, first.at);
-    const to = Math.min(endMs, last.at);
+    const from = Math.max(startMs, actions[0]!.at);
+    const to = Math.min(endMs, actions[actions.length - 1]!.at);
     if (from > to) return [];
 
-    let i = lowerBound(actions, from);
-    if (i >= actions.length || actions[i]!.at > from) i -= 1;
-    let pos = actions[i]!.pos;
-    const points: Array<[number, number]> = [[from, pos]];
+    const points: CurvePoint[] = [{ ms: from, pos: positionAt(script, from)!, speed: 0 }];
+    for (let k = bracketIndex(actions, from); k < actions.length - 1 && actions[k]!.at < to; k++) {
+        const a = actions[k]!;
+        const b = actions[k + 1]!;
+        if (b.at <= a.at) {
+            points.push({ ms: b.at, pos: b.pos, speed: 0 });
+            continue;
+        }
+        const segStart = Math.max(a.at, from);
+        const segEnd = Math.min(b.at, to);
 
-    for (i += 1; i < actions.length && actions[i]!.at <= to; i++) {
-        const a = actions[i]!;
-        points.push([a.at, pos], [a.at, a.pos]);
-        pos = a.pos;
+        if (method === 'none') {
+            const speed = segmentSpeed(script, k, segEnd);
+            points.push({ ms: segEnd, pos: segmentPosition(script, k, segEnd), speed });
+            if (segEnd === b.at) points.push({ ms: b.at, pos: b.pos, speed });
+        } else if (method === 'pchip') {
+            const n = Math.max(1, Math.ceil((segEnd - segStart) / Math.max(1, resolutionMs)));
+            const stepMs = (segEnd - segStart) / n;
+            for (let i = 1; i <= n; i++) {
+                const ms = segStart + stepMs * i;
+                points.push({
+                    ms,
+                    pos: segmentPosition(script, k, ms),
+                    speed: segmentSpeed(script, k, ms - stepMs / 2),
+                });
+            }
+        } else {
+            points.push({ ms: segEnd, pos: segmentPosition(script, k, segEnd), speed: segmentSpeed(script, k, segEnd) });
+        }
     }
-    points.push([to, pos]);
     return points;
+}
+
+/** Speed (position units per second) at which the heat scale saturates. */
+export const HEAT_MAX_SPEED = 500;
+const HEAT_BUCKETS = 32;
+
+/** Heat colour for a speed, quantised so neighbouring segments can share one stroke. */
+export function heatColor(speed: number): string {
+    const t = Math.min(1, Math.max(0, speed / HEAT_MAX_SPEED));
+    const bucket = Math.round(t * (HEAT_BUCKETS - 1)) / (HEAT_BUCKETS - 1);
+    return `hsl(${Math.round(240 * (1 - bucket))}, 90%, 55%)`;
 }
 
 /** Estimates media time between coarse store updates using the wall clock. */
