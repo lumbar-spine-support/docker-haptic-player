@@ -19,6 +19,8 @@ RUN npm run build
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM node:24-alpine AS runtime
 
+LABEL org.opencontainers.image.description="HAPPY is a self-hosted haptic player for audio and video files."
+
 WORKDIR /app
 
 COPY package*.json ./

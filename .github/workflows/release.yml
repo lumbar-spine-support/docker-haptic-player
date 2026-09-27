@@ -75,6 +75,18 @@ jobs:
           ref: ${{ needs.release.outputs.tag_name }}
           lfs: true
 
+      - name: Add Docker package link to release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
+        run: |
+          package_link="https://github.com/lumbar-spine-support/docker-haptic-player/pkgs/container/docker-haptic-player/1299909013?tag=stable"
+          body="$(gh release view "$RELEASE_TAG" --json body --jq .body)"
+          if [[ "$body" != *"$package_link"* ]]; then
+            notes="$(printf '%s\n\nDocker image: %s' "$body" "$package_link")"
+            gh release edit "$RELEASE_TAG" --notes "$notes"
+          fi
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
         with:
@@ -111,6 +123,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          annotations: index:org.opencontainers.image.description="HAPPY is a self-hosted haptic player for audio and video files."
           build-args: |
             APP_VERSION=${{ needs.release.outputs.version }}
             APP_CHANNEL=stable
