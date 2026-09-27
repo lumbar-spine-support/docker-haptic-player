@@ -121,6 +121,8 @@ export interface ClientSettings {
   hapticFrequency: number;
   hapticDelay: number;
   dglabEnabled: boolean;
+  /** Process-local token allowing a remote playback receiver to fetch media only. */
+  mediaAccessToken: string | null;
 }
 
 export type QueueSource =

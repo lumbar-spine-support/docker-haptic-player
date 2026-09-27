@@ -3,6 +3,12 @@ import type { LibraryResponse, Funscript, VersionInfo, ClientSettings } from '..
 const BASE = new URL('.', window.location.href).pathname;
 
 let redirectingToLogin = false;
+let mediaAccessToken: string | null = null;
+
+/** Sets the media-only token embedded in URLs handed to remote playback receivers. */
+export function setMediaAccessToken(token: string | null): void {
+  mediaAccessToken = token;
+}
 
 /** Reports an expired or missing access token and sends the user back to the login page. */
 function handleUnauthorized(res: Response, what: string): void {
@@ -42,7 +48,8 @@ export async function fetchFunscript(trackId: string, filename: string): Promise
 
 /** Builds the media-stream URL for a track or video. */
 export function mediaUrl(trackId: string): string {
-  return `${BASE}api/media/${trackId}`;
+  const url = `${BASE}api/media/${trackId}`;
+  return mediaAccessToken ? `${url}?mediaToken=${encodeURIComponent(mediaAccessToken)}` : url;
 }
 
 /** Fetches the optional markdown description companion file for a track. */

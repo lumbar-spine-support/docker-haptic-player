@@ -2,6 +2,7 @@
 // Mounted before express.static so no application asset reaches an unauthenticated client.
 
 import type { Request, RequestHandler, Response } from 'express';
+import crypto from 'crypto';
 import { Config } from '../config';
 import { parseCookies } from '../utils/cookies';
 import { clientAddress } from '../utils/clientAddress';
@@ -13,6 +14,8 @@ export const TAG = '[auth]';
 const log = createLogger(TAG);
 
 export const COOKIE_NAME = 'happy_token';
+
+export const MEDIA_TOKEN_QUERY = 'mediaToken';
 
 export const COOKIE_MAX_AGE_MS = 10 * 365 * 24 * 60 * 60 * 1000;
 
@@ -31,6 +34,20 @@ export function readToken(req: Request): string | undefined {
 
 export function isAuthenticated(req: Request, store: TokenStore): boolean {
     return store.verify(readToken(req));
+}
+
+/** Creates a process-local bearer token used only for remote media playback. */
+export function createMediaAccessToken(): string {
+    return crypto.randomBytes(32).toString('base64url');
+}
+
+function hasMediaAccess(req: Request, expectedToken: string | undefined): boolean {
+    if (!expectedToken || (req.method !== 'GET' && req.method !== 'HEAD') || !req.path.startsWith('/api/media/')) return false;
+    const receivedToken = req.query[MEDIA_TOKEN_QUERY];
+    if (typeof receivedToken !== 'string') return false;
+    const expected = Buffer.from(expectedToken);
+    const received = Buffer.from(receivedToken);
+    return expected.length === received.length && crypto.timingSafeEqual(expected, received);
 }
 
 /** Cookies flagged Secure are dropped by browsers over plain HTTP, so follow the actual scheme. */
@@ -61,7 +78,7 @@ function denyRequest(req: Request, res: Response): void {
     res.status(401).json({ error: 'Authentication required' });
 }
 
-export function createAuthMiddleware(config: Config.ServerConfig, store: TokenStore): RequestHandler {
+export function createAuthMiddleware(config: Config.ServerConfig, store: TokenStore, mediaAccessToken?: string): RequestHandler {
     if (!config.password) {
         log.warn('No password configured, authentication is disabled.');
         return (_req, _res, next) => next();
@@ -70,7 +87,7 @@ export function createAuthMiddleware(config: Config.ServerConfig, store: TokenSt
     log.info('Password authentication is enabled.');
 
     return (req, res, next) => {
-        if (isPublicPath(req.path) || isAuthenticated(req, store)) {
+        if (isPublicPath(req.path) || isAuthenticated(req, store) || hasMediaAccess(req, mediaAccessToken)) {
             next();
             return;
         }

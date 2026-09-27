@@ -1,4 +1,4 @@
-import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
+import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, setMediaAccessToken, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
 import { bindDragOnlyRange, syncRangeFill } from './utils/rangeSlider';
 import { resetScrollPosition } from '../shared/scroll';
 import { PlaybackSession, PlaybackQueue, PlaybackController } from './components/player';
@@ -42,6 +42,7 @@ const FALLBACK_SETTINGS: ClientSettings = {
   hapticFrequency: 30,
   hapticDelay: 0,
   dglabEnabled: false,
+  mediaAccessToken: null,
 };
 
 type DetailContext =
@@ -178,6 +179,7 @@ class App {
     } catch (err) {
       console.warn('Falling back to built-in client settings:', err);
     }
+    setMediaAccessToken(this.settings.mediaAccessToken);
     this.applySeekInterval();
     this.library.bindControls();
     this.bindDetailControls();

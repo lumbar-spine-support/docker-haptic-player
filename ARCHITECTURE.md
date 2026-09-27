@@ -9,6 +9,12 @@ This is a TypeScript application split into two clear runtime layers:
 
 The server is intentionally stateless with respect to playback. All live playback, footer state, haptic timing, and Intiface device connection state live in the browser.
 
+Chromecast and other remote playback receivers fetch media independently and do not inherit the
+browser's session cookie. When authentication is enabled, `/api/config` therefore includes a random
+process-local media token. The client appends it to playback URLs, and the auth middleware accepts
+it only for `GET`/`HEAD` requests below `/api/media/`. It cannot access the library or other APIs and
+is redacted from request logs.
+
 The one carve-out is the optional **DG-Lab V4 relay** (`/ws/dglab`). A browser cannot accept
 WebSocket connections, so pairing a phone-hosted DG-Lab app with the player needs a meeting
 point. The relay is a dumb passthrough: it pairs one controller with one or more apps and
@@ -36,6 +42,7 @@ slot, accepts the app that arrives meanwhile, and hands it to the tab when it re
   - `/ws/dglab` (WebSocket relay, only when `DGLAB_ENABLED` is on)
 - Serve compiled frontend assets from `public/`
 - Gate every asset and API route behind a valid access token
+- Issue authenticated clients a process-local, media-only token for remote playback receivers
 - Write a level-filtered log of startup, connection, and authentication events to the docker console
 
 ### Client responsibilities

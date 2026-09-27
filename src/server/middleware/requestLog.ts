@@ -12,6 +12,12 @@ const log = createLogger(TAG);
 /** A client that sent nothing for this long is logged as a new connection again. */
 export const CLIENT_IDLE_MS = 30 * 60 * 1000;
 
+function safeRequestUrl(originalUrl: string): string {
+    const url = new URL(originalUrl, 'http://localhost');
+    if (url.searchParams.has('mediaToken')) url.searchParams.set('mediaToken', '[redacted]');
+    return `${url.pathname}${url.search}`;
+}
+
 export function createRequestLogger(): RequestHandler {
     const lastSeen = new Map<string, number>();
 
@@ -38,7 +44,7 @@ export function createRequestLogger(): RequestHandler {
 
         const started = now;
         res.on('finish', () => {
-            log.debug(`${address} ${req.method} ${req.originalUrl} -> ${res.statusCode} (${Date.now() - started}ms)`);
+            log.debug(`${address} ${req.method} ${safeRequestUrl(req.originalUrl)} -> ${res.statusCode} (${Date.now() - started}ms)`);
         });
 
         next();

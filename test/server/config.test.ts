@@ -106,6 +106,13 @@ test(`${TAG} load merges a partial settings.yaml on top of the defaults`, async 
     });
 });
 
+test(`${TAG} a blank password in settings.yaml disables authentication`, async () => {
+    await withConfigPath((configPath) => {
+        fs.writeFileSync(configPath, 'PASSWORD:\n', 'utf-8');
+        assert.equal(Config.load().server.password, '');
+    });
+});
+
 test(`${TAG} load falls back to defaults when settings.yaml is malformed`, async () => {
     await withConfigPath((configPath) => {
         fs.writeFileSync(configPath, 'PORT: [1, 2\nunterminated: "oops', 'utf-8');

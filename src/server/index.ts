@@ -11,7 +11,7 @@ import { createVersionRouter } from './routes/version';
 import { createAuthRouter } from './routes/auth';
 import { createConfigRouter } from './routes/config';
 import { createDocsRouter } from './routes/docs';
-import { createAuthMiddleware } from './middleware/auth';
+import { createAuthMiddleware, createMediaAccessToken } from './middleware/auth';
 import { createTokenStore } from './services/tokenStore';
 import { createArtworkCache } from './services/artworkCache';
 import { createLibraryIndex } from './services/libraryIndex';
@@ -39,6 +39,7 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
   const config = serverConfig;
   const client = clientConfig ?? { ...Config.DEFAULT_CLIENT_CONFIG };
   const app: HappyApp = express();
+  const mediaAccessToken = config.password ? createMediaAccessToken() : undefined;
   // Kept configurable so a direct LAN deployment cannot spoof X-Forwarded-* headers.
   app.set('trust proxy', config.trustProxy);
   const tokenStore = createTokenStore(Config.tokenFilePath(config.configDir));
@@ -46,9 +47,9 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
   const libraryIndex = createLibraryIndex(config, artworkCache);
   app.use(createRequestLogger());
   app.use('/api/auth', createAuthRouter(config, tokenStore));
-  app.use(createAuthMiddleware(config, tokenStore));
+  app.use(createAuthMiddleware(config, tokenStore, mediaAccessToken));
   app.use(express.static(path.join(__dirname, '..', '..', 'public')));
-  app.use('/api/config', createConfigRouter(client));
+  app.use('/api/config', createConfigRouter(client, mediaAccessToken));
   app.use('/api/library', createLibraryRouter(libraryIndex));
   app.use('/api/media', createMediaRouter(config));
   app.use('/api/artwork', createArtworkRouter(config, artworkCache));

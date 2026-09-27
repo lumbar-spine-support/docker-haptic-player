@@ -95,6 +95,18 @@ test(`${TAG} seeded token grants access to the API`, async () => {
     assert.equal(status, 200);
 });
 
+test(`${TAG} media access token grants media access only`, async () => {
+    const config = await httpGet(server.port, '/api/config');
+    const mediaAccessToken = (config.body as { mediaAccessToken: string }).mediaAccessToken;
+    assert.ok(mediaAccessToken);
+
+    const library = await httpGet(server.port, '/api/library');
+    const trackId = (library.body as { tracks: Array<{ id: string }> }).tracks[0].id;
+    const query = `mediaToken=${encodeURIComponent(mediaAccessToken)}`;
+    assert.equal((await httpGet(server.port, `/api/media/${trackId}?${query}`, { token: null })).status, 200);
+    assert.equal((await httpGet(server.port, `/api/library?${query}`, { token: null })).status, 401);
+});
+
 test(`${TAG} deleting the token file revokes sessions without a restart`, async () => {
     const isolated = await startTestServer();
     try {
@@ -122,6 +134,11 @@ test(`${TAG} an empty password disables authentication`, async () => {
     const isolated = await startTestServer(cfg => createApp(cfg), { password: '' });
     try {
         assert.equal((await httpGet(isolated.port, '/api/library', { token: null })).status, 200);
+        const status = await httpGet(isolated.port, '/api/auth/status', { token: null });
+        assert.deepEqual(status.body, { required: false, authenticated: true });
+        const clientConfig = await httpGet(isolated.port, '/api/config', { token: null });
+        assert.equal((clientConfig.body as { mediaAccessToken: null }).mediaAccessToken, null);
+        assert.equal((await httpPost(isolated.port, '/api/auth/login', { password: null }, { token: null })).status, 200);
     } finally {
         await isolated.close();
     }
