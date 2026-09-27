@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.6.0...docker-haptic-player-v0.7.0) (2026-09-27)
+
+
+### Features
+
+* add QR-code pairing for Dungeon-Lab app (helpful if HAPPY client is a PC not the phone connected to haptics) ([1925afa](https://github.com/lumbar-spine-support/docker-haptic-player/commit/1925afac498ecdefb851e98510aad4eebc508751))
+
+
+### Bug Fixes
+
+* chromecast / airplay not working when authentication is enabled; now a short-lived token is granted for cast devices to access media stream ([22dc3a0](https://github.com/lumbar-spine-support/docker-haptic-player/commit/22dc3a03ef449adf7d50d22e9dce1fd9cbadd8ed))
+* empty YAML entries for PASSWORD not treated correctly ([1fbba44](https://github.com/lumbar-spine-support/docker-haptic-player/commit/1fbba44ceb932677027c17303c3c3c5eb28762b1))
+* smaller cards on very large displays ([fcaace6](https://github.com/lumbar-spine-support/docker-haptic-player/commit/fcaace6ce5e4520c6ade0743dc64d4d3664e8734))
+
 ## [0.6.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.5.0...docker-haptic-player-v0.6.0) (2026-09-27)
 
 
