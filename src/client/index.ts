@@ -12,7 +12,7 @@ import { FunscriptSync } from './components/funscriptSync';
 import { DeviceStatus } from './components/haptic/deviceStatus';
 import { DeviceAssignment } from './components/haptic/deviceAssignment';
 import type { HapticBackend } from './components/haptic/backend';
-import { Visualization } from './components/visualization';
+import { Visualization } from './components/haptic/visualization';
 import { Markdown } from './components/markdown';
 import { Library } from './components/library';
 import type { TrackInfo, QueueSource, FunscriptInfo, ClientSettings } from '../shared/types';
