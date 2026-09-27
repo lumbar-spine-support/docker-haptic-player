@@ -48,6 +48,12 @@
      opacity: 1 !important;
  }
 
+ /* Cast and PiP are meaningless for audio; the cast button won't react to disableRemotePlayback after attach. */
+ video-player.audio-only .media-cast-button,
+ video-player.audio-only .media-pip-button {
+     display: none !important;
+ }
+
  @layer components {
      @scope (.media-skin) {
 

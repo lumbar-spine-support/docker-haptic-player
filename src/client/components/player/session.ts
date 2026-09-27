@@ -197,6 +197,8 @@ export class PlaybackSession {
         slot.el.setAttribute('poster', request.poster);
         // Audio has no frames, so the skin keeps the poster up as a pseudo-video surface.
         slot.el.classList.toggle('audio-only', request.type === 'audio');
+        const media = slot.host.querySelector('video');
+        if (media) media.disableRemotePlayback = request.type === 'audio';
         slot.request = request;
     }
 
