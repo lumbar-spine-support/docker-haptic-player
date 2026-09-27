@@ -32,6 +32,8 @@
 - [ ] VR Video support once Video.JS v10 matures and VR plugins arrive.
 - [ ] Playlist/Queue editor and a seperate mount with write-access.
 
+📱 Here you can find a [demo video](docs/videos/demo-player.mp4)!
+
 ## Quick Start
 
 ### 1. Docker Compose Setup
