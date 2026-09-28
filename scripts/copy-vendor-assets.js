@@ -56,22 +56,13 @@ const nm = path.join(root, 'node_modules');
 const vendor = path.join(root, 'public', 'vendor');
 
 try {
-  // Bootstrap CSS + JS (bundle includes Popper)
-  // Future enhancement: validate upstream minification/compression artifacts before copy.
-  copy(
-    path.join(nm, 'bootstrap', 'dist', 'css', 'bootstrap.min.css'),
-    path.join(vendor, 'bootstrap', 'bootstrap.min.css'),
-  );
+  // Bootstrap JS (bundle includes Popper); CSS is compiled from SCSS into app.css.
   copy(
     path.join(nm, 'bootstrap', 'dist', 'js', 'bootstrap.bundle.min.js'),
     path.join(vendor, 'bootstrap', 'bootstrap.bundle.min.js'),
   );
 
-  // Both minified files carry a sourceMappingURL, so devtools 404s without these.
-  copy(
-    path.join(nm, 'bootstrap', 'dist', 'css', 'bootstrap.min.css.map'),
-    path.join(vendor, 'bootstrap', 'bootstrap.min.css.map'),
-  );
+  // The minified bundle carries a sourceMappingURL, so devtools 404s without this.
   copy(
     path.join(nm, 'bootstrap', 'dist', 'js', 'bootstrap.bundle.min.js.map'),
     path.join(vendor, 'bootstrap', 'bootstrap.bundle.min.js.map'),

@@ -195,8 +195,10 @@ class App {
     this.initBlurContent();
     this.initColorGradient();
     this.bindZoomControls();
-    void this.showVersion();
-    void this.bindLogout();
+    whenIdle(() => {
+      void this.showVersion();
+      void this.bindLogout();
+    });
     this.footer?.bind(this.session, this.playback, (trackId) => this.navigateTo(trackHref(trackId)));
 
     this.mountDeviceAssignment(this.buttplug, '#intiface-devices');
@@ -212,7 +214,9 @@ class App {
     await this.initDglab();
     this.playback.onActiveTrack((track) => { void this.onActiveTrackChanged(track); });
 
+    await yieldToMain();
     await this.library.load();
+    await yieldToMain();
     await this.handleRouteChange();
 
     // Closing or backgrounding the tab must silence the devices, not leave them running.
@@ -917,6 +921,16 @@ class App {
     const params = new URLSearchParams(location.search);
     return !params.get('view');
   }
+}
+
+function whenIdle(fn: () => void): void {
+  if ('requestIdleCallback' in window) requestIdleCallback(fn, { timeout: 2000 });
+  else setTimeout(fn, 0);
+}
+
+/** Ends the current task so the browser can paint and handle input before continuing. */
+function yieldToMain(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 async function main(): Promise<void> {

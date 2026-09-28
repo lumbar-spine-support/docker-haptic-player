@@ -52,6 +52,7 @@ export interface LibraryCallbacks {
 const VIEW_KEY = 'happy-view-mode';
 const LIBRARY_FILTERS_KEY = 'happy-library-filters';
 const CARD_GRID_CLASSES = 'col-6 col-sm-3 col-lg-2 col-xl-2 col-xxl-1';
+const RENDER_BATCH_SIZE = 48;
 
 export class Library {
     private readonly callbacks: LibraryCallbacks;
@@ -62,6 +63,7 @@ export class Library {
     private readonly grid = qs<HTMLElement>('#track-grid');
     private readonly table = qs<HTMLElement>('#track-table');
     private readonly list = qs<HTMLElement>('#track-list');
+    private batchObservers: IntersectionObserver[] = [];
     private readonly btnGrid = qs<HTMLElement>('#btn-view-grid');
     private readonly btnList = qs<HTMLElement>('#btn-view-list');
     private readonly searchInput = qs<HTMLInputElement>('#search-input');
@@ -122,6 +124,8 @@ export class Library {
 
     render(): void {
         if (!this.grid || !this.list) return;
+        this.batchObservers.forEach((o) => o.disconnect());
+        this.batchObservers = [];
         this.grid.innerHTML = '';
         this.list.innerHTML = '';
         const isSearching = this.searchQuery.length > 0;
@@ -145,10 +149,12 @@ export class Library {
             return;
         }
 
-        this.appendAlbumCards(visibleAlbums, tracksById);
-        this.appendPlaylistCards(visiblePlaylists, tracksById);
-        this.appendTrackCards(tracks, tracksById);
-        this.appendVideoCards(videos, tracksById);
+        this.appendInBatches(this.grid, [
+            ...visibleAlbums.map((album) => () => this.createAlbumCard(album, tracksById)),
+            ...visiblePlaylists.map((playlist) => () => this.createPlaylistCard(playlist, tracksById)),
+            ...tracks.map((track) => () => this.createTrackCard(track, tracksById)),
+            ...videos.map((video) => () => this.createVideoCard(video, tracksById)),
+        ]);
 
         const rows: LibraryRow[] = [
             ...visibleAlbums.map((album) => ({
@@ -177,9 +183,38 @@ export class Library {
             })),
         ];
 
-        for (const row of this.sortRows(rows)) {
-            this.list.appendChild(row.build());
-        }
+        this.appendInBatches(this.list, this.sortRows(rows).map((row) => row.build));
+    }
+
+    private appendInBatches(container: HTMLElement, builders: Array<() => HTMLElement>): void {
+        const isTable = container.tagName === 'TBODY';
+        const sentinel = document.createElement(isTable ? 'tr' : 'div');
+        sentinel.setAttribute('aria-hidden', 'true');
+        sentinel.style.height = '1px';
+        if (isTable) sentinel.appendChild(document.createElement('td'));
+        else sentinel.className = 'col-12 p-0';
+        container.appendChild(sentinel);
+
+        let next = 0;
+        const observer = new IntersectionObserver((entries) => {
+            if (entries.some((e) => e.isIntersecting)) appendBatch();
+        }, { rootMargin: '800px' });
+        const appendBatch = (): void => {
+            const frag = document.createDocumentFragment();
+            const end = Math.min(next + RENDER_BATCH_SIZE, builders.length);
+            for (; next < end; next++) frag.appendChild(builders[next]());
+            container.insertBefore(frag, sentinel);
+            observer.unobserve(sentinel);
+            if (next >= builders.length) {
+                observer.disconnect();
+                sentinel.remove();
+            } else {
+                // Re-observing fires a fresh callback if the sentinel is still in view.
+                observer.observe(sentinel);
+            }
+        };
+        this.batchObservers.push(observer);
+        appendBatch();
     }
 
     bindControls(): void {
@@ -690,34 +725,6 @@ export class Library {
     }
 
     // ── DOM builders ───────────────────────────────────────────────────────────
-
-    private appendAlbumCards(albums: AlbumInfo[], tracksById: Map<string, TrackInfo>): void {
-        if (!this.grid) return;
-        for (const album of albums) {
-            this.grid.appendChild(this.createAlbumCard(album, tracksById));
-        }
-    }
-
-    private appendPlaylistCards(playlists: PlaylistInfo[], tracksById: Map<string, TrackInfo>): void {
-        if (!this.grid) return;
-        for (const playlist of playlists) {
-            this.grid.appendChild(this.createPlaylistCard(playlist, tracksById));
-        }
-    }
-
-    private appendTrackCards(tracks: TrackInfo[], tracksById: Map<string, TrackInfo>): void {
-        if (!this.grid) return;
-        for (const track of tracks) {
-            this.grid.appendChild(this.createTrackCard(track, tracksById));
-        }
-    }
-
-    private appendVideoCards(videos: TrackInfo[], tracksById: Map<string, TrackInfo>): void {
-        if (!this.grid) return;
-        for (const video of videos) {
-            this.grid.appendChild(this.createVideoCard(video, tracksById));
-        }
-    }
 
     private createAlbumCard(album: AlbumInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
         const col = document.createElement('div');
