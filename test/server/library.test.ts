@@ -220,18 +220,18 @@ test(`${TAG}: returns empty library for nonexistent media directory`, async () =
     assert.equal(library.playlists.length, 0, 'Nonexistent dir should have 0 playlists');
 });
 
-test(`${TAG}: default chapter priority prefers funscript chapters and merges duplicates`, async () => {
+test(`${TAG}: funscript chapters are used when prioritised and duplicates are merged`, async () => {
     await withMediaFixtures(async (_dir, config) => {
-        const library = await buildLibrary(config);
+        const library = await buildLibrary({ ...config, chapterSourcePriority: ['funscript', 'embedded'] });
         const video = library.videos.find((v) => v.filename === EXAMPLE_TRACK_MP4);
         assert.equal(video?.chaptersSource, 'funscript');
         assert.deepEqual(video?.chapters, [{ name: 'Kapitel 1', start: 0, end: 11.841 }]);
     });
 });
 
-test(`${TAG}: embedded chapters are used when prioritised`, async () => {
+test(`${TAG}: default chapter priority prefers embedded chapters`, async () => {
     await withMediaFixtures(async (_dir, config) => {
-        const library = await buildLibrary({ ...config, chapterSourcePriority: ['embedded', 'funscript'] });
+        const library = await buildLibrary(config);
         for (const media of [...library.tracks, ...library.videos].filter((m) => m.filename.startsWith(EXAMPLE_TRACK + '.'))) {
             assert.equal(media.chaptersSource, 'embedded', media.filename);
             assert.deepEqual(media.chapters?.map((c) => c.name), [

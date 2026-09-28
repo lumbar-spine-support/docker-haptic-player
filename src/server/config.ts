@@ -103,7 +103,7 @@ export namespace Config {
     funscriptSuffixVibrator: 'vibrator',
     funscriptSuffixEstim: 'estim',
     funscriptSuffixMachine: 'machine',
-    chapterSourcePriority: ['funscript', 'embedded'],
+    chapterSourcePriority: ['embedded', 'funscript'],
   };
 
   export const DEFAULT_CLIENT_CONFIG: ClientConfig = {

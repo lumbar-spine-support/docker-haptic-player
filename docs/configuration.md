@@ -22,7 +22,7 @@ Every YAML setting can also be set as an environment variable. Environment varia
 | `FUNSCRIPT_SUFFIX_VIBRATOR` | `vibrator` | Suffix associated with vibrator funscript |
 | `FUNSCRIPT_SUFFIX_ESTIM` | `estim` | Suffix associated with estim funscript |
 | `FUNSCRIPT_SUFFIX_MACHINE` | `machine` | Suffix associated with machine funscript |
-| `CHAPTER_SOURCE_PRIORITY` | `funscript,embedded` | Chapter sources in order of precedence: embedded, funscript. The first source that provides chapters is used. Empty to disable chapters |
+| `CHAPTER_SOURCE_PRIORITY` | `embedded,funscript` | Chapter sources in order of precedence: embedded, funscript. The first source that provides chapters is used. Empty to disable chapters |
 | `VIDEO_SEEK_INTERVAL` | `10` | Seek interval in seconds when double-tapping/clicking. |
 | `DEFAULT_BLUR_CONTENT` | `false` | Enable to blur images and videos. Can be toggled in web interface. |
 | `DEFAULT_HAPTIC_FREQUENCY` | `30` | Intiface Haptic update frequency in Hz. Smaller values are usually more stable but less precise. Can be changed in web interface. |
