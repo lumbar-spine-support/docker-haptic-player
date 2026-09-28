@@ -5,6 +5,8 @@
     "pull-request-footer": "Docker image: https://github.com/lumbar-spine-support/docker-haptic-player/pkgs/container/docker-haptic-player",
     "packages": {
         ".": {
+            "include-component-in-tag": false,
+            "pull-request-title-pattern": "chore: release HAPPY v${version}",
             "changelog-path": "CHANGELOG.md",
             "changelog-sections": [
                 {

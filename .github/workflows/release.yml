@@ -75,13 +75,21 @@ jobs:
           ref: ${{ needs.release.outputs.tag_name }}
           lfs: true
 
+      - name: Set release title
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: gh release edit "$RELEASE_TAG" --title "HAPPY v${VERSION}"
+
       - name: Add Docker package link to release notes
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
+          VERSION: ${{ needs.release.outputs.version }}
         run: |
           package_link="https://github.com/${{ github.repository }}/pkgs/container/${{ github.event.repository.name }}"
-          image_ref="ghcr.io/${{ github.repository }}:${RELEASE_TAG##*-v}"
+          image_ref="ghcr.io/${{ github.repository }}:${VERSION}"
           body="$(gh release view "$RELEASE_TAG" --json body --jq .body)"
           if [[ "$body" != *"$image_ref"* ]]; then
             notes="$(printf '%s\n\nDocker image: %s\n\n```\ndocker pull %s\n```' "$body" "$package_link" "$image_ref")"
@@ -111,9 +119,9 @@ jobs:
           flavor: |
             latest=true
           tags: |
-            type=semver,pattern={{version}},value=${{ needs.release.outputs.tag_name }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release.outputs.tag_name }}
-            type=semver,pattern={{major}},value=${{ needs.release.outputs.tag_name }}
+            type=semver,pattern={{version}},value=${{ needs.release.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release.outputs.version }}
+            type=semver,pattern={{major}},value=${{ needs.release.outputs.version }}
             type=raw,value=stable
 
       - name: Build and push Docker image
