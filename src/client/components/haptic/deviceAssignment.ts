@@ -146,6 +146,11 @@ export class DeviceAssignment {
       controls.appendChild(this.buildFrequencyRow(device, frequency));
     }
 
+    // Position travel limits only make sense for a toy that reports a linear actuator.
+    if (features.some((feature) => feature.kind === 'linear')) {
+      controls.appendChild(this.buildStrokerRangeRow(device));
+    }
+
     if (features.length === 0) {
       const none = document.createElement('div');
       none.className = 'text-muted small';
@@ -156,11 +161,6 @@ export class DeviceAssignment {
 
     for (const feature of features) {
       featureList.appendChild(this.buildFeatureRow(feature));
-    }
-
-    // Position travel limits only make sense for a toy that reports a linear actuator.
-    if (features.some((feature) => feature.kind === 'linear')) {
-      featureList.appendChild(this.buildStrokerRangeRow(device));
     }
 
     return card;
