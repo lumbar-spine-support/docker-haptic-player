@@ -123,6 +123,40 @@ export function splitActiveTags(activeTags: readonly string[]): { tags: string[]
   return { tags, artists };
 }
 
+/** Tags not yet selected, excluding artist entries, narrowed by a case-insensitive query. */
+export function filterAvailableTags(
+  allTags: readonly string[],
+  activeTags: readonly string[],
+  query: string,
+): string[] {
+  const selected = new Set(activeTags.map((tag) => tag.toLowerCase()));
+  const q = query.trim().toLowerCase();
+  return allTags.filter((tag) =>
+    !isArtistTag(tag) && !selected.has(tag.toLowerCase()) && (!q || tag.toLowerCase().includes(q)));
+}
+
+export type MediaCounts = { albums: number; tracks: number; playlists: number; videos: number };
+
+/** Counts items per media type matching the plain tags in `activeTags`; artist entries are ignored. */
+export function countMediaMatches(
+  library: {
+    tracks: readonly TrackInfo[];
+    videos: readonly TrackInfo[];
+    albums: readonly AlbumInfo[];
+    playlists: readonly PlaylistInfo[];
+  },
+  activeTags: readonly string[],
+): MediaCounts {
+  const { tags } = splitActiveTags(activeTags);
+  const tracksById = new Map([...library.tracks, ...library.videos].map((track) => [track.id, track]));
+  return {
+    albums: library.albums.filter((album) => albumMatchesActiveTags(album, tracksById, tags)).length,
+    tracks: library.tracks.filter((track) => trackMatchesActiveTags(track.tags, tags)).length,
+    playlists: library.playlists.filter((playlist) => playlistMatchesActiveTags(playlist, tracksById, tags)).length,
+    videos: library.videos.filter((video) => trackMatchesActiveTags(video.tags, tags)).length,
+  };
+}
+
 /** Artist filters are OR-ed together, since a single item rarely has more than one artist. */
 function matchesArtists(available: Iterable<string>, artists: readonly string[]): boolean {
   if (artists.length === 0) return true;

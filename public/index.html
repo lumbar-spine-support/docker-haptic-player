@@ -28,6 +28,8 @@
             class="bi bi-grid-3x3-gap-fill"></i></button>
         <button id="btn-view-list" class="btn btn-outline-primary" title="List view"><i
             class="bi bi-list-ul"></i></button>
+        <button id="btn-view-tags" class="btn btn-outline-primary" title="Tag view"><i
+            class="bi bi-tags-fill"></i></button>
       </div>
       <button id="btn-logout" class="btn btn-outline-primary d-none" type="button" title="Lock" aria-label="Lock"><i
           class="bi bi-lock-fill"></i></button>
@@ -118,7 +120,23 @@
             </label>
           </div>
         </div>
+        <div id="tag-view-counts" class="d-none mt-2">
+          <div class="d-flex align-items-center gap-1">
+            <span class="badge text-bg-secondary tag-view-count-badge" title="Albums"><i class="bi bi-vinyl"
+                aria-hidden="true"></i> <span data-count="albums">0</span></span>
+            <span class="badge text-bg-secondary tag-view-count-badge" title="Audio"><i class="bi bi-music-note"
+                aria-hidden="true"></i> <span data-count="tracks">0</span></span>
+            <span class="badge text-bg-secondary tag-view-count-badge" title="Playlists"><i
+                class="bi bi-music-note-list" aria-hidden="true"></i> <span data-count="playlists">0</span></span>
+            <span class="badge text-bg-secondary tag-view-count-badge" title="Videos"><i class="bi bi-play-btn"
+                aria-hidden="true"></i> <span data-count="videos">0</span></span>
+          </div>
+        </div>
         <div id="active-tags" class="d-none mt-2 d-flex align-items-center flex-wrap gap-1"></div>
+        <div id="tag-view" class="d-none mt-2">
+          <div id="tag-view-selected" class="d-flex align-items-center flex-wrap gap-1 mb-2"></div>
+          <div id="tag-view-available" class="d-flex align-items-center flex-wrap gap-1"></div>
+        </div>
       </div>
       <div id="loading" class="text-center text-muted py-5">
         <div class="spinner-border mb-2" role="status"></div>

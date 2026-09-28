@@ -8,7 +8,9 @@ import {
     albumMatchesActiveTags,
     albumMatchesHapticFilters,
     artistTagValue,
+    countMediaMatches,
     displayMediaTypeFilters,
+    filterAvailableTags,
     isArtistTag,
     makeArtistTag,
     normalizeMediaTypeFilters,
@@ -26,7 +28,7 @@ import {
     tagChipArtistActiveHtml,
 } from './templates';
 
-type LibraryViewMode = 'grid' | 'list';
+type LibraryViewMode = 'grid' | 'list' | 'tags';
 
 type SortField = 'title' | 'artist' | 'type' | 'year' | 'duration';
 
@@ -66,6 +68,11 @@ export class Library {
     private batchObservers: IntersectionObserver[] = [];
     private readonly btnGrid = qs<HTMLElement>('#btn-view-grid');
     private readonly btnList = qs<HTMLElement>('#btn-view-list');
+    private readonly btnTags = qs<HTMLElement>('#btn-view-tags');
+    private readonly tagView = qs<HTMLElement>('#tag-view');
+    private readonly tagViewSelected = qs<HTMLElement>('#tag-view-selected');
+    private readonly tagViewAvailable = qs<HTMLElement>('#tag-view-available');
+    private readonly tagViewCounts = qs<HTMLElement>('#tag-view-counts');
     private readonly searchInput = qs<HTMLInputElement>('#search-input');
     private readonly activeTagsEl = qs<HTMLElement>('#active-tags');
     private readonly loading = qs<HTMLElement>('#loading');
@@ -111,6 +118,7 @@ export class Library {
             this.render();
             this.loaded = true;
             this.applyViewModeVisibility();
+            this.renderActiveTags();
             this.loading?.remove();
         } catch (err) {
             this.loading?.remove();
@@ -218,17 +226,18 @@ export class Library {
     }
 
     bindControls(): void {
-        let viewMode: LibraryViewMode = localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid';
+        const storedView = localStorage.getItem(VIEW_KEY);
+        const viewMode: LibraryViewMode = storedView === 'list' || storedView === 'tags' ? storedView : 'grid';
 
         const applyView = (mode: LibraryViewMode): void => {
-            viewMode = mode;
             this.currentViewMode = mode;
             localStorage.setItem(VIEW_KEY, mode);
 
-            this.grid?.classList.toggle('d-none', !this.loaded || mode !== 'grid');
-            this.table?.classList.toggle('d-none', !this.loaded || mode !== 'list');
+            this.applyViewModeVisibility();
             this.btnGrid?.classList.toggle('active', mode === 'grid');
             this.btnList?.classList.toggle('active', mode === 'list');
+            this.btnTags?.classList.toggle('active', mode === 'tags');
+            this.renderActiveTags();
         };
 
         this.btnGrid?.addEventListener('click', () => {
@@ -237,6 +246,10 @@ export class Library {
         });
         this.btnList?.addEventListener('click', () => {
             applyView('list');
+            if (!this.callbacks.isLibraryRoute()) this.callbacks.navigateTo(buildUrl('library'));
+        });
+        this.btnTags?.addEventListener('click', () => {
+            applyView('tags');
             if (!this.callbacks.isLibraryRoute()) this.callbacks.navigateTo(buildUrl('library'));
         });
         this.navbarHomeLink?.addEventListener('click', (event) => {
@@ -316,6 +329,10 @@ export class Library {
     }
 
     renderActiveTags(): void {
+        if (this.currentViewMode === 'tags') {
+            this.renderTagView();
+            return;
+        }
         if (!this.activeTagsEl) return;
         const container = this.activeTagsEl;
         const label = container.querySelector('span.text-muted');
@@ -385,6 +402,41 @@ export class Library {
         this.renderActiveTags();
     }
 
+    private renderTagView(): void {
+        if (!this.tagViewSelected || !this.tagViewAvailable) return;
+        this.tagViewSelected.innerHTML = '';
+        this.tagViewAvailable.innerHTML = '';
+
+        const selected = this.activeTags.filter((tag) => !isArtistTag(tag));
+        for (const tag of selected) {
+            const div = document.createElement('div');
+            div.innerHTML = tagChipActiveHtml({ tag });
+            const chip = div.firstElementChild as HTMLButtonElement;
+            chip.title = `Remove filter: ${tag}`;
+            chip.addEventListener('click', () => this.removeTag(tag));
+            this.tagViewSelected.appendChild(chip);
+        }
+        this.tagViewSelected.classList.toggle('d-none', selected.length === 0);
+
+        for (const tag of filterAvailableTags(this.getAllTags(), this.activeTags, this.searchQuery)) {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'tag-chip tag-chip-suggestion';
+            chip.textContent = tag;
+            chip.title = `Add tag: ${tag}`;
+            chip.addEventListener('click', () => this.addTag(tag));
+            this.tagViewAvailable.appendChild(chip);
+        }
+
+        const counts = countMediaMatches(
+            { tracks: this.tracks, videos: this.videos, albums: this.albums, playlists: this.playlists },
+            this.activeTags,
+        );
+        this.tagViewCounts?.querySelectorAll<HTMLElement>('[data-count]').forEach((el) => {
+            el.textContent = String(counts[el.dataset.count as keyof typeof counts] ?? 0);
+        });
+    }
+
     addTag(tag: string): void {
         if (!tag) return;
         if (!this.activeTags.some((t) => t.toLowerCase() === tag.toLowerCase())) {
@@ -400,8 +452,14 @@ export class Library {
     }
 
     applyViewModeVisibility(): void {
-        this.grid?.classList.toggle('d-none', !this.loaded || this.currentViewMode !== 'grid');
-        this.table?.classList.toggle('d-none', !this.loaded || this.currentViewMode !== 'list');
+        const mode = this.currentViewMode;
+        const tags = mode === 'tags';
+        this.grid?.classList.toggle('d-none', !this.loaded || mode !== 'grid');
+        this.table?.classList.toggle('d-none', !this.loaded || mode !== 'list');
+        this.tagView?.classList.toggle('d-none', !this.loaded || !tags);
+        this.tagViewCounts?.classList.toggle('d-none', !this.loaded || !tags);
+        document.querySelectorAll<HTMLElement>('.library-filter-group').forEach((el) => el.classList.toggle('d-none', tags));
+        if (tags) this.activeTagsEl?.classList.add('d-none');
     }
 
     setControlsVisible(visible: boolean): void {

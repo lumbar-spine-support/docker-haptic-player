@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
     albumMatchesActiveTags,
     artistTagValue,
+    countMediaMatches,
+    filterAvailableTags,
     isArtistTag,
     makeArtistTag,
     playlistMatchesActiveTags,
@@ -19,6 +21,25 @@ test(`${TAG} artist tag helpers round-trip`, () => {
     assert.equal(isArtistTag('kinky'), false);
     assert.equal(artistTagValue('artist:Kinkyshibby'), 'Kinkyshibby');
     assert.equal(artistTagValue('kinky'), 'kinky');
+});
+
+test(`${TAG} filterAvailableTags excludes selected and artist tags and applies query`, () => {
+    const all = ['ASMR', 'artist:Foo', 'sfw', 'story'];
+    assert.deepEqual(filterAvailableTags(all, ['asmr'], ''), ['sfw', 'story']);
+    assert.deepEqual(filterAvailableTags(all, [], 'S'), ['ASMR', 'sfw', 'story']);
+    assert.deepEqual(filterAvailableTags(all, [], 'st'), ['story']);
+});
+
+test(`${TAG} countMediaMatches counts per media type and ignores artist entries`, () => {
+    const track = (id: string, tags: string[]) => ({ id, tags, artist: 'A', funscripts: [] }) as never;
+    const library = {
+        tracks: [track('t1', ['asmr']), track('t2', ['sfw'])],
+        videos: [track('v1', ['asmr'])],
+        albums: [{ trackIds: ['t1'] }, { trackIds: ['t2'] }] as never[],
+        playlists: [{ entries: [{ trackId: 't2' }] }] as never[],
+    };
+    assert.deepEqual(countMediaMatches(library, []), { albums: 2, tracks: 2, playlists: 1, videos: 1 });
+    assert.deepEqual(countMediaMatches(library, ['asmr', 'artist:Nobody']), { albums: 1, tracks: 1, playlists: 0, videos: 1 });
 });
 
 test(`${TAG} splitActiveTags separates artists from plain tags`, () => {
