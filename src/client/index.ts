@@ -11,7 +11,8 @@ import { pairingDeepLink, pairingQrPayload } from './components/haptic/dglab/v4/
 import { FunscriptSync } from './components/funscriptSync';
 import { DeviceStatus } from './components/haptic/deviceStatus';
 import { DeviceAssignment } from './components/haptic/deviceAssignment';
-import type { HapticBackend } from './components/haptic/backend';
+import type { DeviceAlert, HapticBackend } from './components/haptic/backend';
+import { deviceAlertHtml } from './components/haptic/templates';
 import { Visualization } from './components/haptic/visualization';
 import { Markdown } from './components/markdown';
 import { Library } from './components/library';
@@ -367,8 +368,22 @@ class App {
       localStorage.setItem(INTIFACE_ADDRESS_KEY, address);
       void this.buttplug.connect(address);
     });
-    this.buttplug.onStateChange(() => syncConnectionButton());
+    const syncAlerts = (): void => {
+      const container = document.getElementById('intiface-alerts');
+      if (!container) return;
+      const state = this.buttplug.connectionState;
+      const alerts: DeviceAlert[] = [];
+      if (state === 'error') {
+        alerts.push({ level: 'danger', message: 'Could not connect to Intiface WebSocket. Check if host:port are correct and the server is running.' });
+      } else if (state === 'connected' && this.buttplug.devices.length === 0) {
+        alerts.push({ level: 'warning', message: 'No devices paired with Intiface Server.' });
+      }
+      container.innerHTML = alerts.map(deviceAlertHtml).join('');
+    };
+    this.buttplug.onStateChange(() => { syncConnectionButton(); syncAlerts(); });
+    this.buttplug.onDevicesChange(() => syncAlerts());
     syncConnectionButton();
+    syncAlerts();
   }
 
   private bindZoomControls(): void {
