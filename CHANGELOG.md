@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.8.0...docker-haptic-player-v0.9.0) (2026-09-28)
+
+
+### Features
+
+* improved alerts for intiface integration to help user debug issues ([a58ee4d](https://github.com/lumbar-spine-support/docker-haptic-player/commit/a58ee4df81b76ab58d92096f37684dfb128f0dda))
+
+
+### Bug Fixes
+
+* minor css change to spacing in sidebar ([4b0af7f](https://github.com/lumbar-spine-support/docker-haptic-player/commit/4b0af7fbbce2782b5aead6336add40b65c31c17c))
+
 ## [0.8.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.7.0...docker-haptic-player-v0.8.0) (2026-09-27)
 
 
