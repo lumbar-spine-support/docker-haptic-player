@@ -21,7 +21,7 @@
     "@videojs/html": "^10.0.0-rc.2",
     "compression": "^1.8.2",
     "express": "^5.1.0",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^5.4.2",
     "markdown-it": "^15.0.2",
     "music-metadata": "^11.14.0",
     "qrcode": "^1.5.4",
