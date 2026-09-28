@@ -7,7 +7,7 @@
 
 **HAPPY** is a self-hosted **hap**tic **p**la**y**er for audio and video files.
 
-![Preview](./docs/screenshots/library-landscape.jpg)
+![Preview](./docs/social.png)
 
 ⭐ Key features:
 
