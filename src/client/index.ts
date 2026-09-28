@@ -32,7 +32,6 @@ import '@/components/videojs/skins/video/minimal/element';
 const INTIFACE_ADDRESS_KEY = 'happy-intiface-address';
 const INTIFACE_DELAY_KEY = 'happy-haptic-delay-ms';
 const DGLAB_DELAY_KEY = 'happy-dglab-delay-ms';
-const DELAY_LIMIT_MS = 500;
 const HAPTIC_UPDATE_RATE_KEY = 'happy-haptic-update-rate-hz';
 const AUTOPLAY_KEY = 'happy-autoplay';
 const BLUR_CONTENT_KEY = 'happy-blur-content';
@@ -44,6 +43,7 @@ const FALLBACK_SETTINGS: ClientSettings = {
   blurContent: false,
   hapticFrequency: 30,
   hapticDelay: 0,
+  hapticDelayLimit: 500,
   dglabEnabled: false,
   funscriptInterpolationMethod: 'pchip',
   funscriptColorGradient: false,
@@ -466,7 +466,10 @@ class App {
     const label = qs<HTMLElement>(`#${sliderId}-label`);
     if (!slider) return;
     const saved = Number(localStorage.getItem(storageKey) ?? fallback);
-    const initial = Number.isFinite(saved) ? Math.max(-DELAY_LIMIT_MS, Math.min(DELAY_LIMIT_MS, saved)) : 0;
+    const limit = this.settings.hapticDelayLimit;
+    slider.min = String(-limit);
+    slider.max = String(limit);
+    const initial = Number.isFinite(saved) ? Math.max(-limit, Math.min(limit, saved)) : 0;
     const apply = (delay: number): void => {
       if (label) label.textContent = `${delay > 0 ? '+' : ''}${delay}ms`;
       engine.setDelayMs(delay);

@@ -137,6 +137,8 @@ export interface ClientSettings {
   blurContent: boolean;
   hapticFrequency: number;
   hapticDelay: number;
+  /** Absolute bound of the delay sliders, in milliseconds. */
+  hapticDelayLimit: number;
   dglabEnabled: boolean;
   funscriptInterpolationMethod: InterpolationMethod;
   funscriptColorGradient: boolean;

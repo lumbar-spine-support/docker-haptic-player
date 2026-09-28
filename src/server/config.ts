@@ -42,6 +42,7 @@ export namespace Config {
     blurContent: boolean;
     hapticFrequency: number;
     hapticDelay: number;
+    hapticDelayLimit: number;
     dglabEnabled: boolean;
     funscriptInterpolationMethod: string;
     funscriptColorGradient: boolean;
@@ -111,6 +112,7 @@ export namespace Config {
     blurContent: false,
     hapticFrequency: 30,
     hapticDelay: 0,
+    hapticDelayLimit: 500,
     dglabEnabled: false,
     funscriptInterpolationMethod: DEFAULT_INTERPOLATION_METHOD,
     funscriptColorGradient: false,
@@ -129,6 +131,7 @@ export namespace Config {
     blurContent: 'Enable to blur images and videos. Can be toggled in web interface.',
     hapticFrequency: 'Intiface Haptic update frequency in Hz. Smaller values are usually more stable but less precise. Can be changed in web interface.',
     hapticDelay: 'Default haptic delay in milliseconds to sync video and haptics. Can be changed in web interface.',
+    hapticDelayLimit: 'Maximum absolute haptic delay in milliseconds selectable in the web interface (range is -limit to +limit).',
     dglabEnabled: '(EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control.',
     funscriptInterpolationMethod: `How positions between funscript points are computed for haptics and the timeline: ${INTERPOLATION_METHODS.join(', ')}. none holds each position until the next point; strokers follow pchip as linear`,
     funscriptColorGradient: 'Colour the timeline graph on a heat scale by movement speed (blue = slow, red = fast). Can be toggled in web interface.',
@@ -152,6 +155,7 @@ export namespace Config {
     blurContent: 'DEFAULT_BLUR_CONTENT',
     hapticFrequency: 'DEFAULT_HAPTIC_FREQUENCY',
     hapticDelay: 'DEFAULT_HAPTIC_DELAY',
+    hapticDelayLimit: 'HAPTIC_DELAY_LIMIT',
     dglabEnabled: 'DGLAB_ENABLED',
     funscriptInterpolationMethod: 'FUNSCRIPT_INTERPOLATION_METHOD',
     funscriptColorGradient: 'FUNSCRIPT_COLOR_GRADIENT',
