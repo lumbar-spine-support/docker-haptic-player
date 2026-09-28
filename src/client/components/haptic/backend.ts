@@ -21,6 +21,10 @@ export interface DeviceFeature {
   /** Device-reported descriptor, e.g. "Vibrator" or "Channel A". */
   descriptor: string;
   label: string;
+  /** Bootstrap Icons class (e.g. `bi-water`) overriding the per-kind icon. */
+  icon?: string;
+  /** Shown in the list but cannot be assigned to a script. */
+  unsupported?: boolean;
 }
 
 export type StateListener = (state: ConnectionState) => void;
