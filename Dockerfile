@@ -1,7 +1,7 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
 # Build output is arch-independent JS/CSS, so force this stage onto the host
 # arch instead of letting buildx emulate the whole tsc/esbuild/sass build.
-FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:26-trixie AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ COPY public/ ./public/
 RUN npm run build
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
-FROM node:24-alpine AS runtime
+FROM node:26-alpine AS runtime
 
 LABEL org.opencontainers.image.description="HAPPY is a self-hosted haptic player for audio and video files."
 

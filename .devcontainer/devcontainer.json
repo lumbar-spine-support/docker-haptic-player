@@ -1,6 +1,6 @@
 {
   "name": "docker-haptic-player",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:24-trixie",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:26-trixie",
   // disables SELinux relabeling of the bind mount, needed on Fedora/RHEL hosts running SELinux enforcing
   "runArgs": [
     "--security-opt",
@@ -30,6 +30,9 @@
   },
   "updateRemoteUserUID": true,
   "features": {
-    "ghcr.io/postfinance/devcontainer-features/git-lfs:1": {}
+    "ghcr.io/postfinance/devcontainer-features/git-lfs:1": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "moby": "false"
+    }
   }
 }
