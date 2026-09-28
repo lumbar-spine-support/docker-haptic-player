@@ -36,7 +36,7 @@
     "@types/ws": "^8.18.1",
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",
-    "buttplug": "^3.2.2",
+    "buttplug": "^5.0.2",
     "esbuild": "^0.28.2",
     "esbuild-plugin-tsconfig-paths": "^1.0.2",
     "nodemon": "^3.0.3",
