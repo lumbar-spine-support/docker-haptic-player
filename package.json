@@ -50,6 +50,7 @@
     "node": ">=18"
   },
   "allowScripts": {
-    "esbuild": true
+    "esbuild": true,
+    "@parcel/watcher": true
   }
 }
