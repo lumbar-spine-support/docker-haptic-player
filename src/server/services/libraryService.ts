@@ -2,10 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import yaml from 'js-yaml';
-import type { AlbumInfo, FunscriptInfo, FunscriptType, LibraryResponse, PlaylistEntry, PlaylistInfo, TrackInfo } from '../../shared/types';
+import type { AlbumInfo, ChapterSource, FunscriptInfo, FunscriptType, LibraryResponse, PlaylistEntry, PlaylistInfo, TrackInfo } from '../../shared/types';
 import { Config } from '../config';
 import { normalizeRelativePath } from '../utils/paths';
 import { createLogger } from '../utils/logger';
+import { probeMedia, type MediaProbe, type ProbeFn } from './mediaProbe';
+import { readFunscriptChapters, resolveChapters } from './chapterService';
 
 export const TAG = '[library]';
 
@@ -370,41 +372,31 @@ function buildPlaylists(mediaDir: string, tracks: TrackInfo[], playlistFiles: st
 }
 
 /** Parse metadata for a list of media filenames and build TrackInfo entries for them. */
-async function buildMediaEntries<
-  M extends { parseFile: (filePath: string, opts: { duration: boolean }) => Promise<{ common: unknown; format: { duration?: number } }> },
->(
+async function buildMediaEntries(
   mediaDir: string,
   filenames: string[],
   type: 'audio' | 'video',
   descriptionsByStem: Map<string, string[]>,
   funscriptsByStem: Map<string, FunscriptInfo[]>,
-  mm: M,
+  chapterPriority: readonly ChapterSource[],
+  probe: ProbeFn,
 ): Promise<TrackInfo[]> {
-  type CommonTags = Awaited<ReturnType<M['parseFile']>>['common'] & {
-    title?: string;
-    artist?: string;
-    album?: string;
-    year?: number | string;
-    track?: number | string | { no?: number | string | null; of?: number | string | null } | null;
-    comment?: string | Array<{ text?: string }>;
-    picture?: unknown[];
-  };
   const entries: TrackInfo[] = [];
 
   for (const filename of filenames) {
     const filePath = path.join(mediaDir, filename);
     const stem = basenameStem(filename);
     const descriptionFilename = descriptionsByStem.get(stem)?.[0] ?? null;
+    const funscripts = funscriptsByStem.get(stem) ?? [];
 
-    let common: CommonTags | null = null;
-    let durationSeconds = 0;
+    let meta: MediaProbe | null = null;
     try {
-      const meta = await mm.parseFile(filePath, { duration: true });
-      common = meta.common as CommonTags;
-      durationSeconds = toWholeSeconds(meta.format.duration);
-    } catch {
-      // Metadata unavailable; fall back to filename-based info below.
+      meta = await probe(filePath);
+    } catch (err) {
+      log.debug(`Could not probe ${filename}:`, err);
     }
+    const tags = meta?.tags ?? {};
+    const durationSeconds = toWholeSeconds(meta?.durationSeconds);
 
     let artworkVersion = 0;
     try {
@@ -413,30 +405,28 @@ async function buildMediaEntries<
       // Unreadable stat only costs us cache-busting precision.
     }
 
-    const hasArtwork = Array.isArray(common?.picture) && common.picture.length > 0;
-
-    const firstComment = Array.isArray(common?.comment)
-      ? (common.comment[0]?.text ?? '')
-      : typeof common?.comment === 'string'
-        ? common.comment as string
-        : '';
+    const resolved = resolveChapters(chapterPriority, {
+      embedded: () => meta?.chapters ?? [],
+      funscript: () => readFunscriptChapters(mediaDir, filename, funscripts),
+    }, meta?.durationSeconds ?? 0);
 
     entries.push({
       id: filenameToId(filename),
       type,
       filename,
       descriptionFilename,
-      title: common?.title ?? path.basename(filename, path.extname(filename)),
-      artist: common?.artist ?? '',
-      album: common?.album ?? '',
-      year: common?.year?.toString() ?? '',
-      trackNumber: parseTrackNumber(common?.track),
-      comment: firstComment,
-      hasArtwork,
+      title: tags.title ?? path.basename(filename, path.extname(filename)),
+      artist: tags.artist ?? '',
+      album: tags.album ?? '',
+      year: tags.year ?? '',
+      trackNumber: parseTrackNumber(tags.track),
+      comment: tags.comment ?? '',
+      hasArtwork: meta?.hasArtwork ?? false,
       artworkVersion,
       durationSeconds,
-      funscripts: funscriptsByStem.get(stem) ?? [],
+      funscripts,
       tags: readDescriptionTags(mediaDir, descriptionFilename),
+      ...(resolved ? { chapters: resolved.chapters, chaptersSource: resolved.source } : {}),
     });
   }
 
@@ -444,7 +434,7 @@ async function buildMediaEntries<
 }
 
 /** Build the full library by scanning the media directory. */
-export async function buildLibrary(config: Config.ServerConfig): Promise<LibraryResponse> {
+export async function buildLibrary(config: Config.ServerConfig, probe: ProbeFn = probeMedia): Promise<LibraryResponse> {
   const MEDIA_DIR = config.mediaDir;
 
   if (!fs.existsSync(MEDIA_DIR)) {
@@ -457,9 +447,7 @@ export async function buildLibrary(config: Config.ServerConfig): Promise<Library
   const funscriptPatterns = buildFunscriptPatterns(config);
   const funscriptsByStem = buildFunscriptIndex(allFiles, funscriptPatterns, config.funscriptSuffixSeparator);
   const playlistFiles = allFiles.filter((entry) => path.extname(entry).toLowerCase() === '.m3u');
-
-  // Import music-metadata at runtime (ESM-only package loaded via dynamic import).
-  const mm = await import('music-metadata');
+  const chapterPriority = config.chapterSourcePriority as ChapterSource[];
 
   const ignoredExts = new Set(config.ignoreExt.map((ext) => ext.toLowerCase()));
   const supportedExts = new Set(
@@ -481,8 +469,8 @@ export async function buildLibrary(config: Config.ServerConfig): Promise<Library
   const audioFiles = supportedFiles.filter((entry) => !normalizedVideoExts.has(path.extname(entry).toLowerCase().replace('.', '')));
   const videoFiles = supportedFiles.filter((entry) => normalizedVideoExts.has(path.extname(entry).toLowerCase().replace('.', '')));
 
-  const tracks = await buildMediaEntries(MEDIA_DIR, audioFiles, 'audio', descriptionsByStem, funscriptsByStem, mm);
-  const videos = await buildMediaEntries(MEDIA_DIR, videoFiles, 'video', descriptionsByStem, funscriptsByStem, mm);
+  const tracks = await buildMediaEntries(MEDIA_DIR, audioFiles, 'audio', descriptionsByStem, funscriptsByStem, chapterPriority, probe);
+  const videos = await buildMediaEntries(MEDIA_DIR, videoFiles, 'video', descriptionsByStem, funscriptsByStem, chapterPriority, probe);
 
   const allMedia = [...tracks, ...videos];
   const playlists = buildPlaylists(MEDIA_DIR, allMedia, playlistFiles);

@@ -4,36 +4,12 @@ import { Config } from '../config';
 import { HttpError } from '../utils/errorHandler';
 import { decodeTrackId, requireMediaFile } from '../utils/mediaFiles';
 import type { ArtworkCache } from '../services/artworkCache';
+import { extractArtwork } from '../services/mediaProbe';
 
 /** A year, because a versioned URL only ever maps to one image. */
 const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 /** Unversioned URLs still revalidate, but the ETag turns that into a 304 instead of a re-send. */
 const REVALIDATE_CACHE_CONTROL = 'public, max-age=86400, must-revalidate';
-
-function normalizeImageMime(format: string | undefined): string {
-  const lower = (format ?? '').toLowerCase();
-
-  if (lower === 'jpg' || lower === 'jpeg' || lower === 'image/jpg' || lower === 'image/jpeg') {
-    return 'image/jpeg';
-  }
-  if (lower === 'png' || lower === 'image/png') {
-    return 'image/png';
-  }
-  if (lower === 'gif' || lower === 'image/gif') {
-    return 'image/gif';
-  }
-  if (lower === 'webp' || lower === 'image/webp') {
-    return 'image/webp';
-  }
-  if (lower === 'bmp' || lower === 'image/bmp') {
-    return 'image/bmp';
-  }
-  if (lower.startsWith('image/')) {
-    return lower;
-  }
-
-  return 'application/octet-stream';
-}
 
 function detectMimeFromBytes(data: Uint8Array): string | null {
   if (data.length < 4) return null;
@@ -79,21 +55,15 @@ export function createArtworkRouter(config: Config.ServerConfig, cache: ArtworkC
       return;
     }
 
-    const mm = await import('music-metadata');
-    const meta = await mm.parseFile(filePath, { duration: false });
-    const picture = mm.selectCover(meta.common.picture);
+    const data = await extractArtwork(filePath);
 
-    if (!picture) {
+    if (!data) {
       // Remember the absence too, so art-less files never trigger another full parse.
       cache.write(key, null, null);
       throw new HttpError(404, 'No artwork');
     }
 
-    const mimeFromTag = normalizeImageMime(picture.format);
-    const contentType = mimeFromTag !== 'application/octet-stream'
-      ? mimeFromTag
-      : (detectMimeFromBytes(picture.data) ?? 'image/jpeg');
-    const data = Buffer.from(picture.data);
+    const contentType = detectMimeFromBytes(data) ?? 'image/jpeg';
 
     cache.write(key, contentType, data);
     res.setHeader('Content-Type', contentType);

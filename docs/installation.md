@@ -40,6 +40,7 @@ On first start a `settings.yaml` is created in the `/config` mount. You may also
 
 If you want to avoid docker, you can install with `npm` and run the server using `node`.
 However, unless you are doing development, this is not recommended.
+[FFmpeg](https://ffmpeg.org/) (`ffprobe` and `ffmpeg`) must be on the `PATH`; it is used to read metadata, chapters and cover art.
 
 ```shell
 npm install

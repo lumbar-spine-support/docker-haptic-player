@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'fs';
+import path from 'path';
 
 import { buildLibrary } from '../../src/server/services/libraryService';
 import { Config } from '../../src/server/config';
@@ -216,4 +218,47 @@ test(`${TAG}: returns empty library for nonexistent media directory`, async () =
     assert.equal(library.videos.length, 0, 'Nonexistent dir should have 0 videos');
     assert.equal(library.albums.length, 0, 'Nonexistent dir should have 0 albums');
     assert.equal(library.playlists.length, 0, 'Nonexistent dir should have 0 playlists');
+});
+
+test(`${TAG}: default chapter priority prefers funscript chapters and merges duplicates`, async () => {
+    await withMediaFixtures(async (_dir, config) => {
+        const library = await buildLibrary(config);
+        const video = library.videos.find((v) => v.filename === EXAMPLE_TRACK_MP4);
+        assert.equal(video?.chaptersSource, 'funscript');
+        assert.deepEqual(video?.chapters, [{ name: 'Kapitel 1', start: 0, end: 11.841 }]);
+    });
+});
+
+test(`${TAG}: embedded chapters are used when prioritised`, async () => {
+    await withMediaFixtures(async (_dir, config) => {
+        const library = await buildLibrary({ ...config, chapterSourcePriority: ['embedded', 'funscript'] });
+        for (const media of [...library.tracks, ...library.videos].filter((m) => m.filename.startsWith(EXAMPLE_TRACK + '.'))) {
+            assert.equal(media.chaptersSource, 'embedded', media.filename);
+            assert.deepEqual(media.chapters?.map((c) => c.name), [
+                'Introduction', 'The Butterfly & The Gopher', "Bunny's Revenge",
+            ], media.filename);
+        }
+    });
+});
+
+test(`${TAG}: an empty chapter priority disables chapters`, async () => {
+    await withMediaFixtures(async (_dir, config) => {
+        const library = await buildLibrary({ ...config, chapterSourcePriority: [] });
+        for (const media of [...library.tracks, ...library.videos]) {
+            assert.equal(media.chapters, undefined, media.filename);
+        }
+    });
+});
+
+test(`${TAG}: chapters from several funscripts are merged`, async () => {
+    await withMediaFixtures(async (dir, config) => {
+        const file = path.join(dir, `${EXAMPLE_TRACK}.stroker.funscript`);
+        const json = JSON.parse(fs.readFileSync(file, 'utf-8'));
+        json.metadata.chapters = [{ name: 'Later', startTime: '00:01:00.000' }];
+        fs.writeFileSync(file, JSON.stringify(json));
+
+        const library = await buildLibrary({ ...config, chapterSourcePriority: ['funscript'] });
+        const video = library.videos.find((v) => v.filename === EXAMPLE_TRACK_MP4);
+        assert.deepEqual(video?.chapters?.map((c) => [c.name, c.start]), [['Kapitel 1', 0], ['Later', 60]]);
+    });
 });

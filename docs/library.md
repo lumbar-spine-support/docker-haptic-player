@@ -66,12 +66,37 @@ You can display [links](https://github.com), **bold-text** and more.
 
 ## Media Metadata
 
-The server uses [music-metadata](https://www.npmjs.com/package/music-metadata) to extract cover art, artist, date and name from the media files themselves.
+The server uses [ffprobe](https://ffmpeg.org/ffprobe.html) to extract cover art, artist, date, name and chapters from the media files themselves.
 The markdown files are only used to add a description with markup and tagging, both of which are not natively supported by `.mp3`, `.mp4` or similar files.
 Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Puddletag](https://docs.puddletag.net/) (Linux) to add metadata to your files.
 
-Metadata HAPPY parses using `music-metadata`:
+Metadata HAPPY parses using `ffprobe`:
 - Album Cover
 - Album Artist
 - Track Artist
 - Release Year
+- Chapters
+
+## Chapters
+
+Chapters are drawn as lines on the progress bar. Pressing or dragging the bar near a line snaps to it (hold <kbd>Shift</kbd> to seek freely), and the chapter name is shown in the preview while dragging.
+
+HAPPY reads chapters from two sources. `CHAPTER_SOURCE_PRIORITY` (`chapterSourcePriority` in `settings.yaml`) sets their order; the first source that provides chapters wins. Leave it empty to disable chapters.
+
+- `funscript`: `metadata.chapters` of the funscripts belonging to the media file, in the format used by [OpenFunscripter](https://github.com/OpenFunscripter/OFS) and [MultiFunPlayer](https://github.com/Yoooi0/MultiFunPlayer). If several funscripts of a file define chapters, they are merged and a warning is logged.
+  ```json
+  {
+    "metadata": {
+      "chapters": [
+        { "name": "Introduction", "startTime": "00:00:00.000", "endTime": "00:03:00.000" },
+        { "name": "Finale", "startTime": "00:03:00.000" }
+      ]
+    },
+    "actions": []
+  }
+  ```
+- `embedded`: chapters stored in the media file itself (e.g. MP4, MKV, MP3). To add them, write an [FFMETADATA](https://ffmpeg.org/ffmpeg-formats.html#Metadata-1) file and mux it in without re-encoding:
+  ```shell
+  ffmpeg -i input.mp4 -i chapters.txt -map 0 -map_metadata 0 -map_chapters 1 -codec copy output.mp4
+  ```
+

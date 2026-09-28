@@ -28,6 +28,18 @@ export interface FunscriptInfo {
   sub?: string;
 }
 
+/** Where a track's chapters were read from. */
+export type ChapterSource = 'embedded' | 'funscript';
+
+export const CHAPTER_SOURCES: readonly ChapterSource[] = ['embedded', 'funscript'];
+
+/** A named time span of a media file, in seconds. */
+export interface Chapter {
+  name: string;
+  start: number;
+  end: number;
+}
+
 export interface LibraryItemBase {
   /** Stable identifier derived from the filename (URL-safe base64). */
   id: string;
@@ -54,6 +66,9 @@ export interface TrackInfo extends LibraryItemBase {
   durationSeconds: number;
   funscripts: FunscriptInfo[];
   tags: string[];
+  /** Sorted, non-overlapping chapters; absent when no configured source provides any. */
+  chapters?: Chapter[];
+  chaptersSource?: ChapterSource;
 }
 
 export interface AlbumInfo extends LibraryItemBase {
@@ -144,4 +159,5 @@ export interface PlaybackRequest {
   artist: string;
   year: string;
   poster: string;
+  chapters: Chapter[];
 }
