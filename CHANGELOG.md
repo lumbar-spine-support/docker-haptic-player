@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.9.0...docker-haptic-player-v0.10.0) (2026-09-28)
+
+
+### Features
+
+* tag view ([5219ed9](https://github.com/lumbar-spine-support/docker-haptic-player/commit/5219ed9561df7190f6e07936ae4dbb25fb0df602))
+
 ## [0.9.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.8.0...docker-haptic-player-v0.9.0) (2026-09-28)
 
 
