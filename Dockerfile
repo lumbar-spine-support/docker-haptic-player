@@ -1,7 +1,7 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
 # Build output is arch-independent JS/CSS, so force this stage onto the host
 # arch instead of letting buildx emulate the whole tsc/esbuild/sass build.
-FROM --platform=$BUILDPLATFORM node:26-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:26-trixie AS builder
 
 WORKDIR /app
 
