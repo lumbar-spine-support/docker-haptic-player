@@ -396,7 +396,7 @@ function buildFeatures(device: ButtplugClientDevice): ButtplugFeature[] {
             const kind = outputKind(output.type);
             if (!kind) continue;
 
-            const name = output.type === OutputType.Unknown ? kindLabel(kind) : String(output.type);
+            const name = outputLabel(output.type, kind);
             const ordinal = (counts.get(name) ?? 0) + 1;
             counts.set(name, ordinal);
             const [min, max] = output.valueRange;
@@ -444,6 +444,15 @@ function percentToValue([min, max]: readonly [number, number], percent: number):
 
 function kindLabel(kind: FeatureKind): string {
     return kind === 'linear' ? 'Linear' : kind === 'rotate' ? 'Rotate' : 'Scalar';
+}
+
+function outputLabel(type: OutputType, kind: FeatureKind): string {
+    switch (type) {
+        case OutputType.HwPositionWithDuration: return 'Stroker';
+        case OutputType.Led: return 'LED';
+        case OutputType.Unknown: return kindLabel(kind);
+        default: return String(type);
+    }
 }
 
 function readJsonRecord(key: string): Record<string, unknown> {
