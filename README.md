@@ -91,12 +91,6 @@ Note: All docs are also available through the web interface at `http://<HOST>:80
 - [Library Setup](docs/library.md)
 - [Configuration](docs/configuration.md)
 
-## Screenshots
-
-| Library View     x                               | Player View                                   |
-| ----------------------------------------------- | --------------------------------------------- |
-| ![Library Screenshot](docs/screenshots/library.jpg) | ![Player Screenshot](docs/screenshots/player.jpg) |
-
 ## License
 
 This project is licensed under the MIT License — see [LICENSE](LICENSE).
