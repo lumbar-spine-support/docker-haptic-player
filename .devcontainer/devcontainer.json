@@ -23,6 +23,7 @@
     "type=bind,source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,readonly"
   ],
   "postCreateCommand": "sh .devcontainer/post-create.sh",
+  "postStartCommand": "git lfs install && git lfs pull",
   "customizations": {
     "vscode": {
       "extensions": []
@@ -30,7 +31,9 @@
   },
   "updateRemoteUserUID": true,
   "features": {
-    "ghcr.io/postfinance/devcontainer-features/git-lfs:1": {},
+    "ghcr.io/devcontainers/features/git-lfs:1": {
+      "autoPull": false
+    },
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
       "moby": "false"
     }
