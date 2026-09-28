@@ -264,7 +264,7 @@ export class DeviceAssignment {
     host.innerHTML = deviceFeatureHtml({
       // Ids must survive a re-render, and feature ids contain `#` and spaces.
       detailsId: `feature-details-${hashId(feature.id)}`,
-      iconClass: FEATURE_ICON_CLASSES[feature.kind] ?? '',
+      iconClass: feature.icon ? `device-role-icon-generic bi ${feature.icon}` : FEATURE_ICON_CLASSES[feature.kind] ?? '',
       label: feature.label,
       ariaLabel: `${feature.deviceName} ${feature.label}`,
       details: details.map(deviceDetailHtml).join(''),
@@ -289,8 +289,13 @@ export class DeviceAssignment {
     const select = row.querySelector('[data-feature-select]') as HTMLSelectElement;
     const noneOpt = document.createElement('option');
     noneOpt.value = '';
-    noneOpt.textContent = '— Assign Script —';
+    noneOpt.textContent = feature.unsupported ? '— Not Supported —' : '— Assign Script —';
     select.appendChild(noneOpt);
+
+    if (feature.unsupported) {
+      select.disabled = true;
+      return row;
+    }
 
     for (const channel of this.selectableChannels()) {
       const opt = document.createElement('option');
