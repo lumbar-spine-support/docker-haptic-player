@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.10.0...docker-haptic-player-v0.11.0) (2026-09-28)
+
+
+### Features
+
+* implement reading chapters from media and/or funscripts to show in player ([0a2f2e6](https://github.com/lumbar-spine-support/docker-haptic-player/commit/0a2f2e6e835c672e35a10d07340dc4952223ddaf))
+
+
+### Bug Fixes
+
+* if available, use DisplayName not HarwareName for intiface haptic toys ([d7b5003](https://github.com/lumbar-spine-support/docker-haptic-player/commit/d7b5003473e19b5a16187a47763bf8884ebf01cb))
+* intiface features that came with v5 were not correctly displayed ([54a1f8d](https://github.com/lumbar-spine-support/docker-haptic-player/commit/54a1f8d654a73bcff052bf03b9ad8d95111fbe74))
+
 ## [0.10.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.9.0...docker-haptic-player-v0.10.0) (2026-09-28)
 
 
