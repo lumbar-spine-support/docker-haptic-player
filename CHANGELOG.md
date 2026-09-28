@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.11.0...docker-haptic-player-v0.12.0) (2026-09-28)
+## [0.12.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.11.0...v0.12.0) (2026-09-28)
 
 
 ### Features
@@ -12,7 +12,7 @@
 
 * improve chapter visibility (should be visible when paused to indicate chapter more easily) ([4ed19d1](https://github.com/lumbar-spine-support/docker-haptic-player/commit/4ed19d110c0a36b7de4a1db480a4ad90e4f2c3b9))
 
-## [0.11.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.10.0...docker-haptic-player-v0.11.0) (2026-09-28)
+## [0.11.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.10.0...v0.11.0) (2026-09-28)
 
 
 ### Features
@@ -25,14 +25,14 @@
 * if available, use DisplayName not HarwareName for intiface haptic toys ([d7b5003](https://github.com/lumbar-spine-support/docker-haptic-player/commit/d7b5003473e19b5a16187a47763bf8884ebf01cb))
 * intiface features that came with v5 were not correctly displayed ([54a1f8d](https://github.com/lumbar-spine-support/docker-haptic-player/commit/54a1f8d654a73bcff052bf03b9ad8d95111fbe74))
 
-## [0.10.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.9.0...docker-haptic-player-v0.10.0) (2026-09-28)
+## [0.10.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.9.0...v0.10.0) (2026-09-28)
 
 
 ### Features
 
 * tag view ([5219ed9](https://github.com/lumbar-spine-support/docker-haptic-player/commit/5219ed9561df7190f6e07936ae4dbb25fb0df602))
 
-## [0.9.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.8.0...docker-haptic-player-v0.9.0) (2026-09-28)
+## [0.9.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.8.0...v0.9.0) (2026-09-28)
 
 
 ### Features
@@ -44,7 +44,7 @@
 
 * minor css change to spacing in sidebar ([4b0af7f](https://github.com/lumbar-spine-support/docker-haptic-player/commit/4b0af7fbbce2782b5aead6336add40b65c31c17c))
 
-## [0.8.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.7.0...docker-haptic-player-v0.8.0) (2026-09-27)
+## [0.8.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.7.0...v0.8.0) (2026-09-27)
 
 
 ### Features
@@ -59,7 +59,7 @@
 * hide cast button + picture-in-picture button for audio files ([9887fca](https://github.com/lumbar-spine-support/docker-haptic-player/commit/9887fca76d67c8c90300c8879fc28e280e384e06))
 * missing artifaces in docker image ([c84a4e8](https://github.com/lumbar-spine-support/docker-haptic-player/commit/c84a4e817904f47bc574a5b92b4240c364f83288))
 
-## [0.7.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.6.0...docker-haptic-player-v0.7.0) (2026-09-27)
+## [0.7.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.6.0...v0.7.0) (2026-09-27)
 
 
 ### Features
@@ -73,7 +73,7 @@
 * empty YAML entries for PASSWORD not treated correctly ([1fbba44](https://github.com/lumbar-spine-support/docker-haptic-player/commit/1fbba44ceb932677027c17303c3c3c5eb28762b1))
 * smaller cards on very large displays ([fcaace6](https://github.com/lumbar-spine-support/docker-haptic-player/commit/fcaace6ce5e4520c6ade0743dc64d4d3664e8734))
 
-## [0.6.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.5.0...docker-haptic-player-v0.6.0) (2026-09-27)
+## [0.6.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.5.0...v0.6.0) (2026-09-27)
 
 
 ### Features
@@ -92,14 +92,14 @@
 
 * ENV not overwriting settings.yaml default upon first server start ([2b9a259](https://github.com/lumbar-spine-support/docker-haptic-player/commit/2b9a25959b07e03bebe30ddfb3ef58ee7149be35))
 
-## [0.5.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.4.0...docker-haptic-player-v0.5.0) (2026-09-23)
+## [0.5.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.4.0...v0.5.0) (2026-09-23)
 
 
 ### Features
 
 * authentication layer ([10bcd14](https://github.com/lumbar-spine-support/docker-haptic-player/commit/10bcd14f6c4f53bcb4dd1271a1dd57323b09427e))
 
-## [0.4.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.3.1...docker-haptic-player-v0.4.0) (2026-09-22)
+## [0.4.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.3.1...v0.4.0) (2026-09-22)
 
 
 ### Features
@@ -107,14 +107,14 @@
 * generic funscripts can be read (without suffix) ([8e99cb4](https://github.com/lumbar-spine-support/docker-haptic-player/commit/8e99cb4bdca925faace1f8603427e40fb5f3ed98))
 * version badge in offcanvas element ([3d49676](https://github.com/lumbar-spine-support/docker-haptic-player/commit/3d4967648a2bde58f9d1c01b87a7820be667ecad))
 
-## [0.3.1](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.3.0...docker-haptic-player-v0.3.1) (2026-09-22)
+## [0.3.1](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.3.0...v0.3.1) (2026-09-22)
 
 
 ### Bug Fixes
 
 * chromecast button vanished ([359deb3](https://github.com/lumbar-spine-support/docker-haptic-player/commit/359deb3c5889bcefd4a60b9b52ec2fbc50ff4134))
 
-## [0.3.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.2.0...docker-haptic-player-v0.3.0) (2026-09-22)
+## [0.3.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.2.0...v0.3.0) (2026-09-22)
 
 
 ### Features
@@ -131,7 +131,7 @@
 * disableremoteplayback added because we don't need the browser native chromecast icon ([170bfc9](https://github.com/lumbar-spine-support/docker-haptic-player/commit/170bfc92dc0b55b5a8d379789c2432fbb0c82a2f))
 * when tag was already selected, pressing the tag again from player page didn't return back to library view ([c56c0dc](https://github.com/lumbar-spine-support/docker-haptic-player/commit/c56c0dc0466f675e12db917863c08236e16ab5fc))
 
-## [0.2.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.1.0...docker-haptic-player-v0.2.0) (2026-09-21)
+## [0.2.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.1.0...v0.2.0) (2026-09-21)
 
 
 ### Features
