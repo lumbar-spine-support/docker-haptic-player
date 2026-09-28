@@ -1,0 +1,30 @@
+@layer components {
+    @scope (.media-skin) {
+        .media-chapter-markers {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .media-chapter-marker {
+            position: absolute;
+            top: 50%;
+            width: 2px;
+            height: calc(var(--media-spacing) * 3);
+            transform: translate(-50%, -50%);
+            border-radius: 1px;
+            background: currentColor;
+            opacity: 0.85;
+        }
+
+        .media-slider-preview .media-time-slider-preview-content {
+            --media-slider-preview-max-width: min(calc(var(--media-spacing) * 64), 100cqi);
+        }
+
+        /* Without a thumbnail track the empty surface renders as a stray dot. */
+        .media-slider-thumbnail:has(.media-slider-thumbnail-image:not([src])) {
+            display: none;
+        }
+    }
+}

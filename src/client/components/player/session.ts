@@ -2,6 +2,7 @@ import type { VideoPlayerStore } from '@videojs/html';
 import type { VideoPlayerElement } from '@videojs/html/video';
 import type { PlaybackRequest } from '../../../shared/types';
 import { selectLoop } from '@/components/videojs/features/loop';
+import { setMediaChapters } from '@/components/videojs/features/chapters';
 
 interface PlayerSlot {
     readonly el: VideoPlayerElement;
@@ -198,7 +199,10 @@ export class PlaybackSession {
         // Audio has no frames, so the skin keeps the poster up as a pseudo-video surface.
         slot.el.classList.toggle('audio-only', request.type === 'audio');
         const media = slot.host.querySelector('video');
-        if (media) media.disableRemotePlayback = request.type === 'audio';
+        if (media) {
+            media.disableRemotePlayback = request.type === 'audio';
+            if (slot.request?.id !== request.id) setMediaChapters(media, request.chapters);
+        }
         slot.request = request;
     }
 

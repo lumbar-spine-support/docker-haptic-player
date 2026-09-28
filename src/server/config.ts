@@ -3,6 +3,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { createLogger, DEFAULT_LOG_LEVEL, isLogLevel, LOG_LEVELS, setLogLevel } from './utils/logger';
 import { DEFAULT_INTERPOLATION_METHOD, INTERPOLATION_METHODS, isInterpolationMethod } from '../shared/interpolation';
+import { CHAPTER_SOURCES } from '../shared/types';
 
 export namespace Config {
 
@@ -31,6 +32,7 @@ export namespace Config {
     funscriptSuffixVibrator: string;
     funscriptSuffixEstim: string;
     funscriptSuffixMachine: string;
+    chapterSourcePriority: string[];
   }
 
   /** Stores the client-side configuration. Can be loaded from YAML or environment variables. */
@@ -101,6 +103,7 @@ export namespace Config {
     funscriptSuffixVibrator: 'vibrator',
     funscriptSuffixEstim: 'estim',
     funscriptSuffixMachine: 'machine',
+    chapterSourcePriority: ['embedded', 'funscript'],
   };
 
   export const DEFAULT_CLIENT_CONFIG: ClientConfig = {
@@ -135,6 +138,7 @@ export namespace Config {
     funscriptSuffixVibrator: 'Suffix associated with vibrator funscript',
     funscriptSuffixEstim: 'Suffix associated with estim funscript',
     funscriptSuffixMachine: 'Suffix associated with machine funscript',
+    chapterSourcePriority: `Chapter sources in order of precedence: ${CHAPTER_SOURCES.join(', ')}. The first source that provides chapters is used. Empty to disable chapters`,
   };
 
   export const ENV_NAMES: Record<string, string> = {
@@ -157,6 +161,7 @@ export namespace Config {
     funscriptSuffixVibrator: 'FUNSCRIPT_SUFFIX_VIBRATOR',
     funscriptSuffixEstim: 'FUNSCRIPT_SUFFIX_ESTIM',
     funscriptSuffixMachine: 'FUNSCRIPT_SUFFIX_MACHINE',
+    chapterSourcePriority: 'CHAPTER_SOURCE_PRIORITY',
   };
 
   // Infer which env vars belong to which config from the default config objects
@@ -338,6 +343,22 @@ export namespace Config {
     return configured;
   }
 
+  /** Drop unknown and duplicate chapter sources, warning about each unknown one. */
+  export function validateChapterSources(value: unknown): string[] {
+    const list = Array.isArray(value) ? value : [];
+    const result: string[] = [];
+    for (const entry of list) {
+      const name = String(entry).trim().toLowerCase();
+      if (!name) continue;
+      if (!(CHAPTER_SOURCES as readonly string[]).includes(name)) {
+        log.warn(`Unknown chapter source "${entry}" in ${ENV_NAMES.chapterSourcePriority}. Valid sources: ${CHAPTER_SOURCES.join(', ')}`);
+        continue;
+      }
+      if (!result.includes(name)) result.push(name);
+    }
+    return result;
+  }
+
   /** Load and merge settings.yaml with built-in defaults. */
   export function load(): Config {
     // Applied before anything else so the config loading itself already honours the requested verbosity.
@@ -355,6 +376,7 @@ export namespace Config {
       server.logLevel = DEFAULT_LOG_LEVEL;
     }
     server.logLevel = setLogLevel(String(server.logLevel));
+    server.chapterSourcePriority = validateChapterSources(server.chapterSourcePriority);
     const client = envOverridden.client;
     if (!isInterpolationMethod(client.funscriptInterpolationMethod)) {
       log.warn(`Unknown ${ENV_NAMES.funscriptInterpolationMethod} "${client.funscriptInterpolationMethod}", falling back to "${DEFAULT_INTERPOLATION_METHOD}". Valid methods: ${INTERPOLATION_METHODS.join(', ')}`);

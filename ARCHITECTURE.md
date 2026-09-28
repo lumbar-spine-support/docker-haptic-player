@@ -195,7 +195,7 @@ The sync engine recalculates output when:
 ## Library indexing and caching
 
 Scanning the media directory is the single most expensive thing the server does: `buildLibrary()`
-runs `music-metadata` over every audio and video file, and extracting a cover means parsing the
+runs `ffprobe` over every audio and video file, and extracting a cover means running `ffmpeg` on the
 container of a file that may be several gigabytes. Neither cost may be paid per request once a
 library grows past a few hundred items, so both results are cached.
 
@@ -379,7 +379,7 @@ Buttplug device management lives in `src/client/components/haptic/buttplugClient
 - **Video.js** for audio/video playback UI
 - **Bootstrap 5** + **Bootstrap Icons** for layout/styling
 - **Buttplug** browser client for Intiface connectivity
-- **music-metadata** for server-side metadata extraction
+- **FFmpeg** (`ffprobe`/`ffmpeg`) for server-side metadata, chapter and cover extraction
 
 ## Logging
 

@@ -73,6 +73,15 @@ These libraries are fetched from npm at build time by `scripts/copy-vendor-asset
 
 Used for the DG-Lab V4 relay endpoint.
 
+### FFmpeg
+
+**License:** [LGPL 2.1 or later / GPL 2 or later, depending on build](https://ffmpeg.org/legal.html)
+
+**Source:** https://ffmpeg.org/
+
+Not bundled with the source code. The Docker image installs the Alpine `ffmpeg` package, whose
+`ffprobe` and `ffmpeg` binaries are invoked as separate processes to read metadata, chapters and cover art.
+
 ---
 
 ## DG-Lab V4 Protocol

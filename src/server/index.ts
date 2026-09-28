@@ -18,6 +18,7 @@ import { createArtworkCache } from './services/artworkCache';
 import { createLibraryIndex } from './services/libraryIndex';
 import { createDglabRelay, type DglabRelay } from './services/dglabRelay';
 import { logLibrarySummary } from './services/libraryService';
+import { isFfprobeAvailable } from './services/mediaProbe';
 import { createRequestLogger } from './middleware/requestLog';
 import { createLogger } from './utils/logger';
 
@@ -92,6 +93,9 @@ export function attachUpgradeHandlers(server: http.Server, app: HappyApp): void 
 function main() {
   const config = Config.load();
   log.info(`Log level is "${config.server.logLevel}"`);
+  void isFfprobeAvailable().then((ok) => {
+    if (!ok) log.error('ffprobe not found on PATH: media metadata, artwork and chapters are unavailable. Install ffmpeg.');
+  });
   const app = createApp(config.server, config.client);
   const port = config.server.port
   const server = app.listen(port, () => {

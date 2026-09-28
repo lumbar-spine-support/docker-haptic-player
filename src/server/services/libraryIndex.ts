@@ -1,7 +1,7 @@
 /**
  * Caching layer in front of `buildLibrary()`.
  *
- * Scanning the media directory means running `music-metadata` over every file, which is far too
+ * Scanning the media directory means running `ffprobe` over every file, which is far too
  * expensive to repeat on every `GET /api/library`. The built index is therefore held in memory and
  * mirrored to `<configDir>/cache/library.json` so it also survives a restart.
  *
@@ -24,7 +24,7 @@ export const TAG = '[library-index]';
 const log = createLogger(TAG);
 
 /** Bumped whenever the cached JSON shape changes, so old snapshots are discarded instead of trusted. */
-const CACHE_FORMAT_VERSION = 2;
+const CACHE_FORMAT_VERSION = 3;
 
 const REVALIDATE_INTERVAL_MS = 30_000;
 
@@ -62,6 +62,7 @@ export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: A
     config.funscriptSuffixVibrator,
     config.funscriptSuffixEstim,
     config.funscriptSuffixMachine,
+    config.chapterSourcePriority,
   ]);
 
   const fingerprint = (): string => crypto.createHash('sha1')
