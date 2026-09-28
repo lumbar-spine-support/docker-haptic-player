@@ -24,7 +24,8 @@ LABEL org.opencontainers.image.description="HAPPY is a self-hosted haptic player
 WORKDIR /app
 
 # ffprobe reads metadata, chapters and cover art from the media files.
-RUN apk add --no-cache ffmpeg
+COPY scripts/install-system-deps.sh /tmp/install-system-deps.sh
+RUN sh /tmp/install-system-deps.sh && rm /tmp/install-system-deps.sh
 
 COPY package*.json ./
 RUN npm ci --omit=dev
