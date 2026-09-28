@@ -846,7 +846,7 @@ export class Library {
             type: track.type === 'video' ? 'Video' : 'Audio',
             year: track.year,
             duration: formatHoursMinutes(track.durationSeconds),
-            hapticIcons: renderHapticIcons(track.funscripts.map((f) => f.type)),
+            hapticIcons: renderHapticIcons(track.funscripts.filter((f) => !f.auto).map((f) => f.type)),
         });
         return tr;
     }
@@ -854,7 +854,7 @@ export class Library {
     private albumFunscriptTypes(album: AlbumInfo, tracksById: Map<string, TrackInfo>): FunscriptType[] {
         const types = new Set<FunscriptType>();
         for (const trackId of album.trackIds) {
-            for (const f of tracksById.get(trackId)?.funscripts ?? []) types.add(f.type);
+            for (const f of tracksById.get(trackId)?.funscripts ?? []) if (!f.auto) types.add(f.type);
         }
         return Array.from(types);
     }
@@ -862,7 +862,7 @@ export class Library {
     private playlistFunscriptTypes(playlist: PlaylistInfo, tracksById: Map<string, TrackInfo>): FunscriptType[] {
         const types = new Set<FunscriptType>();
         for (const entry of playlist.entries) {
-            for (const f of tracksById.get(entry.trackId)?.funscripts ?? []) types.add(f.type);
+            for (const f of tracksById.get(entry.trackId)?.funscripts ?? []) if (!f.auto) types.add(f.type);
         }
         return Array.from(types);
     }

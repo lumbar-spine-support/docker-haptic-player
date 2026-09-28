@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { buildLibrary } from '../../src/server/services/libraryService';
 import { Config } from '../../src/server/config';
+import { isFfmpegAvailable } from '../../src/server/services/autoFunscript';
 import { withMediaFixtures } from '../helpers/index';
 
 const TAG = '[server:service:library]';
@@ -88,6 +89,16 @@ test(`${TAG}: detects different funscript types (stroker, buttplug, vibrator, es
     });
 });
 
+test(`${TAG}: appends the Auto funscript last when enabled and ffmpeg is available`, { skip: !isFfmpegAvailable() && 'ffmpeg not installed' }, async () => {
+    await withMediaFixtures(async (_dir, config) => {
+        const library = await buildLibrary({ ...config, autoscriptEnabled: true, autoscriptType: 'vibrator' });
+        for (const media of [...library.tracks, ...library.videos]) {
+            const last = media.funscripts[media.funscripts.length - 1];
+            assert.deepEqual(last, { filename: 'auto', type: 'vibrator', sub: 'auto', auto: true });
+        }
+    });
+});
+
 test(`${TAG}: falls back to the unknown type for funscripts without a suffix`, async () => {
     await withMediaFixtures(async (_dir, config) => {
         const library = await buildLibrary(config);
@@ -129,6 +140,7 @@ test(`${TAG}: regex-based funscript matching respects config patterns`, async ()
         const configRestricted: Config.ServerConfig = {
             ...Config.DEFAULT_SERVER_CONFIG,
             mediaDir: configDefault.mediaDir,
+            autoscriptEnabled: false,
             funscriptSuffixStroker: 'impossible_stroker',
             funscriptSuffixButtplug: 'impossible_buttplug',
             funscriptSuffixVibrator: 'impossible_vibrator',

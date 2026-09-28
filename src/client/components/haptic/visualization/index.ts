@@ -1,7 +1,7 @@
 import type { Funscript } from '../../../../shared/types';
 import { channelKey, channelLabel, type HapticChannel } from '../../../../shared/haptics';
 import { DEFAULT_INTERPOLATION_METHOD, prepareScript, type InterpolationMethod, type PreparedScript } from '../../../../shared/interpolation';
-import { ROLE_ICON_CLASSES } from '../../../utils/hapticIcons';
+import { channelIconClass } from '../../../utils/hapticIcons';
 import type { PlaybackSession } from '../../player';
 import { emptyStateHtml, scriptRowHtml } from './templates';
 import { curvePoints, heatColor, MediaClock } from './geometry';
@@ -96,7 +96,7 @@ export class Visualization {
     for (const { channel, funscript } of scripts) {
       const template = document.createElement('template');
       template.innerHTML = scriptRowHtml({
-        iconClass: ROLE_ICON_CLASSES[channel.type],
+        iconClass: channelIconClass(channel),
         label: channelLabel(channel),
         channelKey: channelKey(channel),
       }).trim();

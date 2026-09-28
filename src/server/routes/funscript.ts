@@ -3,13 +3,34 @@ import fs from 'fs';
 import { Config } from '../config';
 import { HttpError } from '../utils/errorHandler';
 import { buildFunscriptPatterns, parseFunscriptName } from '../services/libraryService';
+import type { AutoFunscriptService } from '../services/autoFunscript';
+import type { LibraryIndex } from '../services/libraryIndex';
+import { AUTO_FUNSCRIPT_FILENAME } from '../../shared/haptics';
 import { decodeTrackId, requireMediaFile } from '../utils/mediaFiles';
 import { normalizeRelativePath } from '../utils/paths';
 
-export function createFunscriptRouter(config: Config.ServerConfig): Router {
+export function createFunscriptRouter(
+  config: Config.ServerConfig,
+  auto?: { service: AutoFunscriptService; libraryIndex: LibraryIndex },
+): Router {
   const router = Router();
   const mediaDir = config.mediaDir;
   const funscriptPatterns = buildFunscriptPatterns(config);
+
+  router.get(`/:trackId/${AUTO_FUNSCRIPT_FILENAME}`, async (req, res) => {
+    decodeTrackId(req.params.trackId);
+    if (!auto) throw new HttpError(404, 'Auto funscript is disabled');
+    const library = await auto.libraryIndex.get();
+    const track = [...library.tracks, ...library.videos].find((t) => t.id === req.params.trackId);
+    if (!track?.funscripts.some((f) => f.auto)) throw new HttpError(404, 'Auto funscript not available');
+    let funscript;
+    try {
+      funscript = await auto.service.get(track);
+    } catch {
+      throw new HttpError(422, 'Could not analyse the audio of this file');
+    }
+    res.json(funscript);
+  });
 
   router.get('/:trackId/:funscriptFilename', (req, res) => {
     decodeTrackId(req.params.trackId);

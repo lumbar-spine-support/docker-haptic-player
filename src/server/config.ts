@@ -31,6 +31,13 @@ export namespace Config {
     funscriptSuffixVibrator: string;
     funscriptSuffixEstim: string;
     funscriptSuffixMachine: string;
+    autoscriptEnabled: boolean;
+    autoscriptMinFrequency: number;
+    autoscriptMaxFrequency: number;
+    autoscriptMinPower: number;
+    autoscriptType: string;
+    autoscriptFrameMs: number;
+    autoscriptMinPositionDelta: number;
   }
 
   /** Stores the client-side configuration. Can be loaded from YAML or environment variables. */
@@ -62,6 +69,8 @@ export namespace Config {
 
   export const ARTWORK_CACHE_DIR_NAME = 'artwork';
 
+  export const AUTOSCRIPT_CACHE_DIR_NAME = 'autoscript';
+
   /** Path of the settings file inside a config directory. */
   export function settingsFilePath(configDir: string): string {
     return path.join(configDir, SETTINGS_FILE_NAME);
@@ -87,6 +96,11 @@ export namespace Config {
     return path.join(cacheDirPath(configDir), ARTWORK_CACHE_DIR_NAME);
   }
 
+  /** Directory holding generated audio-derived funscripts and their debug images. */
+  export function autoscriptCacheDirPath(configDir: string): string {
+    return path.join(cacheDirPath(configDir), AUTOSCRIPT_CACHE_DIR_NAME);
+  }
+
   export const DEFAULT_SERVER_CONFIG: ServerConfig = {
     port: 3000,
     mediaDir: '/media',
@@ -101,6 +115,13 @@ export namespace Config {
     funscriptSuffixVibrator: 'vibrator',
     funscriptSuffixEstim: 'estim',
     funscriptSuffixMachine: 'machine',
+    autoscriptEnabled: true,
+    autoscriptMinFrequency: 20,
+    autoscriptMaxFrequency: 200,
+    autoscriptMinPower: 0.05,
+    autoscriptType: 'generic',
+    autoscriptFrameMs: 50,
+    autoscriptMinPositionDelta: 2,
   };
 
   export const DEFAULT_CLIENT_CONFIG: ClientConfig = {
@@ -135,6 +156,13 @@ export namespace Config {
     funscriptSuffixVibrator: 'Suffix associated with vibrator funscript',
     funscriptSuffixEstim: 'Suffix associated with estim funscript',
     funscriptSuffixMachine: 'Suffix associated with machine funscript',
+    autoscriptEnabled: 'Offer an "Auto" funscript generated from the audio track of each media file (requires ffmpeg)',
+    autoscriptMinFrequency: 'Lower bound in Hz of the frequency band analysed for the Auto funscript',
+    autoscriptMaxFrequency: 'Upper bound in Hz of the frequency band analysed for the Auto funscript',
+    autoscriptMinPower: 'Relative power (0-1, normalised to the loudest moment of each frequency in the file) below which the Auto funscript is at position 0',
+    autoscriptType: 'Device type the Auto funscript is played on: generic, stroker, buttplug, vibrator, estim, machine',
+    autoscriptFrameMs: 'Time resolution of the Auto funscript in milliseconds',
+    autoscriptMinPositionDelta: 'Minimum position change (0-100) required to emit a new Auto funscript point',
   };
 
   export const ENV_NAMES: Record<string, string> = {
@@ -157,6 +185,13 @@ export namespace Config {
     funscriptSuffixVibrator: 'FUNSCRIPT_SUFFIX_VIBRATOR',
     funscriptSuffixEstim: 'FUNSCRIPT_SUFFIX_ESTIM',
     funscriptSuffixMachine: 'FUNSCRIPT_SUFFIX_MACHINE',
+    autoscriptEnabled: 'AUTOSCRIPT_ENABLED',
+    autoscriptMinFrequency: 'AUTOSCRIPT_MIN_FREQUENCY',
+    autoscriptMaxFrequency: 'AUTOSCRIPT_MAX_FREQUENCY',
+    autoscriptMinPower: 'AUTOSCRIPT_MIN_POWER',
+    autoscriptType: 'AUTOSCRIPT_TYPE',
+    autoscriptFrameMs: 'AUTOSCRIPT_FRAME_MS',
+    autoscriptMinPositionDelta: 'AUTOSCRIPT_MIN_POSITION_DELTA',
   };
 
   // Infer which env vars belong to which config from the default config objects

@@ -17,6 +17,7 @@ import type { LibraryResponse } from '../../shared/types';
 import { Config } from '../config';
 import { buildLibrary, computeMediaFingerprint } from './libraryService';
 import type { ArtworkCache } from './artworkCache';
+import { isAutoscriptAvailable, type AutoFunscriptService } from './autoFunscript';
 import { createLogger } from '../utils/logger';
 
 export const TAG = '[library-index]';
@@ -24,7 +25,7 @@ export const TAG = '[library-index]';
 const log = createLogger(TAG);
 
 /** Bumped whenever the cached JSON shape changes, so old snapshots are discarded instead of trusted. */
-const CACHE_FORMAT_VERSION = 2;
+const CACHE_FORMAT_VERSION = 3;
 
 const REVALIDATE_INTERVAL_MS = 30_000;
 
@@ -45,7 +46,7 @@ export interface LibraryIndex {
   refresh(): Promise<LibraryResponse>;
 }
 
-export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: ArtworkCache): LibraryIndex {
+export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: ArtworkCache, autoFunscripts?: AutoFunscriptService): LibraryIndex {
   const cacheFile = Config.libraryCacheFilePath(config.configDir);
 
   let snapshot: Snapshot | null = null;
@@ -62,6 +63,8 @@ export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: A
     config.funscriptSuffixVibrator,
     config.funscriptSuffixEstim,
     config.funscriptSuffixMachine,
+    isAutoscriptAvailable(config),
+    config.autoscriptType,
   ]);
 
   const fingerprint = (): string => crypto.createHash('sha1')
@@ -102,6 +105,12 @@ export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: A
     artworkCache.prune(keys);
   };
 
+  const pruneAutoFunscripts = (library: LibraryResponse): void => {
+    if (!autoFunscripts) return;
+    const keys = new Set([...library.tracks, ...library.videos].map((track) => autoFunscripts.key(track.id, track.artworkVersion)));
+    autoFunscripts.prune(keys);
+  };
+
   const build = (expectedFingerprint: string): Promise<LibraryResponse> => {
     if (inflight) return inflight;
     const started = Date.now();
@@ -111,6 +120,7 @@ export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: A
       lastValidatedAt = Date.now();
       writeCacheFile(snapshot);
       pruneArtwork(library);
+      pruneAutoFunscripts(library);
       const count = library.tracks.length + library.videos.length;
       log.debug(`Indexed ${count} media files in ${Date.now() - started}ms`);
       return library;

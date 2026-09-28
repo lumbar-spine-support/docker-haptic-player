@@ -22,6 +22,13 @@ Every YAML setting can also be set as an environment variable. Environment varia
 | `FUNSCRIPT_SUFFIX_VIBRATOR` | `vibrator` | Suffix associated with vibrator funscript |
 | `FUNSCRIPT_SUFFIX_ESTIM` | `estim` | Suffix associated with estim funscript |
 | `FUNSCRIPT_SUFFIX_MACHINE` | `machine` | Suffix associated with machine funscript |
+| `AUTOSCRIPT_ENABLED` | `true` | Offer an "Auto" funscript generated from the audio track of each media file (requires ffmpeg) |
+| `AUTOSCRIPT_MIN_FREQUENCY` | `20` | Lower bound in Hz of the frequency band analysed for the Auto funscript |
+| `AUTOSCRIPT_MAX_FREQUENCY` | `200` | Upper bound in Hz of the frequency band analysed for the Auto funscript |
+| `AUTOSCRIPT_MIN_POWER` | `0.05` | Relative power (0-1, normalised to the loudest moment of each frequency in the file) below which the Auto funscript is at position 0 |
+| `AUTOSCRIPT_TYPE` | `generic` | Device type the Auto funscript is played on: generic, stroker, buttplug, vibrator, estim, machine |
+| `AUTOSCRIPT_FRAME_MS` | `50` | Time resolution of the Auto funscript in milliseconds |
+| `AUTOSCRIPT_MIN_POSITION_DELTA` | `2` | Minimum position change (0-100) required to emit a new Auto funscript point |
 | `VIDEO_SEEK_INTERVAL` | `10` | Seek interval in seconds when double-tapping/clicking. |
 | `DEFAULT_BLUR_CONTENT` | `false` | Enable to blur images and videos. Can be toggled in web interface. |
 | `DEFAULT_HAPTIC_FREQUENCY` | `30` | Intiface Haptic update frequency in Hz. Smaller values are usually more stable but less precise. Can be changed in web interface. |

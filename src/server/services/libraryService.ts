@@ -6,6 +6,8 @@ import type { AlbumInfo, FunscriptInfo, FunscriptType, LibraryResponse, Playlist
 import { Config } from '../config';
 import { normalizeRelativePath } from '../utils/paths';
 import { createLogger } from '../utils/logger';
+import { AUTO_FUNSCRIPT_FILENAME, AUTO_SUB } from '../../shared/haptics';
+import { isAutoscriptAvailable, resolveAutoscriptType } from './autoFunscript';
 
 export const TAG = '[library]';
 
@@ -484,6 +486,16 @@ export async function buildLibrary(config: Config.ServerConfig): Promise<Library
   const tracks = await buildMediaEntries(MEDIA_DIR, audioFiles, 'audio', descriptionsByStem, funscriptsByStem, mm);
   const videos = await buildMediaEntries(MEDIA_DIR, videoFiles, 'video', descriptionsByStem, funscriptsByStem, mm);
 
+  if (isAutoscriptAvailable(config)) {
+    const auto: FunscriptInfo = {
+      filename: AUTO_FUNSCRIPT_FILENAME,
+      type: resolveAutoscriptType(config.autoscriptType),
+      sub: AUTO_SUB,
+      auto: true,
+    };
+    for (const entry of [...tracks, ...videos]) entry.funscripts = [...entry.funscripts, { ...auto }];
+  }
+
   const allMedia = [...tracks, ...videos];
   const playlists = buildPlaylists(MEDIA_DIR, allMedia, playlistFiles);
 
@@ -531,7 +543,7 @@ export function logLibrarySummary(config: Config.ServerConfig, library: LibraryR
   const ignored = collectFilesRecursively(mediaDir).filter((entry) => !known.has(entry));
   const audioCount = media.filter((entry) => entry.type === 'audio').length;
   const videoCount = media.length - audioCount;
-  const withFunscript = media.filter((entry) => entry.funscripts.length > 0).length;
+  const withFunscript = media.filter((entry) => entry.funscripts.some((f) => !f.auto)).length;
 
   log.info(
     `Scanned ${mediaDir}: ${media.length} media files (${audioCount} audio, ${videoCount} video), `

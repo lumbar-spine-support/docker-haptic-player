@@ -15,6 +15,16 @@ export interface HapticChannel {
 
 const SUB_SEPARATOR = ':';
 
+/** Subcategory marking the funscript generated from the media's audio. */
+export const AUTO_SUB = 'auto';
+
+/** Reserved funscript filename under which the server serves the generated script. */
+export const AUTO_FUNSCRIPT_FILENAME = 'auto';
+
+export function isAutoChannel(channel: HapticChannel): boolean {
+    return channel.sub === AUTO_SUB;
+}
+
 /** Stable identity of a channel, used as a map key, DOM data attribute and stored value. */
 export function channelKey(channel: HapticChannel): string {
     return channel.sub ? `${channel.type}${SUB_SEPARATOR}${channel.sub}` : channel.type;
@@ -64,6 +74,7 @@ export function subLabel(sub: string): string {
 
 /** Human-readable channel name; subcategories are appended after an em dash. */
 export function channelLabel(channel: HapticChannel): string {
+    if (isAutoChannel(channel)) return 'Auto';
     const base = CHANNEL_TYPE_LABELS[channel.type];
     return channel.sub ? `${base} — ${subLabel(channel.sub)}` : base;
 }

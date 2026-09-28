@@ -50,6 +50,7 @@ export async function withMediaFixtures(
         const config: Config.ServerConfig = {
             ...Config.DEFAULT_SERVER_CONFIG,
             mediaDir: testDir,
+            autoscriptEnabled: false,
         };
         await fn(testDir, config);
     } finally {
@@ -73,6 +74,7 @@ export async function startTestServer(
         ...Config.DEFAULT_SERVER_CONFIG,
         mediaDir: testMediaDir,
         configDir,
+        autoscriptEnabled: false,
         ...overrides,
     };
     const clientConfig = {
