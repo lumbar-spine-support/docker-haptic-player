@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import http from 'http';
 import path from 'path';
 import { Config } from './config';
@@ -46,6 +47,7 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
   const artworkCache = createArtworkCache(config.configDir);
   const libraryIndex = createLibraryIndex(config, artworkCache);
   app.use(createRequestLogger());
+  app.use(compression());
   app.use('/api/auth', createAuthRouter(config, tokenStore));
   app.use(createAuthMiddleware(config, tokenStore, mediaAccessToken));
   app.use(express.static(path.join(__dirname, '..', '..', 'public')));
