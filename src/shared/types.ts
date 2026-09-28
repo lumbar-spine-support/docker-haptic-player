@@ -26,6 +26,8 @@ export interface FunscriptInfo {
   type: FunscriptType;
   /** Optional subcategory from `<stem>.<type>.<sub>.funscript`, e.g. `nipples`. */
   sub?: string;
+  /** Generated from the media's audio instead of read from a file. */
+  auto?: boolean;
 }
 
 export interface LibraryItemBase {

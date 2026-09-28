@@ -763,7 +763,7 @@ class App {
           title: track?.title ?? trackId,
           artist: track?.artist ?? '',
           album: track?.album ?? '',
-          funscripts: track?.funscripts ?? [],
+          funscripts: (track?.funscripts ?? []).filter((f) => !f.auto),
           onClick: () => { void this.openTrack(trackId, true, { type: 'album', id: album.id }); },
         };
       })

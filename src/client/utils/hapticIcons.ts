@@ -1,4 +1,7 @@
 import type { FunscriptType } from '../../shared/types';
+import { isAutoChannel, type HapticChannel } from '../../shared/haptics';
+
+export const AUTO_ICON_CLASS = 'device-role-icon-generic bi bi-stars';
 
 export const ROLE_ICON_CLASSES: Record<FunscriptType, string> = {
     stroker: 'device-role-icon-stroker',
@@ -17,6 +20,10 @@ export const ROLE_LABELS: Record<FunscriptType, string> = {
     machine: 'Machine',
     unknown: 'Generic',
 };
+
+export function channelIconClass(channel: HapticChannel): string {
+    return isAutoChannel(channel) ? AUTO_ICON_CLASS : ROLE_ICON_CLASSES[channel.type];
+}
 
 export function renderHapticIcons(types: FunscriptType[]): string {
     return Array.from(new Set(types))

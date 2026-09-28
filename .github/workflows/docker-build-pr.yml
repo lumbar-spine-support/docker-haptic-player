@@ -27,5 +27,14 @@ jobs:
         with:
           context: .
           push: false
+          tags: happy:pr-${{ github.event.pull_request.number || github.sha }}
+          outputs: type=docker,dest=${{ runner.temp }}/happy-image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: happy-image-pr-${{ github.event.pull_request.number || github.sha }}
+          path: ${{ runner.temp }}/happy-image.tar
+          retention-days: 7

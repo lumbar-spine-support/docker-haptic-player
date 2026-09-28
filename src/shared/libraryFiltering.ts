@@ -148,7 +148,7 @@ export function trackMatchesHapticFilters(
   allowedHapticTypes: readonly FunscriptType[],
 ): boolean {
   if (allowedHapticTypes.length === 0) return true;
-  const available = new Set(track.funscripts.map((funscript) => funscript.type));
+  const available = new Set(track.funscripts.filter((funscript) => !funscript.auto).map((funscript) => funscript.type));
   return allowedHapticTypes.every((type) => available.has(type));
 }
 
@@ -185,7 +185,7 @@ export function albumMatchesHapticFilters(
     const track = tracksById.get(trackId);
     if (!track) continue;
     for (const funscript of track.funscripts) {
-      available.add(funscript.type);
+      if (!funscript.auto) available.add(funscript.type);
     }
   }
   return allowedHapticTypes.every((type) => available.has(type));
@@ -224,7 +224,7 @@ export function playlistMatchesHapticFilters(
     const track = tracksById.get(entry.trackId);
     if (!track) continue;
     for (const funscript of track.funscripts) {
-      available.add(funscript.type);
+      if (!funscript.auto) available.add(funscript.type);
     }
   }
   return allowedHapticTypes.every((type) => available.has(type));

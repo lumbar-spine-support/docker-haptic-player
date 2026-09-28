@@ -15,6 +15,7 @@ import { createDocsRouter } from './routes/docs';
 import { createAuthMiddleware, createMediaAccessToken } from './middleware/auth';
 import { createTokenStore } from './services/tokenStore';
 import { createArtworkCache } from './services/artworkCache';
+import { createAutoFunscriptService, isAutoscriptAvailable } from './services/autoFunscript';
 import { createLibraryIndex } from './services/libraryIndex';
 import { createDglabRelay, type DglabRelay } from './services/dglabRelay';
 import { logLibrarySummary } from './services/libraryService';
@@ -45,7 +46,8 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
   app.set('trust proxy', config.trustProxy);
   const tokenStore = createTokenStore(Config.tokenFilePath(config.configDir));
   const artworkCache = createArtworkCache(config.configDir);
-  const libraryIndex = createLibraryIndex(config, artworkCache);
+  const autoFunscripts = isAutoscriptAvailable(config) ? createAutoFunscriptService(config) : undefined;
+  const libraryIndex = createLibraryIndex(config, artworkCache, autoFunscripts);
   app.use(createRequestLogger());
   app.use(compression());
   app.use('/api/auth', createAuthRouter(config, tokenStore));
@@ -55,7 +57,7 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
   app.use('/api/library', createLibraryRouter(libraryIndex));
   app.use('/api/media', createMediaRouter(config));
   app.use('/api/artwork', createArtworkRouter(config, artworkCache));
-  app.use('/api/funscript', createFunscriptRouter(config));
+  app.use('/api/funscript', createFunscriptRouter(config, autoFunscripts && { service: autoFunscripts, libraryIndex }));
   app.use('/api/version', createVersionRouter());
   app.use('/api/docs', createDocsRouter(path.join(__dirname, '..', '..', 'docs')));
   // Relative redirects keep working when a reverse proxy serves HAPPY under a sub-path.
