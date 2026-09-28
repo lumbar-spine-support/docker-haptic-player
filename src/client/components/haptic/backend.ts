@@ -8,6 +8,7 @@ export type FeatureKind = 'scalar' | 'rotate' | 'linear' | 'estim';
 /** Minimal shape the UI needs from a device, whatever backend owns it. */
 export interface HapticDevice {
   readonly name: string;
+  readonly displayName?: string;
 }
 
 /** One individually addressable actuator of a device. */

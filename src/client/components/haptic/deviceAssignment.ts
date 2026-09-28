@@ -112,10 +112,11 @@ export class DeviceAssignment {
   private buildDeviceCard(device: HapticDevice): HTMLElement {
     const badge = this.buttplug.getDeviceBadge?.(device.name) ?? null;
     const alerts = this.buttplug.getDeviceAlerts?.(device.name) ?? [];
+    const displayName = device.displayName?.trim() || device.name;
 
     const host = document.createElement('div');
     host.innerHTML = deviceCardHtml({
-      name: device.name,
+      name: displayName,
       badge: badge ? deviceBadgeHtml(badge) : '',
       alerts: alerts.map(deviceAlertHtml).join(''),
     });
