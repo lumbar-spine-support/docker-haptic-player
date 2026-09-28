@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.11.0...docker-haptic-player-v0.12.0) (2026-09-28)
+
+
+### Features
+
+* make maximum haptic delay configurable ([0561f33](https://github.com/lumbar-spine-support/docker-haptic-player/commit/0561f334d3e08193d39ee09373124b90759d5ffb))
+
+
+### Bug Fixes
+
+* improve chapter visibility (should be visible when paused to indicate chapter more easily) ([4ed19d1](https://github.com/lumbar-spine-support/docker-haptic-player/commit/4ed19d110c0a36b7de4a1db480a4ad90e4f2c3b9))
+
 ## [0.11.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/docker-haptic-player-v0.10.0...docker-haptic-player-v0.11.0) (2026-09-28)
 
 
