@@ -8,4 +8,5 @@ dist
 .vscode
 .devcontainer
 test/
+docs/developer/
 npm-debug.log*

@@ -1,5 +1,7 @@
 # Architecture
 
+> Diagrams and step-by-step use cases (pairing, playback, library scan, login) live in [docs/developer/](docs/developer/README.md).
+
 ## Overview
 
 This is a TypeScript application split into two clear runtime layers:
@@ -65,9 +67,10 @@ engine and the settings UI talk to. Two implementations exist:
   strength; the waveform is a flat carrier, because strength only scales pulses the device is
   already emitting.
 
-`HapticBackendRegistry` implements the same interface by fanning out across both, so one
-funscript can drive an Intiface toy and a Coyote simultaneously. `FunscriptSync` only ever
-sees the registry.
+`HapticBackendRegistry` implements the same interface by fanning out across both. It is used
+for the combined connection status (`DeviceStatus`) and for stopping every device at once.
+Playback does not go through it: each backend gets its own `FunscriptSync`, so one funscript
+can drive an Intiface toy and a Coyote simultaneously with separate delays.
 
 ### Coyote update rate
 
@@ -451,3 +454,4 @@ dist/                   Compiled server output
 - User docs live in `docs/*.md` and are served in-app at `/docs/<page>`. When a change affects user-facing behavior, settings or setup, update the matching page in the same change.
 - Keep `README.md` a minimal quick start (Intiface basics, Docker Compose, library layout) that links to `docs/`. Do not move details back into it.
 - Link between docs with relative paths (`library.md#funscripts`, `screenshots/x.jpg`) so they work on GitHub and in the app. Page names must match `[a-z0-9-]+`.
+- Developer docs live in `docs/developer/`. They use Mermaid diagrams, are excluded from the Docker image (`.dockerignore`) and are not served in-app. Update them when a change moves responsibilities between modules; each page ends with a code map listing the files it describes.
