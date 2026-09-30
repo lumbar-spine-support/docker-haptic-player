@@ -21,12 +21,22 @@ import {
   type ChannelId,
   type Device,
 } from './v4/protocol';
-import { DEFAULT_PULSE_FREQUENCY, FRAME_DURATION_MS, carrierFrames, clampFrequency } from './waveform';
+import {
+  DEFAULT_PULSE_FREQUENCY,
+  DEFAULT_PULSE_WIDTH,
+  FRAME_DURATION_MS,
+  carrierFrames,
+  clampFrequency,
+  clampPulseWidth,
+} from './waveform';
 import { DglabV4Socket } from './v4/socket';
 
 const ASSIGNMENTS_KEY = 'happy-dglab-assignments';
 const STRENGTHS_KEY = 'happy-dglab-strengths';
-const FREQUENCY_KEY = 'happy-dglab-frequency';
+const FREQUENCY_KEY = 'happy-dglab-pulse-rate';
+/** Held the raw period byte mislabelled as Hz; dropped so it is not read as a rate. */
+const LEGACY_FREQUENCY_KEY = 'happy-dglab-frequency';
+const PULSE_WIDTH_KEY = 'happy-dglab-pulse-width';
 const PAIRING_HOST_KEY = 'happy-dglab-pairing-host';
 
 /** Feature ids are namespaced so they never collide with Buttplug ids. */
@@ -204,8 +214,9 @@ export class CoyoteBackend implements HapticBackend {
   readonly linearRangeMin = 0;
   readonly linearRangeMax = 1;
 
-  /** Pulse carrier frequency per device name; the single exposed waveform setting. */
+  /** Pulse rate in Hz per device name. */
   private readonly frequencies = new Map<string, number>();
+  private readonly pulseWidths = new Map<string, number>();
 
   getCarrierFrequency(name: string): number | null {
     if (!this.coyotes().some((d) => deviceName(d) === name)) return null;
@@ -214,6 +225,16 @@ export class CoyoteBackend implements HapticBackend {
 
   setCarrierFrequency(name: string, frequency: number): void {
     this.frequencies.set(name, clampFrequency(frequency));
+    this.persist();
+  }
+
+  getPulseWidth(name: string): number | null {
+    if (!this.coyotes().some((d) => deviceName(d) === name)) return null;
+    return this.pulseWidths.get(name) ?? DEFAULT_PULSE_WIDTH;
+  }
+
+  setPulseWidth(name: string, width: number): void {
+    this.pulseWidths.set(name, clampPulseWidth(width));
     this.persist();
   }
 
@@ -422,7 +443,12 @@ export class CoyoteBackend implements HapticBackend {
     if (now - (this.lastWaveformAt.get(id) ?? 0) < CARRIER_INTERVAL_MS) return;
     this.lastWaveformAt.set(id, now);
 
-    const frames = carrierFrames(this.getCarrierFrequency(deviceName(device)) ?? DEFAULT_PULSE_FREQUENCY, CARRIER_FRAME_COUNT);
+    const name = deviceName(device);
+    const frames = carrierFrames(
+      this.frequencies.get(name) ?? DEFAULT_PULSE_FREQUENCY,
+      this.pulseWidths.get(name) ?? DEFAULT_PULSE_WIDTH,
+      CARRIER_FRAME_COUNT,
+    );
     this.waveformSeq += 1;
     const seq = this.waveformSeq;
     const duration = frames.length * FRAME_DURATION_MS;
@@ -523,6 +549,7 @@ export class CoyoteBackend implements HapticBackend {
     window.localStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(Object.fromEntries(this.assignments)));
     window.localStorage.setItem(STRENGTHS_KEY, JSON.stringify(Object.fromEntries(this.strengths)));
     window.localStorage.setItem(FREQUENCY_KEY, JSON.stringify(Object.fromEntries(this.frequencies)));
+    window.localStorage.setItem(PULSE_WIDTH_KEY, JSON.stringify(Object.fromEntries(this.pulseWidths)));
     window.localStorage.setItem(PAIRING_HOST_KEY, this.hostOverride);
   }
 
@@ -536,6 +563,10 @@ export class CoyoteBackend implements HapticBackend {
     }
     for (const [name, value] of Object.entries(readJsonRecord(FREQUENCY_KEY))) {
       if (typeof value === 'number') this.frequencies.set(name, clampFrequency(value));
+    }
+    window.localStorage.removeItem(LEGACY_FREQUENCY_KEY);
+    for (const [name, value] of Object.entries(readJsonRecord(PULSE_WIDTH_KEY))) {
+      if (typeof value === 'number') this.pulseWidths.set(name, clampPulseWidth(value));
     }
     this.hostOverride = normalizeHost(window.localStorage.getItem(PAIRING_HOST_KEY) ?? '');
   }

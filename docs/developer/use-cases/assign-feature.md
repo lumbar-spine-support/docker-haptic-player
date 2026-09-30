@@ -15,7 +15,7 @@ flowchart TB
   Card["Device card<br/>name, badge, battery"] --> Ctrl["Controls"]
   Card --> Feats["One row per feature"]
   Ctrl --> Str["Strength slider<br/>if any feature is not linear"]
-  Ctrl --> Freq["Pulse frequency slider<br/>only if getCarrierFrequency exists (Coyote)"]
+  Ctrl --> Freq["Pulse frequency and pulse width sliders<br/>only if the backend has getCarrierFrequency / getPulseWidth (Coyote)"]
   Ctrl --> Rng["Position limits<br/>if any feature is linear"]
   Feats --> Sel["Channel dropdown<br/>'— Assign Script —' + channels"]
   Feats --> Det["Detail panel<br/>value, limits, step count<br/>refreshed every 250 ms while open"]
@@ -46,7 +46,7 @@ sequenceDiagram
   BE-->>DS: onAssignmentsChange → update the status badges
 ```
 
-Strength, frequency and position limits skip the event: the backend stores the value and uses it on the next command it sends.
+Strength, pulse settings and position limits skip the event: the backend stores the value and uses it on the next command it sends.
 
 ## What is stored where
 
@@ -57,7 +57,8 @@ Strength, frequency and position limits skip the event: the backend stores the v
 | Intiface position limits | **one value for all strokers**, although it is shown on each card | `happy-stroker-range` |
 | Coyote channel → funscript channel | per feature id (Ch. A / Ch. B of one Coyote) | `happy-dglab-assignments` |
 | Coyote strength | per Coyote (both channels) | `happy-dglab-strengths` |
-| Coyote pulse frequency | per Coyote (both channels) | `happy-dglab-frequency` |
+| Coyote pulse frequency (Hz) | per Coyote (both channels) | `happy-dglab-pulse-rate` |
+| Coyote pulse width (%) | per Coyote (both channels) | `happy-dglab-pulse-width` |
 
 ## How assignments are used at playback
 
