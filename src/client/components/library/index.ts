@@ -312,7 +312,9 @@ export class Library {
         });
 
         document.querySelectorAll<HTMLElement>('[data-sort-field]').forEach((th) => {
-            th.addEventListener('click', () => {
+            th.addEventListener('click', (e) => {
+                // The mobile artist control is nested inside the title header.
+                e.stopPropagation();
                 const field = th.dataset.sortField as SortField;
                 if (this.sortField === field) {
                     this.sortAsc = !this.sortAsc;
@@ -592,7 +594,7 @@ export class Library {
 
     private updateSortHeaders(): void {
         document.querySelectorAll<HTMLElement>('[data-sort-field]').forEach((th) => {
-            const indicator = th.querySelector<HTMLElement>('.sort-indicator');
+            const indicator = th.querySelector<HTMLElement>(':scope > .sort-indicator');
             if (!indicator) return;
             indicator.innerHTML = th.dataset.sortField === this.sortField
                 ? `<i class="bi ${this.sortAsc ? 'bi-caret-up-fill' : 'bi-caret-down-fill'}"></i>`

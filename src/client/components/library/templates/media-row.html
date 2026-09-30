@@ -1,9 +1,13 @@
-<td class="align-middle p-1 d-none d-md-table-cell">
+<td class="align-middle p-2" style="width:1%">
     <img src="{{artSrc}}" alt="" class="rounded track-art-thumb" loading="lazy" decoding="async"
         onerror="this.onerror=null;this.src='{{{fallbackArt}}}'">
 </td>
-<td class="align-middle fw-semibold text-truncate" style="max-width:14rem">{{title}}</td>
-<td class="align-middle text-muted text-truncate" style="max-width:10rem">{{artist}}</td>
+<td class="align-middle text-truncate" style="max-width:14rem">
+    <div class="fw-semibold text-truncate">{{title}}</div>
+    <div class="small text-muted text-truncate d-md-none">{{artist}}</div>
+    <div class="small text-muted text-truncate d-md-none">{{type}} · {{duration}}</div>
+</td>
+<td class="align-middle text-muted text-truncate d-none d-md-table-cell" style="max-width:10rem">{{artist}}</td>
 <td class="align-middle text-muted d-none d-md-table-cell">{{type}}</td>
 <td class="align-middle text-muted d-none d-md-table-cell">{{year}}</td>
 <td class="align-middle d-none d-md-table-cell">

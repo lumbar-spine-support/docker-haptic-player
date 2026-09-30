@@ -77,6 +77,8 @@
 }
 
 .sort-indicator {
+  display: inline-block;
+  width: 1em; // Reserve caret space so headers don't shift when sorting
   font-size: 0.75em;
   opacity: 0.7;
 }

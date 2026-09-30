@@ -115,9 +115,19 @@ body.blur-content media-container {
 }
 
 .track-art-thumb {
-  width: 40px;
+  display: block;
   height: 40px;
+  width: auto;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
+}
+
+@include media-breakpoint-down(md) {
+
+  // Title (1.5rem) + two small lines (2 x 1.3125rem) + title cell padding (1rem) - art cell padding (.5rem).
+  .track-art-thumb {
+    height: 4.625rem;
+  }
 }
 
 .player-time-label {
