@@ -81,6 +81,21 @@
   opacity: 0.7;
 }
 
+// Full rows stretch to the container edge; the filler soaks up the last row's free space.
+#tag-view-selected,
+#tag-view-available {
+  row-gap: 0.5rem !important;
+
+  >.tag-chip {
+    flex-grow: 1;
+  }
+
+  &::after {
+    content: '';
+    flex-grow: 1000000;
+  }
+}
+
 .tag-view-count-badge {
   font-size: 0.65rem;
   font-weight: 500;

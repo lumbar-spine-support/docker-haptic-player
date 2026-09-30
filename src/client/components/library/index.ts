@@ -53,7 +53,7 @@ export interface LibraryCallbacks {
 
 const VIEW_KEY = 'happy-view-mode';
 const LIBRARY_FILTERS_KEY = 'happy-library-filters';
-const CARD_GRID_CLASSES = 'col-6 col-sm-3 col-lg-2 col-xl-2 col-xxl-1';
+const CARD_GRID_CLASSES = 'col-6 col-sm-3 col-lg-2 col-xl-2 col-xxl-2';
 const RENDER_BATCH_SIZE = 48;
 
 export class Library {
@@ -415,6 +415,20 @@ export class Library {
             chip.title = `Remove filter: ${tag}`;
             chip.addEventListener('click', () => this.removeTag(tag));
             this.tagViewSelected.appendChild(chip);
+        }
+        if (selected.length > 1) {
+            const clearAll = document.createElement('button');
+            clearAll.type = 'button';
+            clearAll.className = 'tag-chip tag-chip-clear-all';
+            clearAll.textContent = 'Clear all';
+            clearAll.title = 'Clear all active tags';
+            clearAll.addEventListener('click', () => {
+                this.activeTags = this.activeTags.filter((tag) => isArtistTag(tag));
+                this.callbacks.navigateTo(buildUrl('library', undefined, this.activeTags));
+                this.renderActiveTags();
+                this.render();
+            });
+            this.tagViewSelected.appendChild(clearAll);
         }
         this.tagViewSelected.classList.toggle('d-none', selected.length === 0);
 
