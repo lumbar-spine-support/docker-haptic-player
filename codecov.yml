@@ -1,0 +1,16 @@
+coverage:
+  status:
+    patch:
+      default:
+        target: 80%
+        threshold: 0%
+    project:
+      default:
+        informational: true
+
+comment:
+  layout: "diff, files"
+
+ignore:
+  - "test/**"
+  - "scripts/**"
