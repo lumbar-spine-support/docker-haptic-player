@@ -6,6 +6,7 @@ public/css/*.css
 public/auth/*.css
 public/auth/login.js*
 *.log
+coverage/
 .env
 .DS_Store
 *.css.map
