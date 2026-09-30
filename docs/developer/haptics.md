@@ -42,7 +42,7 @@ erDiagram
 | Backend | Feature id format | Kinds | Stored in `localStorage` |
 | --- | --- | --- | --- |
 | Intiface (`ButtplugClientManager`) | device name, kind, feature index joined by `#` | `scalar`, `rotate`, `linear` | `happy-feature-assignments`, `happy-device-strengths`, `happy-stroker-range` |
-| DG-Lab (`CoyoteBackend`) | `dglab`, slot id, channel 0/1 joined by `#` | `estim` | `happy-dglab-assignments`, `happy-dglab-strengths`, `happy-dglab-frequency`, `happy-dglab-pairing-host` |
+| DG-Lab (`CoyoteBackend`) | `dglab`, slot id, channel 0/1 joined by `#` | `estim` | `happy-dglab-assignments`, `happy-dglab-strengths`, `happy-dglab-pulse-rate`, `happy-dglab-pulse-width`, `happy-dglab-pairing-host` |
 
 ## Backend interface
 
@@ -71,6 +71,7 @@ classDiagram
     +stopAll()
     +setLinearRange(min, max)
     +getCarrierFrequency(name) optional
+    +getPulseWidth(name) optional
     +getDeviceBadge(name) optional
     +getDeviceAlerts(name) optional
     +getFeatureDetails(featureId) optional
@@ -231,8 +232,19 @@ flowchart LR
   Str -- send --> ST["SetTempIntensity(value, 300 ms)<br/>expires by itself: dead-man switch"]
   Map --> Pos{"value > 0?"}
   Pos -- yes --> Car{"≥800 ms since last carrier?"}
-  Car -- yes --> AP["AppendPulseData<br/>10 flat frames at the chosen frequency,<br/>im: true replaces the queue"]
+  Car -- yes --> AP["AppendPulseData<br/>10 flat frames at the chosen pulse rate and width,<br/>im: true replaces the queue"]
 ```
+
+#### Pulse frames
+
+The V4 protocol carries Coyote 3.0 pulse frames unchanged (`ver: 3`), so the [Coyote V3 Bluetooth protocol](https://github.com/dungeonlab-open/dglab-bluetooth-protocol/blob/main/coyote/v3/README.md) and its [waveform explanation](https://github.com/dungeonlab-open/dglab-bluetooth-protocol/blob/main/coyote/README.md) define the format. A frame is 16 hex characters covering 100 ms: four 25 ms steps, each with a period byte and a pulse width byte.
+
+| Byte | Range | Meaning | HAPPY setting |
+| --- | --- | --- | --- |
+| Period ("waveform frequency") | 10–240 | Pulse period in ms. 10–100 is literal; 101–1000 ms is compressed into 101–240. Out of range drops all four steps. | Pulse Frequency, 10–100 Hz (default 50), sent as `round(1000 / Hz)` |
+| Waveform intensity | 0–100 | Relative pulse width. The pulse voltage comes from the channel strength. | Pulse Width, 10–100 % (default 100) |
+
+`waveform.ts` keeps both values constant across the frame. The funscript only drives channel strength.
 
 `stopAll()` sends `device.op.clear` and resets both channel intensities to 0. All messages go through `DglabV4Socket.send()` to the relay, which forwards them to every attached app. See [Pair a DG-Lab Coyote](use-cases/coyote-pairing.md) for the connection side.
 
@@ -246,6 +258,19 @@ flowchart LR
 | Tab closed or navigated away | `pagehide` → `HapticBackendRegistry.stopAll()` |
 | Tab crashes or network drops (Coyote) | every strength command expires after 300 ms |
 | Script has no point at the current time | `positionAt()` returns null → 0 is sent |
+
+## Possible e-stim improvements
+
+Ideas for Coyote playback, taken from the [Restim stim theory wiki](https://github.com/diglet48/restim/wiki). None is implemented yet. Each one should be tried on real hardware before it becomes a default.
+
+| Idea | Theory | Sketch | Caveat |
+| --- | --- | --- | --- |
+| Perceptual intensity curve | Perceived intensity grows as $M = \alpha I^{\beta}$ with $\beta \approx 1.5$–2.5 ([nerve activation](https://github.com/diglet48/restim/wiki/nerve-activation)). A linear mapping makes the lower half of a script feel almost empty. | In `mapIntensity()`: $out = floor + (1 - floor) \cdot pos^{\gamma}$ for $pos > 0$, with $\gamma \approx 0.5$ and a floor of about 15–25 %. Both per device. | The floor must stay below the ceiling the app reports. Position 0 must still send 0. |
+| Onset ramp | A sudden jump in strength causes an onset spike that can hurt ([volume ramp](https://github.com/diglet48/restim/wiki/volume-ramp)). | Limit how fast strength can rise per update, and ramp up over a few seconds after play or seek. Decreases stay immediate. | The DG-Lab app has its own soft-start. Both together must not make fast scripts feel mushy. |
+| Random pulse spacing | Randomising the gap between pulses (5–10 ms) slows numbing and softens sudden changes ([pulse rate](https://github.com/diglet48/restim/wiki/pulse-rate)). | Vary the period byte by about ±20 % per 25 ms step in `flatFrame()`. Opt-in. | DG-Lab says periods longer than 25 ms, or periods that change between steps, are processed in an undocumented way. Only predictable at 40 Hz and above. |
+| A/B position mode | Moving the sensation between electrodes; the Coyote can do the two simplest three-phase patterns ([three-phase effects](https://github.com/diglet48/restim/wiki/threephase-effects)). | Drive channel A with $f(pos)$ and channel B with $f(1 - pos)$ from one `estim` script. | Needs a new assignment option. It only makes sense when both channels share an electrode area. |
+| Narrow pulses by default | Narrow pulses at higher voltage reach the same nerve activation with less charge and less heating ([nerve activation](https://github.com/diglet48/restim/wiki/nerve-activation), [safety](https://github.com/diglet48/restim/wiki/estim-safety)). | Once the Pulse Width setting has been tested, consider a lower default. | A narrower pulse needs a higher strength, which the app caps. Users would have to raise their comfort limit. |
+| Safety docs | One isolated channel per nipple. Keep electrodes below the waist otherwise ([safety](https://github.com/diglet48/restim/wiki/estim-safety)). | Add a note to the user docs for `estim:nipples`. | — |
 
 ## Code map
 

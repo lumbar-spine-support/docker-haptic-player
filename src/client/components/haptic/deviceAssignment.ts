@@ -146,6 +146,11 @@ export class DeviceAssignment {
       controls.appendChild(this.buildFrequencyRow(device, frequency));
     }
 
+    const pulseWidth = this.buttplug.getPulseWidth?.(device.name);
+    if (typeof pulseWidth === 'number') {
+      controls.appendChild(this.buildPulseWidthRow(device, pulseWidth));
+    }
+
     // Position travel limits only make sense for a toy that reports a linear actuator.
     if (features.some((feature) => feature.kind === 'linear')) {
       controls.appendChild(this.buildStrokerRangeRow(device));
@@ -166,22 +171,46 @@ export class DeviceAssignment {
     return card;
   }
 
-  /** Carrier frequency of a pulse-based device, e.g. a DG-Lab Coyote channel pair. */
+  /** Pulse rate of a pulse-based device, e.g. a DG-Lab Coyote channel pair. */
   private buildFrequencyRow(device: HapticDevice, initial: number): HTMLElement {
-    const { row, value } = buildControl('Pulse Frequency', String(initial));
+    const { row, value } = buildControl('Pulse Frequency', `${initial} Hz`);
 
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.className = 'form-range handle-only-range';
-    slider.min = '2';
+    slider.min = '10';
     slider.max = '100';
-    slider.step = '2';
+    slider.step = '5';
     slider.value = String(initial);
     slider.setAttribute('aria-label', `Pulse frequency for ${device.name}`);
     slider.addEventListener('input', () => {
       const hz = Number(slider.value);
-      value.textContent = String(hz);
+      value.textContent = `${hz} Hz`;
       this.buttplug.setCarrierFrequency?.(device.name, hz);
+    });
+
+    row.appendChild(slider);
+    bindDragOnlyRange(slider);
+    syncRangeFill(slider);
+    return row;
+  }
+
+  /** Relative pulse width; narrower pulses feel weaker at the same strength. */
+  private buildPulseWidthRow(device: HapticDevice, initial: number): HTMLElement {
+    const { row, value } = buildControl('Pulse Width', `${initial}%`);
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.className = 'form-range handle-only-range';
+    slider.min = '10';
+    slider.max = '100';
+    slider.step = '5';
+    slider.value = String(initial);
+    slider.setAttribute('aria-label', `Pulse width for ${device.name}`);
+    slider.addEventListener('input', () => {
+      const percent = Number(slider.value);
+      value.textContent = `${percent}%`;
+      this.buttplug.setPulseWidth?.(device.name, percent);
     });
 
     row.appendChild(slider);

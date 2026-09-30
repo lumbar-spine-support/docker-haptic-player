@@ -86,13 +86,17 @@ export interface HapticBackend {
   stopAll(): Promise<void>;
 
   /**
-   * Optional: carrier frequency of a pulse-based device, 1–100.
+   * Optional: pulse rate of a pulse-based device in Hz.
    *
    * Returns null for devices that have no carrier, which is how the settings UI
    * decides whether to show the control.
    */
   getCarrierFrequency?(deviceName: string): number | null;
   setCarrierFrequency?(deviceName: string, frequency: number): void;
+
+  /** Optional: relative pulse width of a pulse-based device, in percent; null hides the control. */
+  getPulseWidth?(deviceName: string): number | null;
+  setPulseWidth?(deviceName: string, width: number): void;
 
   /** Optional presentation data; the settings UI renders these generically. */
   getDeviceBadge?(deviceName: string): DeviceBadge | null;

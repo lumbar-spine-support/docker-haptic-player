@@ -88,6 +88,16 @@ export class HapticBackendRegistry implements HapticBackend {
     owner?.setCarrierFrequency?.(deviceName, frequency);
   }
 
+  getPulseWidth(deviceName: string): number | null {
+    const owner = this.backends.find((b) => b.devices.some((d) => d.name === deviceName));
+    return owner?.getPulseWidth?.(deviceName) ?? null;
+  }
+
+  setPulseWidth(deviceName: string, width: number): void {
+    const owner = this.backends.find((b) => b.devices.some((d) => d.name === deviceName));
+    owner?.setPulseWidth?.(deviceName, width);
+  }
+
   getDeviceBadge(deviceName: string): DeviceBadge | null {
     const owner = this.backends.find((b) => b.devices.some((d) => d.name === deviceName));
     return owner?.getDeviceBadge?.(deviceName) ?? null;
