@@ -9,6 +9,8 @@
 
 body {
   min-height: 100vh;
+  // dvh tracks the visible viewport, which shrinks when the on-screen keyboard opens.
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
