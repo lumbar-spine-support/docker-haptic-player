@@ -1,4 +1,5 @@
 import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, setMediaAccessToken, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
+import { applyPlaylistCover } from './utils/artwork';
 import { bindDragOnlyRange, syncRangeFill } from './utils/rangeSlider';
 import { resetScrollPosition } from '../shared/scroll';
 import { PlaybackSession, PlaybackQueue, PlaybackController } from './components/player';
@@ -707,7 +708,7 @@ class App {
       playlist.name,
       artists.join(', ') || 'Unknown artist',
       `${playlist.entries.length} media`,
-      playlist.entries[0]?.trackId,
+      playlist.entries.map((entry) => entry.trackId),
     );
     this.renderDetailRows(
       playlist.entries.map((entry) => ({
@@ -738,7 +739,7 @@ class App {
     this.detailView?.classList.remove('d-none');
     this.playerView?.classList.add('d-none');
     this.library.setContentVisible(false);
-    this.renderDetailHeader('Album', album.title, album.artist || 'Unknown artist', '', album.coverTrackId);
+    this.renderDetailHeader('Album', album.title, album.artist || 'Unknown artist', '', [album.coverTrackId]);
     this.renderDetailRows(
       album.trackIds.map((trackId, index) => {
         const track = this.allMedia().find((item) => item.id === trackId);
@@ -756,13 +757,14 @@ class App {
     document.title = `${album.title} — HAPPY`;
   }
 
-  private renderDetailHeader(type: string, title: string, subtitle: string, meta: string, coverTrackId?: string): void {
+  private renderDetailHeader(type: string, title: string, subtitle: string, meta: string, coverTrackIds: (string | undefined)[]): void {
     this.detailTypeLabel!.textContent = type;
     this.detailTitle!.textContent = title;
     this.detailSubtitle!.textContent = subtitle;
     this.detailMeta!.textContent = meta;
     if (this.detailCover) {
-      this.detailCover.src = renderTrackArt(this.allMedia().find((item) => item.id === coverTrackId));
+      const media = this.allMedia();
+      applyPlaylistCover(this.detailCover, coverTrackIds.map((id) => media.find((item) => item.id === id)));
       this.detailCover.style.display = '';
     }
   }
