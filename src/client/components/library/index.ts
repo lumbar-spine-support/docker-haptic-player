@@ -2,7 +2,7 @@ import { qs } from '../../utils/html';
 import { fetchLibrary } from '../../utils/api';
 import { buildUrl, trackHref, detailHref } from '../../utils/routes';
 import { renderHapticIcons } from '../../utils/hapticIcons';
-import { FALLBACK_ART_DATA_URI, renderTrackArt } from '../../utils/artwork';
+import { FALLBACK_ART_DATA_URI, applyPlaylistCover, renderTrackArt } from '../../utils/artwork';
 import { formatHoursMinutes } from '../../utils/formatTime';
 import {
     albumMatchesActiveTags,
@@ -864,6 +864,7 @@ export class Library {
             artist: artists,
             meta,
         });
+        applyPlaylistCover(col.querySelector('img'), playlist.entries.map((entry) => tracksById.get(entry.trackId)));
         col.querySelector('a')?.addEventListener('click', (event) => {
             event.preventDefault();
             this.callbacks.openPlaylist(playlist.id);
@@ -904,6 +905,7 @@ export class Library {
             duration: formatHoursMinutes(playlist.durationSeconds),
             hapticIcons: renderHapticIcons(this.playlistFunscriptTypes(playlist, tracksById)),
         });
+        applyPlaylistCover(tr.querySelector('img'), playlist.entries.map((entry) => tracksById.get(entry.trackId)));
         return tr;
     }
 
