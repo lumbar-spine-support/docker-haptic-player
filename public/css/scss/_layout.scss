@@ -1,5 +1,10 @@
 @use 'variables' as *;
 
+// Bootstrap config for breakpoint mixins (emits no CSS)
+@import "../../../node_modules/bootstrap/scss/functions";
+@import "../../../node_modules/bootstrap/scss/variables";
+@import "../../../node_modules/bootstrap/scss/mixins/breakpoints";
+
 html {
   scrollbar-gutter: auto;
   overflow-y: scroll; // Always allow scrolling
@@ -7,6 +12,13 @@ html {
 
 body {
   padding-bottom: var(--app-player-bar-height);
+}
+
+// Navbar stays full-width; page content is capped for wide displays.
+body>main {
+  --app-content-max-width: 1280px;
+  max-width: var(--app-content-max-width);
+  margin-inline: auto;
 }
 
 body.blur-content .track-art,
@@ -67,6 +79,21 @@ body.blur-content media-container {
   border-right: var(--bs-border-width) solid var(--bs-secondary);
   border-top-right-radius: var(--bs-border-radius);
   border-bottom-right-radius: var(--bs-border-radius);
+}
+
+// Below md, `.d-none.d-md-table-cell` columns are hidden: move edge borders to the visible ones.
+@include media-breakpoint-down(md) {
+  #track-table thead th:nth-child(1 of :not(.d-none)) {
+    border-left: var(--bs-border-width) solid var(--bs-secondary);
+    border-top-left-radius: var(--bs-border-radius);
+    border-bottom-left-radius: var(--bs-border-radius);
+  }
+
+  #track-table thead th:nth-last-child(1 of :not(.d-none)) {
+    border-right: var(--bs-border-width) solid var(--bs-secondary);
+    border-top-right-radius: var(--bs-border-radius);
+    border-bottom-right-radius: var(--bs-border-radius);
+  }
 }
 
 .d-md-table-cell {
