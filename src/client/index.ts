@@ -80,18 +80,7 @@ class App {
   private readonly detailTypeLabel = qs<HTMLElement>('#detail-type-label');
   private readonly detailPlayBtn = qs<HTMLButtonElement>('#btn-detail-play');
   private readonly detailCover = qs<HTMLImageElement>('#detail-cover');
-  // Album layout elements
-  private readonly detailAlbumLayout = qs<HTMLElement>('#detail-album-layout');
-  private readonly detailTypeLabelAlbum = qs<HTMLElement>('#detail-type-label-album');
-  private readonly detailTitleAlbum = qs<HTMLElement>('#detail-title-album');
-  private readonly detailSubtitleAlbum = qs<HTMLElement>('#detail-subtitle-album');
-  private readonly detailYearAlbum = qs<HTMLElement>('#detail-year-album');
-  private readonly detailCoverAlbum = qs<HTMLImageElement>('#detail-cover-album');
-  // Playlist layout elements
-  private readonly detailPlaylistLayout = qs<HTMLElement>('#detail-playlist-layout');
-  private readonly detailTypeLabelPlaylist = qs<HTMLElement>('#detail-type-label-playlist');
-  private readonly detailTitlePlaylist = qs<HTMLElement>('#detail-title-playlist');
-  private readonly detailSubtitlePlaylist = qs<HTMLElement>('#detail-subtitle-playlist');
+  private readonly detailMeta = qs<HTMLElement>('#detail-meta');
   private readonly connectBtn = qs<HTMLButtonElement>('#btn-connect');
   private readonly resetBtn = qs<HTMLButtonElement>('#btn-reset');
   private readonly intifaceInput = qs<HTMLInputElement>('#intiface-address');
@@ -712,12 +701,14 @@ class App {
     this.detailView?.classList.remove('d-none');
     this.playerView?.classList.add('d-none');
     this.library.setContentVisible(false);
-    // Show playlist layout, hide album layout
-    this.detailAlbumLayout?.classList.add('d-none');
-    this.detailPlaylistLayout?.classList.remove('d-none');
-    this.detailTypeLabelPlaylist!.textContent = 'Playlist';
-    this.detailTitlePlaylist!.textContent = playlist.name;
-    this.detailSubtitlePlaylist!.textContent = `${playlist.entries.length} media`;
+    const artists = [...new Set(playlist.entries.map((entry) => entry.artist).filter(Boolean))];
+    this.renderDetailHeader(
+      'Playlist',
+      playlist.name,
+      artists.join(', ') || 'Unknown artist',
+      `${playlist.entries.length} media`,
+      playlist.entries[0]?.trackId,
+    );
     this.renderDetailRows(
       playlist.entries.map((entry) => ({
         order: entry.order,
@@ -747,17 +738,7 @@ class App {
     this.detailView?.classList.remove('d-none');
     this.playerView?.classList.add('d-none');
     this.library.setContentVisible(false);
-    // Show album layout, hide playlist layout
-    this.detailAlbumLayout?.classList.remove('d-none');
-    this.detailPlaylistLayout?.classList.add('d-none');
-    this.detailTypeLabelAlbum!.textContent = 'Album';
-    this.detailTitleAlbum!.textContent = album.title;
-    this.detailSubtitleAlbum!.textContent = album.artist || 'Unknown artist';
-    this.detailYearAlbum!.textContent = album.year ? `${album.year}` : '';
-    if (this.detailCoverAlbum) {
-      this.detailCoverAlbum.src = renderTrackArt(this.allMedia().find((item) => item.id === album.coverTrackId));
-      this.detailCoverAlbum.style.display = '';
-    }
+    this.renderDetailHeader('Album', album.title, album.artist || 'Unknown artist', '', album.coverTrackId);
     this.renderDetailRows(
       album.trackIds.map((trackId, index) => {
         const track = this.allMedia().find((item) => item.id === trackId);
@@ -773,6 +754,17 @@ class App {
     );
     this.updateDetailPlayButton(Boolean(album.trackIds[0]));
     document.title = `${album.title} — HAPPY`;
+  }
+
+  private renderDetailHeader(type: string, title: string, subtitle: string, meta: string, coverTrackId?: string): void {
+    this.detailTypeLabel!.textContent = type;
+    this.detailTitle!.textContent = title;
+    this.detailSubtitle!.textContent = subtitle;
+    this.detailMeta!.textContent = meta;
+    if (this.detailCover) {
+      this.detailCover.src = renderTrackArt(this.allMedia().find((item) => item.id === coverTrackId));
+      this.detailCover.style.display = '';
+    }
   }
 
   private updateDetailPlayButton(enabled: boolean): void {
