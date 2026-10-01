@@ -166,31 +166,27 @@ The full flow is in [Log in](use-cases/login.md).
 
 ## DG-Lab relay
 
-The relay is protocol-agnostic. It only knows **controllers** (browser tabs) and **apps** (DG-Lab apps) and forwards `message` frames between them. Its state:
+The relay is protocol-agnostic. It knows one **controller** (the browser tab) and up to four **apps** (DG-Lab apps) and forwards `message` frames between them. Its state:
 
 ```mermaid
 classDiagram
   class DglabRelay {
     +handleUpgrade(req, socket, head)
     +close()
-    -controllers: Map~controllerId, ControllerEntry~
+    -controllerId: random UUID per process
+    -controller: WebSocket or null
+    -apps: Map~appId, WebSocket~
+    -graceTimer
+    -idleTimer
   }
-  class ControllerEntry {
-    id: derived from auth token
-    socket: WebSocket or null
-    apps: Map~appId, WebSocket~
-    graceTimer
-    idleTimer
-  }
-  DglabRelay "1" --> "0..8" ControllerEntry
-  ControllerEntry "1" --> "0..4" App
+  DglabRelay "1" --> "0..4" App
   class App {
     id: random UUID
     socket: WebSocket
   }
 ```
 
-- The controller id is derived from the login token (or the client IP when auth is off), so a reloaded tab gets the **same id** back and the paired app stays attached.
+- HAPPY is single-user, so there is one controller slot. Any authenticated tab takes it over (the old socket is closed as `replaced`), so reloads and switching devices keep the paired app. The id changes on server restart.
 - An app connects with `?tid=<controllerId>`. Because the id is unguessable, it acts as the app's credential.
 - Timers: a heartbeat every 30 s, a 5 min grace period after the controller disconnects, and a 5 min idle timeout while no app is attached.
 

@@ -36,7 +36,7 @@ sequenceDiagram
   CB->>SK: connect(ws(s)://host/ws/dglab)
   SK->>R: WebSocket upgrade with auth cookie
   R->>R: no tid: verify cookie, else 401
-  R->>R: controller id = deriveClientId(token)
+  R->>R: take the single controller slot, close previous tab
   R-->>SK: hello(clientId)
   SK-->>UI: state connected
   UI->>UI: badge "Waiting for app"<br/>pairingUrl = ws(s)://pairingHost/ws/dglab?tid=clientId<br/>show deep link and QR code
@@ -76,7 +76,7 @@ The deep link opens the DG-Lab app directly (`pairingDeepLink`). The QR code use
 
 ## The relay's view of a controller
 
-The controller id is derived from the auth token, so a reloaded tab gets the **same** id and the phone does not have to pair again. Without authentication the id comes from the client address instead.
+There is one controller slot with a random id created at server start. Every authenticated tab gets that **same** id, so neither a reload nor switching to another device requires pairing again. A server restart does.
 
 ```mermaid
 stateDiagram-v2
@@ -86,8 +86,8 @@ stateDiagram-v2
   Waiting --> Waiting: idle 5 min, close 4002, tab reconnects
   Waiting --> Detached: tab socket closes
   Paired --> Detached: tab socket closes (reload, backgrounded)
-  Detached --> Paired: same id back within 5 min, apps re-announced
-  Detached --> Waiting: same id back, no apps left
+  Detached --> Paired: any tab back within 5 min, apps re-announced
+  Detached --> Waiting: any tab back, no apps left
   Detached --> [*]: 5 min grace expires, apps closed 4000
 ```
 
@@ -102,9 +102,9 @@ The idle timeout is sent as an `idle_timeout` frame, but the client does not han
 | Controller without a valid cookie (auth enabled) | HTTP 401 at the upgrade |
 | Path other than `/ws/dglab` | HTTP 404 at the upgrade |
 | App with an unknown `tid` | closed with 4001 `controller_not_found` |
-| A fifth app on one controller | closed with 4001 `too_many_clients` |
-| A ninth controller | closed with 4002 `too_many_controllers` |
-| Same id connects again (second tab, same login) | the old socket is closed with 4000 `replaced` and does not reconnect |
+| A fifth app | closed with 4001 `too_many_clients` |
+| App connects while no controller exists (never connected, or grace expired) | closed with 4001 `controller_not_found` |
+| Another tab or device connects | the old socket is closed with 4000 `replaced` and does not reconnect |
 | Frame over 64 KiB | connection closed by `ws` |
 | Controller socket drops | client reconnects after 1 s, 2 s, 4 s … up to 15 s |
 | Every 30 s | relay sends `heartbeat` to all sockets; while paired, the client re-requests the device list |
