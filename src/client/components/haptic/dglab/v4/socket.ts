@@ -1,388 +1,289 @@
 import {
-  eventName,
-  eventPayload,
-  isAppMessage,
-  isRelayFrame,
-  mergeSlotState,
-  parseDevice,
-  parseDeviceList,
-  buildDevicesGet,
-  ActionType,
-  type AppMessage,
-  type RelayFrame,
-  type Device,
-} from './protocol';
+    DGLAB_SOCKET_STATE,
+    DglabSocket,
+    V4Channel,
+    type DglabSocketCloseEvent,
+    type DglabSocketV4Client,
+} from 'dglab-kit';
+
+export { V4Channel as Channel };
 
 export type DglabV4SocketState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
-const REQUEST_TIMEOUT_MS = 5_000;
+export interface ChannelState {
+    isMuted?: boolean;
+    warmUpScale?: number;
+    intensityMax?: number;
+    comfortLimit?: { comfortMax?: number; absoluteMax?: number;[key: string]: unknown };
+    [key: string]: unknown;
+}
+
+export interface SlotState {
+    channelA?: ChannelState;
+    channelB?: ChannelState;
+    markLight?: string | null;
+    /** False while the slot is configured in the app but no hardware is connected. */
+    hasDevice?: boolean;
+    [key: string]: unknown;
+}
+
+/** A `V4DeviceInfo` with the fields HAPPY reads typed. */
+export interface Device {
+    /** Slot id used as `s` in every `device.op`. */
+    slotId: string;
+    /** The app's own slot number, shown in its UI. */
+    id?: number;
+    name?: string;
+    type: string;
+    props?: {
+        power?: number;
+        channelAStatus?: number;
+        channelBStatus?: number;
+        [key: string]: unknown;
+    };
+    slotState?: SlotState;
+}
+
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 15_000;
 /** `props` such as battery level only arrive with a full snapshot, so re-ask for one. */
 const DEVICE_REFRESH_MS = 30_000;
-/** How many recent request descriptions to keep for error attribution. */
-const SENT_LOG_LIMIT = 200;
+/** Pulse frame encoding version; 3 is the Coyote 3.0 `[freq×4, intensity×4]` layout. */
+const PULSE_VERSION = 3;
+/** Priority is a strict `0 | 1 | 2`; anything else is rejected as `invalid_operate`. */
+const PRIORITY = 1;
 
-const ACTION_NAMES: Record<number, string> = {
-  [ActionType.AppendPulseData]: 'AppendPulseData',
-  [ActionType.AddIntensity]: 'AddIntensity',
-  [ActionType.SetTempIntensity]: 'SetTempIntensity',
-  [ActionType.SetIntensity]: 'SetIntensity',
-};
+/** `device.op` replies only arrive once a task ends; neither of these is a real failure. */
+const IGNORED_ERRORS = new Set(['DGLAB-socket-response-timeout', 'DGLAB-socket-disconnected']);
 
-/** Set `localStorage['happy-dglab-debug'] = 'true'` to trace the wire protocol. */
+let debugLogging = false;
+
+/** Enabled by `LOG_LEVEL=debug` on the server. */
+export function setDglabDebug(enabled: boolean): void {
+    debugLogging = enabled;
+}
+
+/** Also enabled with `localStorage['happy-dglab-debug'] = 'true'`. */
 function tracing(): boolean {
-  try {
-    return window.localStorage.getItem('happy-dglab-debug') === 'true';
-  } catch {
-    return false;
-  }
+    if (debugLogging) return true;
+    try {
+        return globalThis.localStorage?.getItem('happy-dglab-debug') === 'true';
+    } catch {
+        return false;
+    }
 }
 
 function trace(...args: unknown[]): void {
-  if (tracing()) console.debug(...args);
+    if (tracing()) console.debug(...args);
 }
 
 type Listener<T> = (value: T) => void;
+export type SocketFactory = (url: string) => DglabSocketV4Client;
 
 /**
- * Controller side of the DG-Lab V4 relay protocol.
+ * Controller side of the DG-Lab V4 relay, on top of dglab-kit.
  *
- * Owns the WebSocket, the request/response correlation and the device cache. It
- * knows nothing about funscripts — `CoyoteBackend` sits on top of it.
+ * Adds what the kit leaves to the caller: reconnecting, device refresh,
+ * routing each slot to its app, and fire-and-forget operations.
  */
 export class DglabV4Socket {
-  private ws: WebSocket | null = null;
-  private state: DglabV4SocketState = 'disconnected';
-  private url = '';
-  /** Our relay client id; the DG-Lab app pairs by passing this back as `tid`. */
-  private clientId: string | null = null;
-  private readonly attachedApps = new Set<string>();
-  private readonly deviceCache = new Map<string, Device>();
-  private readonly pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: number }>();
-  private reqCounter = 0;
-  private reconnectAttempts = 0;
-  private reconnectTimer: number | null = null;
-  private refreshTimer: number | null = null;
-  private closedByUser = false;
-  private readonly loggedOnce = new Set<string>();
-  private readonly sentLog = new Map<string, { what: string; body: string }>();
+    private kit: DglabSocketV4Client | null = null;
+    private url = '';
+    private state: DglabV4SocketState = 'disconnected';
+    private reconnectAttempts = 0;
+    private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private refreshTimer: ReturnType<typeof setInterval> | null = null;
+    private closedByUser = false;
+    private readonly loggedOnce = new Set<string>();
 
-  private readonly stateListeners: Array<Listener<DglabV4SocketState>> = [];
-  private readonly deviceListeners: Array<Listener<Device[]>> = [];
+    private readonly stateListeners: Array<Listener<DglabV4SocketState>> = [];
+    private readonly deviceListeners: Array<Listener<Device[]>> = [];
 
-  onStateChange(l: Listener<DglabV4SocketState>): void { this.stateListeners.push(l); }
-  onDevicesChange(l: Listener<Device[]>): void { this.deviceListeners.push(l); }
+    constructor(private readonly createSocket: SocketFactory = (url) => new DglabSocket({ url })) { }
 
-  get connectionState(): DglabV4SocketState { return this.state; }
-  /** Value the DG-Lab app must pass as `?tid=`; null until the relay says hello. */
-  get targetId(): string | null { return this.clientId; }
-  get appCount(): number { return this.attachedApps.size; }
-  get devices(): Device[] { return [...this.deviceCache.values()]; }
+    onStateChange(l: Listener<DglabV4SocketState>): void { this.stateListeners.push(l); }
+    onDevicesChange(l: Listener<Device[]>): void { this.deviceListeners.push(l); }
 
-  connect(url: string): void {
-    if (this.state === 'connecting' || this.state === 'connected') return;
-    this.url = url;
-    this.closedByUser = false;
-    this.open();
-  }
-
-  disconnect(): void {
-    this.closedByUser = true;
-    this.clearReconnect();
-    this.stopDeviceRefresh();
-    this.ws?.close();
-    this.ws = null;
-    this.clientId = null;
-    this.attachedApps.clear();
-    this.deviceCache.clear();
-    this.setState('disconnected');
-    this.emitDevices();
-  }
-
-  /** Send a request and wait for its response. Only for short-lived methods. */
-  private requestWithId(reqId: string, message: AppMessage): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-      if (!this.sendToApps(message)) {
-        reject(new Error('not connected'));
-        return;
-      }
-      const timer = window.setTimeout(() => {
-        this.pending.delete(reqId);
-        reject(new Error('timeout'));
-      }, REQUEST_TIMEOUT_MS);
-      this.pending.set(reqId, { resolve, reject, timer });
-    });
-  }
-
-  /**
-   * Send a request without awaiting it.
-   *
-   * `device.op` responses are long-lived — they only arrive once the task ends —
-   * so awaiting them in the hot path would leak a promise per tick.
-   */
-  send(build: (reqId: string) => AppMessage): void {
-    const reqId = this.nextReqId();
-    const message = build(reqId);
-    this.remember(reqId, message);
-    this.sendToApps(message);
-  }
-
-  /** Keeps a short trail of what was sent, so an error response can name its request. */
-  private remember(reqId: string, message: AppMessage): void {
-    if (message.t !== 'req') return;
-    const data = message.data as { t?: unknown } | undefined;
-    const action = typeof data?.t === 'number' ? ACTION_NAMES[data.t] ?? `action ${data.t}` : '';
-    this.sentLog.set(reqId, {
-      what: action ? `${message.m} ${action}` : message.m,
-      body: JSON.stringify(message),
-    });
-    if (this.sentLog.size > SENT_LOG_LIMIT) {
-      this.sentLog.delete(this.sentLog.keys().next().value as string);
+    get connectionState(): DglabV4SocketState { return this.state; }
+    /** Value the DG-Lab app must pass as `?tid=`; null until the relay says hello. */
+    get targetId(): string | null { return this.kit?.targetId ?? null; }
+    get appCount(): number { return this.kit?.clientIds.length ?? 0; }
+    get devices(): Device[] {
+        return (this.kit?.clients ?? []).flatMap((client) => client.devices as unknown as Device[]);
     }
-  }
 
-  /** Re-read the device list from the app. */
-  refreshDevices(): void {
-    if (this.attachedApps.size === 0) return;
-    const reqId = this.nextReqId();
-    trace('[dglab] -> devices.get');
-    void this.requestWithId(reqId, buildDevicesGet(reqId))
-      .then((result) => this.applySnapshot(result))
-      .catch((err) => console.warn('[dglab] devices.get failed:', err.message));
-  }
-
-  private startDeviceRefresh(): void {
-    if (this.refreshTimer !== null) return;
-    this.refreshTimer = window.setInterval(() => this.refreshDevices(), DEVICE_REFRESH_MS);
-  }
-
-  private stopDeviceRefresh(): void {
-    if (this.refreshTimer === null) return;
-    window.clearInterval(this.refreshTimer);
-    this.refreshTimer = null;
-  }
-
-  private nextReqId(): string {
-    this.reqCounter += 1;
-    return `r${this.reqCounter}`;
-  }
-
-  private open(): void {
-    this.setState('connecting');
-    let ws: WebSocket;
-    try {
-      ws = new WebSocket(this.url);
-    } catch {
-      this.setState('error');
-      this.scheduleReconnect();
-      return;
+    connect(url: string): void {
+        if (this.state === 'connecting' || this.state === 'connected') return;
+        if (!this.kit || url !== this.url) {
+            this.kit?.destroy();
+            this.url = url;
+            this.kit = this.createSocket(url);
+            this.listen(this.kit);
+        }
+        this.closedByUser = false;
+        this.open();
     }
-    this.ws = ws;
 
-    ws.onopen = () => {
-      this.reconnectAttempts = 0;
-    };
-    ws.onmessage = (event) => this.handleFrame(event.data);
-    ws.onerror = () => {
-      if (this.state !== 'connected') this.setState('error');
-    };
-    ws.onclose = () => {
-      if (this.ws !== ws) return;
-      this.ws = null;
-      this.clientId = null;
-      this.attachedApps.clear();
-      this.stopDeviceRefresh();
-      this.deviceCache.clear();
-      this.emitDevices();
-      this.rejectAllPending('connection closed');
-      if (this.closedByUser) {
+    disconnect(): void {
+        this.closedByUser = true;
+        this.clearReconnect();
+        this.stopDeviceRefresh();
+        this.kit?.disconnect();
         this.setState('disconnected');
-        return;
-      }
-      this.setState('error');
-      this.scheduleReconnect();
-    };
-  }
-
-  private scheduleReconnect(): void {
-    if (this.closedByUser || this.reconnectTimer !== null) return;
-    const delay = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** this.reconnectAttempts);
-    this.reconnectAttempts += 1;
-    this.reconnectTimer = window.setTimeout(() => {
-      this.reconnectTimer = null;
-      if (!this.closedByUser) this.open();
-    }, delay);
-  }
-
-  private clearReconnect(): void {
-    if (this.reconnectTimer !== null) window.clearTimeout(this.reconnectTimer);
-    this.reconnectTimer = null;
-    this.reconnectAttempts = 0;
-  }
-
-  private sendToApps(message: AppMessage): boolean {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.attachedApps.size === 0) return false;
-    // No `clientId` means "broadcast to every attached app", which is what we want:
-    // a single DG-Lab app is the normal case and multiple apps should stay in sync.
-    this.ws.send(JSON.stringify({ type: 'message', data: message }));
-    return true;
-  }
-
-  private handleFrame(raw: unknown): void {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(String(raw));
-    } catch {
-      return;
+        this.emitDevices();
     }
-    if (!isRelayFrame(parsed)) {
-      console.warn('[dglab] <- unrecognised frame', parsed);
-      return;
-    }
-    const frame: RelayFrame = parsed;
-    // `message` frames are logged by handleAppMessage, which can throttle by content.
-    if (frame.type !== 'heartbeat' && frame.type !== 'message') trace('[dglab] <-', frame);
 
-    switch (frame.type) {
-      case 'hello':
-        this.clientId = frame.clientId;
-        this.setState('connected');
-        break;
-      case 'client_attached':
-        this.attachedApps.add(frame.clientId);
-        this.refreshDevices();
-        this.startDeviceRefresh();
-        break;
-      case 'client_disconnected':
-        this.attachedApps.delete(frame.clientId);
-        if (this.attachedApps.size === 0) {
-          this.stopDeviceRefresh();
-          this.deviceCache.clear();
-          this.emitDevices();
+    /**
+     * Continuous absolute strength. The task auto-resets after `durationMs`, which
+     * doubles as a dead-man's switch when the tab or the network dies.
+     */
+    setTempIntensity(slotId: string, channel: V4Channel, value: number, durationMs: number): void {
+        const v = Math.max(0, Math.round(value));
+        const d = Math.max(1, Math.round(durationMs));
+        this.op(slotId, `SetTempIntensity ${JSON.stringify({ c: channel, v, d })}`, (kit, cid) =>
+            kit.setTempIntensity(cid, slotId, channel, v, d, { priority: PRIORITY, immediate: true }));
+    }
+
+    /** `immediate` replaces the queue; appending would build an ever-growing backlog. */
+    appendPulse(slotId: string, channel: V4Channel, frames: string[], durationMs: number, seq: number): void {
+        const d = Math.max(1, Math.round(durationMs));
+        this.op(slotId, `AppendPulseData ${JSON.stringify({ c: channel, d, seq })}`, (kit, cid) =>
+            kit.sendPulse(cid, slotId, channel, d, frames, { priority: PRIORITY, immediate: true, version: PULSE_VERSION, seq }));
+    }
+
+    /** `SetIntensity` accepts no value other than 0. */
+    resetIntensity(slotId: string, channel: V4Channel): void {
+        this.op(slotId, `SetIntensity ${JSON.stringify({ c: channel })}`, (kit, cid) =>
+            kit.resetIntensity(cid, slotId, channel, { priority: PRIORITY }));
+    }
+
+    /** Cancel every running task on a slot. */
+    clear(slotId: string): void {
+        this.op(slotId, 'device.op.clear', (kit, cid) => kit.clearOperate(cid, { slotId }));
+    }
+
+    /** Re-read the device list from every attached app. */
+    refreshDevices(): void {
+        const kit = this.kit;
+        if (!kit) return;
+        for (const clientId of kit.clientIds) this.requestDevices(kit, clientId);
+    }
+
+    private requestDevices(kit: DglabSocketV4Client, clientId: string): void {
+        trace('[dglab] -> devices.get', clientId);
+        kit.requestDevices(clientId).catch((err: Error) => {
+            if (err.name !== 'DGLAB-socket-disconnected') console.warn('[dglab] devices.get failed:', err.message);
+        });
+    }
+
+    private op(slotId: string, what: string, send: (kit: DglabSocketV4Client, clientId: string) => Promise<unknown>): void {
+        const kit = this.kit;
+        const clientId = kit?.clients.find((c) => c.devices.some((d) => d.slotId === slotId))?.clientId;
+        if (!kit || !clientId || this.state !== 'connected') return;
+        trace('[dglab] ->', clientId, slotId, what);
+        send(kit, clientId).catch((err: Error) => {
+            if (IGNORED_ERRORS.has(err.name)) return;
+            this.logOnce(`${err.message}:${what.split(' ')[0]}`, `[dglab] ${what} on ${slotId} rejected:`, err.message);
+        });
+    }
+
+    private listen(kit: DglabSocketV4Client): void {
+        kit.on('open', () => { this.reconnectAttempts = 0; });
+        kit.on('state', (next) => {
+            if (next === DGLAB_SOCKET_STATE.WaitingForPeer || next === DGLAB_SOCKET_STATE.Paired) this.setState('connected');
+        });
+        kit.on('error', (err) => {
+            trace('[dglab] error', err);
+            if (this.state !== 'connected') this.setState('error');
+        });
+        kit.on('close', (event) => this.handleClose(event));
+        kit.on('frame', (frame) => {
+            const type = (frame as { type?: unknown }).type;
+            if (type !== 'heartbeat' && type !== 'pong' && type !== 'message') trace('[dglab] <-', frame);
+        });
+        kit.on('action', (action) => trace('[dglab] custom.action', action));
+        kit.on('client-attached', (clientId) => {
+            this.requestDevices(kit, clientId);
+            this.startDeviceRefresh();
+        });
+        kit.on('client-disconnected', () => {
+            if (kit.clientIds.length === 0) this.stopDeviceRefresh();
+            this.emitDevices();
+        });
+        kit.on('devices', (devices, clientId) => {
+            trace('[dglab] devices', clientId, devices);
+            this.emitDevices();
+        });
+    }
+
+    private handleClose(event: DglabSocketCloseEvent): void {
+        this.stopDeviceRefresh();
+        this.emitDevices();
+        if (this.closedByUser) {
+            this.setState('disconnected');
+            return;
         }
-        break;
-      case 'message':
-        this.handleAppMessage(frame.data);
-        break;
-      default:
-        break;
-    }
-  }
-
-  private handleAppMessage(data: unknown): void {
-    if (!isAppMessage(data)) {
-      console.warn('[dglab] app payload has no recognisable envelope', data);
-      return;
-    }
-
-    if (data.t === 'resp') {
-      const entry = this.pending.get(data.reqId);
-      if (!entry) {
-        // Fire-and-forget `device.op` replies land here; only the first of each kind is useful.
-        if (data.error) {
-          const sent = this.sentLog.get(data.reqId);
-          const what = sent?.what ?? 'unknown request';
-          this.logOnce(`resp:${String(data.error)}:${what}`, `[dglab] ${what} rejected:`, data.error, sent?.body ?? '');
+        if (event.reason === 'replaced') {
+            console.warn('[dglab] another tab took over the DG-Lab connection');
+            this.closedByUser = true;
+            this.setState('disconnected');
+            return;
         }
-        return;
-      }
-      this.pending.delete(data.reqId);
-      window.clearTimeout(entry.timer);
-      if (data.error) entry.reject(new Error(String(data.error)));
-      else entry.resolve(data.result);
-      return;
+        this.setState('error');
+        this.scheduleReconnect();
     }
 
-    if (data.t !== 'ev') return;
-
-    const payload = eventPayload(data);
-    switch (eventName(data)) {
-      case 'devices.snapshot':
-        this.applySnapshot(payload);
-        break;
-      case 'devices.patch':
-        this.applyDevicePatch(payload);
-        break;
-      case 'slots.patch':
-        this.applySlotsPatch(payload);
-        break;
-      default:
-        console.warn('[dglab] unhandled event', eventName(data), data);
-        break;
+    private open(): void {
+        this.setState('connecting');
+        try {
+            this.kit?.connect().catch(() => { /* the close event drives reconnecting */ });
+        } catch {
+            this.setState('error');
+            this.scheduleReconnect();
+        }
     }
-  }
 
-  private applySnapshot(payload: unknown): void {
-    const devices = parseDeviceList(payload);
-    // Logged as a live object so devtools renders an expandable tree, not one long string.
-    trace('[dglab] raw device list:', payload);
-    if (devices.length === 0) console.warn('[dglab] no devices found in the app payload');
-    else trace('[dglab] devices', devices.map((d) => `${d.id} (${d.type})`));
-    this.deviceCache.clear();
-    for (const device of devices) this.deviceCache.set(device.id, device);
-    this.emitDevices();
-  }
-
-  private applyDevicePatch(payload: unknown): void {
-    const record = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;
-    if (!record) return;
-
-    for (const device of parseDeviceList(record.added)) this.deviceCache.set(device.id, device);
-    const removed = Array.isArray(record.removed) ? record.removed : [];
-    for (const entry of removed) {
-      const id = typeof entry === 'string' ? entry : parseDevice(entry)?.id;
-      if (id) this.deviceCache.delete(id);
+    private scheduleReconnect(): void {
+        if (this.closedByUser || this.reconnectTimer !== null) return;
+        const delay = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** this.reconnectAttempts);
+        this.reconnectAttempts += 1;
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            if (!this.closedByUser) this.open();
+        }, delay);
     }
-    this.emitDevices();
-  }
 
-  private applySlotsPatch(payload: unknown): void {
-    const record = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;
-    const slots = Array.isArray(record?.slots) ? record.slots : null;
-    if (!slots) return;
-
-    let changed = false;
-    for (const entry of slots) {
-      const patch = entry && typeof entry === 'object' ? (entry as Record<string, unknown>) : null;
-      const slotId = patch?.slotId;
-      if (!patch || typeof slotId !== 'string') continue;
-      const device = this.deviceCache.get(slotId);
-      if (!device) continue;
-
-      this.deviceCache.set(slotId, {
-        ...device,
-        props: { ...device.props, ...(patch.props as object | undefined) },
-        slotState: mergeSlotState(device.slotState, patch.slotState),
-      });
-      changed = true;
+    private clearReconnect(): void {
+        if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+        this.reconnectAttempts = 0;
     }
-    if (changed) this.emitDevices();
-  }
 
-  /** Logs a given kind of message only the first time it occurs. */
-  private logOnce(key: string, ...args: unknown[]): void {
-    if (this.loggedOnce.has(key)) return;
-    this.loggedOnce.add(key);
-    console.warn(...args);
-  }
-
-  private rejectAllPending(reason: string): void {
-    for (const [, entry] of this.pending) {
-      window.clearTimeout(entry.timer);
-      entry.reject(new Error(reason));
+    private startDeviceRefresh(): void {
+        if (this.refreshTimer !== null) return;
+        this.refreshTimer = setInterval(() => this.refreshDevices(), DEVICE_REFRESH_MS);
     }
-    this.pending.clear();
-  }
 
-  private setState(next: DglabV4SocketState): void {
-    if (this.state === next) return;
-    this.state = next;
-    for (const l of this.stateListeners) l(next);
-  }
+    private stopDeviceRefresh(): void {
+        if (this.refreshTimer === null) return;
+        clearInterval(this.refreshTimer);
+        this.refreshTimer = null;
+    }
 
-  private emitDevices(): void {
-    const snapshot = this.devices;
-    for (const l of this.deviceListeners) l(snapshot);
-  }
+    private logOnce(key: string, ...args: unknown[]): void {
+        if (this.loggedOnce.has(key)) return;
+        this.loggedOnce.add(key);
+        console.warn(...args);
+    }
+
+    private setState(next: DglabV4SocketState): void {
+        if (this.state === next) return;
+        this.state = next;
+        for (const l of this.stateListeners) l(next);
+    }
+
+    private emitDevices(): void {
+        const snapshot = this.devices;
+        for (const l of this.deviceListeners) l(snapshot);
+    }
 }

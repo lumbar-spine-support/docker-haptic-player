@@ -8,7 +8,8 @@ import { ButtplugClientManager } from './components/haptic/buttplugClient';
 import { HapticBackendRegistry } from './components/haptic/backendRegistry';
 import { CoyoteBackend } from './components/haptic/dglab/coyoteBackend';
 import QRCode from 'qrcode';
-import { pairingDeepLink, pairingQrPayload } from './components/haptic/dglab/v4/protocol';
+import { pairingDeepLink, pairingQrPayload } from './components/haptic/dglab/v4/pairing';
+import { setDglabDebug } from './components/haptic/dglab/v4/socket';
 import { FunscriptSync } from './components/funscriptSync';
 import { DeviceStatus } from './components/haptic/deviceStatus';
 import { DeviceAssignment } from './components/haptic/deviceAssignment';
@@ -46,6 +47,7 @@ const FALLBACK_SETTINGS: ClientSettings = {
   hapticDelay: 0,
   hapticDelayLimit: 500,
   dglabEnabled: false,
+  debugLogging: false,
   funscriptInterpolationMethod: 'pchip',
   funscriptColorGradient: false,
   mediaAccessToken: null,
@@ -506,6 +508,7 @@ class App {
       return;
     }
 
+    setDglabDebug(this.settings.debugLogging);
     const coyote = new CoyoteBackend();
     this.haptics.add(coyote);
     this.bindDelaySlider(this.createSyncEngine(coyote), 'dglab-delay', DGLAB_DELAY_KEY);
