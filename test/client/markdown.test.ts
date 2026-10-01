@@ -29,7 +29,12 @@ test(`${TAG} renderDoc adds GitHub-style heading ids`, () => {
     assert.ok(html.includes('<h2 id="funscript-naming-1">'));
 });
 
-test(`${TAG} renderDoc keeps raw HTML escaped`, () => {
-    const html = Markdown.renderDoc('<script>alert(1)</script>', links);
+test(`${TAG} renderDoc passes raw HTML through`, () => {
+    const html = Markdown.renderDoc('<details><summary>More</summary>\n\nText\n\n</details>', links);
+    assert.ok(html.includes('<details><summary>More</summary>'));
+});
+
+test(`${TAG} render escapes raw HTML`, () => {
+    const html = Markdown.render('<script>alert(1)</script>');
     assert.ok(!html.includes('<script>'));
 });

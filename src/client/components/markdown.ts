@@ -1,4 +1,4 @@
-import MarkdownIt, { type Env, type RendererRule } from 'markdown-it';
+import MarkdownIt, { type Env } from 'markdown-it';
 
 export namespace Markdown {
     const md = new MarkdownIt({
@@ -29,16 +29,8 @@ export namespace Markdown {
         slugs: Map<string, number>;
     }
 
-    // html is enabled only so comments get parsed; every other raw HTML is still escaped below.
+    // Docs ship with the image and are trusted, so raw HTML passes through (unlike `render`).
     const docs = new MarkdownIt({ html: true, linkify: true, typographer: false });
-    const HTML_COMMENT = /^\s*<!--[\s\S]*?-->\s*$/;
-
-    const renderRawHtml: RendererRule = (tokens, idx) => {
-        const content = tokens[idx].content;
-        return HTML_COMMENT.test(content) ? '' : docs.utils.escapeHtml(content);
-    };
-    docs.renderer.rules.html_block = renderRawHtml;
-    docs.renderer.rules.html_inline = renderRawHtml;
 
     docs.renderer.rules.heading_open = (tokens, idx, options, env, self) => {
         const used = (env as DocEnv).slugs;
