@@ -93,6 +93,8 @@ Note: All docs are also available through the web interface at `http://<HOST>:80
 
 ## License
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE).
+Copyright (c) 2025 docker-haptic-player (HAPPY) contributors.
+
+This project is licensed under the GNU General Public License v3.0 or later — see [LICENSE](LICENSE). Releases up to and including 0.12.0 were published under the MIT License.
 
 Test media included in this repository may be subject to different licenses. See [LICENSES.md](LICENSES.md) for details on third-party content and attribution requirements.
