@@ -1,13 +1,3 @@
-// Dumb passthrough relay implementing the DG-Lab V4 WebSocket wire format.
-//
-// The relay never parses device commands: it only pairs the single controller (the
-// HAPPY browser tab) with the single DG-Lab app and forwards opaque `data` payloads
-// between them. All haptic logic stays in the browser, all safety limits stay in
-// the DG-Lab app.
-//
-// HAPPY is single-user, so there is exactly one controller slot and one app slot.
-// Whichever peer connects last owns its slot; the previous one is closed as `replaced`.
-
 import crypto from 'crypto';
 import type { IncomingMessage } from 'http';
 import type { Duplex } from 'stream';
@@ -47,11 +37,10 @@ export const DGLAB_CLOSE_CODE = {
   IDLE_TIMEOUT: 4002,
 };
 
-export interface DglabRelay {
-  /** Handles an incoming WebSocket upgrade request after the initial HTTP handshake. */
-  handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void;
-  /** Closes the relay and all associated connections. */
-  close(): void;
+interface Frame {
+  type?: string;
+  clientId?: unknown;
+  data?: unknown;
 }
 
 function send(socket: WebSocket | null, frame: unknown): void {
@@ -64,191 +53,198 @@ function refuseUpgrade(socket: Duplex, status: number, reason: string): void {
   socket.destroy();
 }
 
+function clearTimer(timer: NodeJS.Timeout | null): null {
+  if (timer) clearTimeout(timer);
+  return null;
+}
+
+/** Parses frames, answers `ping` and malformed input, and hands `message` frames to `onMessage`. */
+function listen(socket: WebSocket, onMessage: (frame: Frame) => void): void {
+  socket.on('message', (raw) => {
+    let frame: Frame;
+    try {
+      frame = JSON.parse(String(raw));
+    } catch {
+      send(socket, { type: 'error', code: 'bad_request' });
+      return;
+    }
+    switch (frame.type) {
+      case 'message':
+        onMessage(frame);
+        break;
+      case 'ping':
+        send(socket, { type: 'pong', ts: Date.now() });
+        break;
+      default:
+        send(socket, { type: 'error', code: 'bad_request' });
+    }
+  });
+}
+
 /**
- * Creates the relay. `tokenStore` is null when authentication is disabled, in
- * which case controllers are accepted without a cookie.
+ * Dumb passthrough relay implementing the DG-Lab V4 WebSocket wire format.
+ *
+ * The relay never parses device commands: it only pairs the single controller (the
+ * HAPPY browser tab) with the single DG-Lab app and forwards opaque `data` payloads
+ * between them. All haptic logic stays in the browser, all safety limits stay in
+ * the DG-Lab app.
+ *
+ * HAPPY is single-user, so there is exactly one controller slot and one app slot.
+ * Whichever peer connects last owns its slot; the previous one is closed as `replaced`.
  */
-export function createDglabRelay(tokenStore: TokenStore | null, graceMs = DETACH_GRACE_MS): DglabRelay {
-  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_FRAME_BYTES });
+export class DglabRelay {
+  private readonly wss = new WebSocketServer({ noServer: true, maxPayload: MAX_FRAME_BYTES });
   // Random per process: unguessable because it is the app's only credential.
-  const controllerId = crypto.randomUUID();
+  private readonly controllerId = crypto.randomUUID();
+  private readonly heartbeat: NodeJS.Timeout;
+  private readonly tokenStore: TokenStore | null;
+  private readonly graceMs: number;
+
   /** Null while the tab is away; the app is kept until the grace period runs out. */
-  let controller: WebSocket | null = null;
-  let app: { id: string; socket: WebSocket } | null = null;
-  let idleTimer: NodeJS.Timeout | null = null;
-  let graceTimer: NodeJS.Timeout | null = null;
+  private controller: WebSocket | null = null;
+  private app: { id: string; socket: WebSocket } | null = null;
+  private idleTimer: NodeJS.Timeout | null = null;
+  private graceTimer: NodeJS.Timeout | null = null;
 
-  const heartbeat = setInterval(() => {
-    send(controller, { type: 'heartbeat' });
-    send(app?.socket ?? null, { type: 'heartbeat' });
-  }, HEARTBEAT_INTERVAL_MS);
-  // The relay must not hold the process open on its own.
-  heartbeat.unref?.();
-
-  function clearTimer(timer: NodeJS.Timeout | null): null {
-    if (timer) clearTimeout(timer);
-    return null;
+  /** `tokenStore` is null when authentication is disabled; controllers then need no cookie. */
+  constructor(tokenStore: TokenStore | null, graceMs = DETACH_GRACE_MS) {
+    this.tokenStore = tokenStore;
+    this.graceMs = graceMs;
+    this.heartbeat = setInterval(() => {
+      send(this.controller, { type: 'heartbeat' });
+      send(this.app?.socket ?? null, { type: 'heartbeat' });
+    }, HEARTBEAT_INTERVAL_MS);
+    // The relay must not hold the process open on its own.
+    this.heartbeat.unref?.();
   }
 
-  function armIdleTimer(): void {
-    clearTimer(idleTimer);
-    idleTimer = setTimeout(() => {
-      if (app) return;
-      send(controller, { type: 'idle_timeout' });
-      controller?.close(DGLAB_CLOSE_CODE.IDLE_TIMEOUT, 'idle_timeout');
-    }, IDLE_TIMEOUT_MS);
-    idleTimer.unref?.();
+  /** Handles an incoming WebSocket upgrade request after the initial HTTP handshake. */
+  handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void {
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    if (url.pathname !== DGLAB_WS_PATH) {
+      refuseUpgrade(socket, 404, 'Not Found');
+      return;
+    }
+
+    const tid = url.searchParams.get('tid');
+
+    // Express middleware never runs on an upgrade, so the token check is hand-rolled here.
+    // Apps cannot present a cookie; possession of the unguessable `tid` is their credential.
+    if (!tid && this.tokenStore && !this.tokenStore.verify(parseCookies(req.headers.cookie)[COOKIE_NAME])) {
+      log.debug('Rejected unauthenticated controller upgrade');
+      refuseUpgrade(socket, 401, 'Unauthorized');
+      return;
+    }
+
+    this.wss.handleUpgrade(req, socket, head, (ws) => {
+      if (tid) this.attachApp(ws, tid);
+      else this.attachController(ws);
+    });
   }
 
-  function dropApp(): void {
-    graceTimer = clearTimer(graceTimer);
-    const socket = app?.socket;
-    app = null;
-    socket?.close(DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED, 'controller_disconnected');
+  /** Closes the relay and all associated connections. */
+  close(): void {
+    clearInterval(this.heartbeat);
+    this.idleTimer = clearTimer(this.idleTimer);
+    this.controller?.close();
+    this.controller = null;
+    this.dropApp();
+    this.wss.close();
   }
 
-  function detachController(socket: WebSocket): void {
+  /** Attaches a controller, replacing any previous one. */
+  private attachController(socket: WebSocket): void {
+    this.graceTimer = clearTimer(this.graceTimer);
+    const previous = this.controller;
+    this.controller = socket;
+    previous?.close(DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED, 'replaced');
+
+    send(socket, { type: 'hello', clientId: this.controllerId });
+    if (this.app) send(socket, { type: 'client_attached', clientId: this.app.id });
+    else this.armIdleTimer();
+    log.debug('Controller connected');
+
+    listen(socket, (frame) => this.relayFromController(frame.clientId, frame.data));
+    socket.on('close', () => this.detachController(socket));
+    socket.on('error', () => this.detachController(socket));
+  }
+
+  /** Detaches the controller, starting the grace period for the app. */
+  private detachController(socket: WebSocket): void {
     // A newer tab already took the slot.
-    if (controller !== socket) return;
-    controller = null;
-    idleTimer = clearTimer(idleTimer);
-    clearTimer(graceTimer);
-    graceTimer = setTimeout(dropApp, graceMs);
-    graceTimer.unref?.();
+    if (this.controller !== socket) return;
+    this.controller = null;
+    this.idleTimer = clearTimer(this.idleTimer);
+    clearTimer(this.graceTimer);
+    this.graceTimer = setTimeout(() => this.dropApp(), this.graceMs);
+    this.graceTimer.unref?.();
     log.debug('Controller detached, holding its app');
   }
 
-  function detachApp(socket: WebSocket): void {
-    // A newer app connection already took the slot.
-    if (app?.socket !== socket) return;
-    send(controller, { type: 'client_disconnected', clientId: app.id });
-    app = null;
-    if (controller) armIdleTimer();
+  private armIdleTimer(): void {
+    clearTimer(this.idleTimer);
+    this.idleTimer = setTimeout(() => {
+      if (this.app) return;
+      send(this.controller, { type: 'idle_timeout' });
+      this.controller?.close(DGLAB_CLOSE_CODE.IDLE_TIMEOUT, 'idle_timeout');
+    }, IDLE_TIMEOUT_MS);
+    this.idleTimer.unref?.();
   }
 
-  /** Controller -> app. A `clientId` other than the current app's is stale. */
-  function relayFromController(target: unknown, data: unknown): void {
-    if (typeof target === 'string' && target.length > 0 && target !== app?.id) {
-      send(controller, { type: 'error', code: 'client_not_found', clientId: target });
-      return;
-    }
-    send(app?.socket ?? null, { type: 'message', clientId: controllerId, data });
-  }
-
-  function attachController(socket: WebSocket): void {
-    graceTimer = clearTimer(graceTimer);
-    const previous = controller;
-    controller = socket;
-    previous?.close(DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED, 'replaced');
-
-    send(socket, { type: 'hello', clientId: controllerId });
-    if (app) send(socket, { type: 'client_attached', clientId: app.id });
-    else armIdleTimer();
-    log.debug('Controller connected');
-
-    socket.on('message', (raw) => {
-      let frame: { type?: string; clientId?: unknown; data?: unknown };
-      try {
-        frame = JSON.parse(String(raw));
-      } catch {
-        send(socket, { type: 'error', code: 'bad_request' });
-        return;
-      }
-      switch (frame.type) {
-        case 'message':
-          relayFromController(frame.clientId, frame.data);
-          break;
-        case 'ping':
-          send(socket, { type: 'pong', ts: Date.now() });
-          break;
-        default:
-          send(socket, { type: 'error', code: 'bad_request' });
-      }
-    });
-
-    socket.on('close', () => detachController(socket));
-    socket.on('error', () => detachController(socket));
-  }
-
-  function attachApp(socket: WebSocket, tid: string): void {
+  /** Attaches an app, replacing any previous one. */
+  private attachApp(socket: WebSocket, tid: string): void {
     // Without a connected or detached controller there is nobody to pair with.
-    if (tid !== controllerId || (!controller && !graceTimer)) {
+    if (tid !== this.controllerId || (!this.controller && !this.graceTimer)) {
       socket.close(DGLAB_CLOSE_CODE.CONTROLLER_NOT_FOUND, 'controller_not_found');
       return;
     }
 
-    const previous = app;
+    const previous = this.app;
     const id = crypto.randomUUID();
-    app = { id, socket };
+    this.app = { id, socket };
     if (previous) {
-      send(controller, { type: 'client_disconnected', clientId: previous.id });
+      send(this.controller, { type: 'client_disconnected', clientId: previous.id });
       previous.socket.close(DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED, 'replaced');
     }
-    idleTimer = clearTimer(idleTimer);
+    this.idleTimer = clearTimer(this.idleTimer);
 
     send(socket, { type: 'hello', clientId: id });
-    send(socket, { type: 'controller_attached', clientId: controllerId });
-    send(controller, { type: 'client_attached', clientId: id });
+    send(socket, { type: 'controller_attached', clientId: this.controllerId });
+    send(this.controller, { type: 'client_attached', clientId: id });
     log.debug(`App ${id} attached`);
 
-    socket.on('message', (raw) => {
-      let frame: { type?: string; data?: unknown };
-      try {
-        frame = JSON.parse(String(raw));
-      } catch {
-        send(socket, { type: 'error', code: 'bad_request' });
-        return;
-      }
-      switch (frame.type) {
-        case 'message':
-          send(controller, { type: 'message', clientId: id, data: frame.data });
-          break;
-        case 'ping':
-          send(socket, { type: 'pong', ts: Date.now() });
-          break;
-        default:
-          send(socket, { type: 'error', code: 'bad_request' });
-      }
-    });
-
-    socket.on('close', () => detachApp(socket));
-    socket.on('error', () => detachApp(socket));
+    listen(socket, (frame) => send(this.controller, { type: 'message', clientId: id, data: frame.data }));
+    socket.on('close', () => this.detachApp(socket));
+    socket.on('error', () => this.detachApp(socket));
   }
 
-  return {
-    handleUpgrade(req, socket, head) {
-      const url = new URL(req.url ?? '/', 'http://localhost');
-      if (url.pathname !== DGLAB_WS_PATH) {
-        refuseUpgrade(socket, 404, 'Not Found');
-        return;
-      }
+  /** Detaches the app, notifying the controller and freeing the slot. */
+  private detachApp(socket: WebSocket): void {
+    // A newer app connection already took the slot.
+    if (this.app?.socket !== socket) return;
+    send(this.controller, { type: 'client_disconnected', clientId: this.app.id });
+    this.app = null;
+    if (this.controller) this.armIdleTimer();
+  }
 
-      const tid = url.searchParams.get('tid');
+  /** Drops the current app, if any, closing its connection. */
+  private dropApp(): void {
+    this.graceTimer = clearTimer(this.graceTimer);
+    const socket = this.app?.socket;
+    this.app = null;
+    socket?.close(DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED, 'controller_disconnected');
+  }
 
-      // Express middleware never runs on an upgrade, so the token check is hand-rolled here.
-      // Apps cannot present a cookie; possession of the unguessable `tid` is their credential.
-      if (!tid && tokenStore && !tokenStore.verify(parseCookies(req.headers.cookie)[COOKIE_NAME])) {
-        log.debug('Rejected unauthenticated controller upgrade');
-        refuseUpgrade(socket, 401, 'Unauthorized');
-        return;
-      }
+  /** A `clientId` other than the current app's is stale. */
+  private relayFromController(target: unknown, data: unknown): void {
+    if (typeof target === 'string' && target.length > 0 && target !== this.app?.id) {
+      send(this.controller, { type: 'error', code: 'client_not_found', clientId: target });
+      return;
+    }
+    send(this.app?.socket ?? null, { type: 'message', clientId: this.controllerId, data });
+  }
+}
 
-      wss.handleUpgrade(req, socket, head, (ws) => {
-        if (tid) {
-          attachApp(ws, tid);
-          return;
-        }
-        attachController(ws);
-      });
-    },
-
-    close() {
-      clearInterval(heartbeat);
-      idleTimer = clearTimer(idleTimer);
-      controller?.close();
-      controller = null;
-      dropApp();
-      wss.close();
-    },
-  };
+export function createDglabRelay(tokenStore: TokenStore | null, graceMs = DETACH_GRACE_MS): DglabRelay {
+  return new DglabRelay(tokenStore, graceMs);
 }

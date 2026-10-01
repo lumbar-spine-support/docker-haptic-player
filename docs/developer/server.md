@@ -173,6 +173,11 @@ classDiagram
   class DglabRelay {
     +handleUpgrade(req, socket, head)
     +close()
+    -attachController(socket)
+    -detachController(socket)
+    -attachApp(socket, tid)
+    -detachApp(socket)
+    -relayFromController(target, data)
     -controllerId: random UUID per process
     -controller: WebSocket or null
     -app: id + WebSocket, or null
