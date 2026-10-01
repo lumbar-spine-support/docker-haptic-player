@@ -1,4 +1,4 @@
-import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, setMediaAccessToken, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, renderTrackArt, artworkUrl } from './utils';
+import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, setMediaAccessToken, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, artworkUrl } from './utils';
 import { applyPlaylistCover } from './utils/artwork';
 import { bindDragOnlyRange, syncRangeFill } from './utils/rangeSlider';
 import { resetScrollPosition } from '../shared/scroll';
@@ -760,7 +760,7 @@ class App {
     document.title = `${album.title} — HAPPY`;
   }
 
-  private renderDetailHeader(type: string, title: string, subtitle: string, meta: string, coverTrackIds: (string | undefined)[]): void {
+  private renderDetailHeader(type: string, title: string, subtitle: string, meta: string, coverTrackIds: (string | null | undefined)[]): void {
     this.detailTypeLabel!.textContent = type;
     this.detailTitle!.textContent = title;
     this.detailSubtitle!.textContent = subtitle;

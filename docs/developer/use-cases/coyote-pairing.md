@@ -111,7 +111,7 @@ The idle timeout is sent as an `idle_timeout` frame, but the client does not han
 
 ## Debugging
 
-- Set `localStorage['happy-dglab-debug'] = 'true'` in the browser to log every frame (`[dglab] <-` / `->`).
+- Set `localStorage['happy-dglab-debug'] = 'true'` in the browser, or run the server with `LOG_LEVEL=debug`, to log every frame (`[dglab] <-` / `->`).
 - Server-side relay logs use the `[dglab]` tag at debug level.
 - A channel that stays silent is usually muted or has a limit of 0 in the DG-Lab app. The backend logs a one-time warning for both.
 

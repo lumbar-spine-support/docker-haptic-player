@@ -6,7 +6,7 @@ import { escapeHtml } from './html';
  * Unknown keys are replaced with empty strings.
  */
 export function renderTemplate(template: string, values: Record<string, string>): string {
-    return template.replace(/\{\{\{(\w+)\}\}\}|\{\{(\w+)\}\}/g, (match, rawKey, escapedKey) => {
+    return template.replace(/\{\{\{(\w+)\}\}\}|\{\{(\w+)\}\}/g, (_match, rawKey, escapedKey) => {
         const key = rawKey || escapedKey;
         const value = values[key] ?? '';
         return rawKey ? value : escapeHtml(value);

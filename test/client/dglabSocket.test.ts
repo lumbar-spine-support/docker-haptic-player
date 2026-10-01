@@ -37,7 +37,7 @@ function setup() {
 }
 
 function lastOp(sent: Sent[]) {
-    const frame = sent.at(-1);
+    const frame = sent[sent.length - 1];
     assert.ok(frame, 'nothing was sent');
     assert.equal(frame.type, 'message');
     assert.equal(frame.data?.t, 'req');
@@ -61,8 +61,8 @@ test(`${TAG} attaching an app asks it for its devices`, () => {
     socket.connect('ws://relay/ws/dglab');
     kit.handleMessage(JSON.stringify({ type: 'hello', clientId: 'ctl' }));
     kit.handleMessage(JSON.stringify({ type: 'client_attached', clientId: 'app1' }));
-    assert.equal(sent.at(-1)?.clientId, 'app1');
-    assert.equal(sent.at(-1)?.data?.m, 'devices.get');
+    assert.equal(sent[sent.length - 1]?.clientId, 'app1');
+    assert.equal(sent[sent.length - 1]?.data?.m, 'devices.get');
     socket.disconnect();
 });
 
