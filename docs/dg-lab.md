@@ -33,6 +33,10 @@ Make sure that you applied the settings to both channel A and B in case you are 
    assigned to any funscript like a toy connected through Intiface.
 4. Have fun and **stay safe**!
 
+There is a single pairing per server. Opening HAPPY in another browser or on another device takes
+over the paired DG-Lab app without pairing again; the previous tab is disconnected. After a server
+restart you have to pair again.
+
 ## Debugging
 
 To trace the wire protocol when something misbehaves, set `localStorage['happy-log'] =
