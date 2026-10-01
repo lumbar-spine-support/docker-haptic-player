@@ -36,4 +36,5 @@ Make sure that you applied the settings to both channel A and B in case you are 
 ## Debugging
 
 To trace the wire protocol when something misbehaves, set `localStorage['happy-dglab-debug'] =
-'true'` in the browser console and reload. Warnings and rejected commands are always logged.
+'true'` in the browser console and reload, or start the server with `LOG_LEVEL=debug`. Warnings and
+rejected commands are always logged.

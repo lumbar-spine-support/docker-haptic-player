@@ -160,8 +160,8 @@ export class Library {
         this.appendInBatches(this.grid, [
             ...visibleAlbums.map((album) => () => this.createAlbumCard(album, tracksById)),
             ...visiblePlaylists.map((playlist) => () => this.createPlaylistCard(playlist, tracksById)),
-            ...tracks.map((track) => () => this.createTrackCard(track, tracksById)),
-            ...videos.map((video) => () => this.createVideoCard(video, tracksById)),
+            ...tracks.map((track) => () => this.createTrackCard(track)),
+            ...videos.map((video) => () => this.createTrackCard(video)),
         ]);
 
         const rows: LibraryRow[] = [
@@ -822,7 +822,7 @@ export class Library {
         return col;
     }
 
-    private createTrackCard(track: TrackInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
+    private createTrackCard(track: TrackInfo): HTMLElement {
         const col = document.createElement('div');
         col.className = CARD_GRID_CLASSES;
         const artSrc = renderTrackArt(track);
@@ -844,9 +844,6 @@ export class Library {
         return col;
     }
 
-    private createVideoCard(video: TrackInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
-        return this.createTrackCard(video, tracksById);
-    }
 
     private createPlaylistCard(playlist: PlaylistInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
         const firstTrack = tracksById.get(playlist.entries[0]?.trackId ?? '');

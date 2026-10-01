@@ -6,9 +6,10 @@
     "resolveJsonModule": true,
     "noFallthroughCasesInSwitch": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./@/*"]
+      "@/*": [
+        "./@/*"
+      ]
     }
   }
 }
