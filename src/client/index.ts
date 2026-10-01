@@ -1,5 +1,6 @@
-import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, setMediaAccessToken, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, escapeHtml, artworkUrl } from './utils';
+import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, setMediaAccessToken, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, artworkUrl } from './utils';
 import { applyPlaylistCover } from './utils/artwork';
+import { detailRowHtml } from './templates';
 import { bindDragOnlyRange, syncRangeFill } from './utils/rangeSlider';
 import { resetScrollPosition } from '../shared/scroll';
 import { PlaybackSession, PlaybackQueue, PlaybackController } from './components/player';
@@ -786,16 +787,13 @@ class App {
     for (const row of rows) {
       const tr = document.createElement('tr');
       tr.style.cursor = 'pointer';
-      const hapticIcons = row.funscripts && row.funscripts.length > 0
-        ? `<div class="d-flex flex-wrap gap-1">${renderHapticIcons(row.funscripts.map((f) => f.type))}</div>`
-        : '';
-      tr.innerHTML = `
-        <td class="text-muted">${row.order}</td>
-        <td class="fw-semibold">${escapeHtml(row.title)}</td>
-        <td class="text-muted d-none d-md-table-cell">${escapeHtml(row.artist)}</td>
-        <td class="text-muted d-none d-md-table-cell">${escapeHtml(row.album)}</td>
-        <td class="align-middle d-none d-md-table-cell">${hapticIcons}</td>
-      `;
+      tr.innerHTML = detailRowHtml({
+        order: String(row.order),
+        title: row.title,
+        artist: row.artist,
+        album: row.album,
+        hapticIcons: row.funscripts?.length ? renderHapticIcons(row.funscripts.map((f) => f.type)) : '',
+      });
       tr.addEventListener('click', row.onClick);
       this.detailList.appendChild(tr);
     }
