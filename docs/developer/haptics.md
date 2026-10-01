@@ -261,7 +261,7 @@ The wire protocol, device cache and patch merging come from [dglab-kit](https://
 - Sends each operation only to the app that owns the slot.
 - Sets `p: 1`, `im: true` and `ver: 3` explicitly; the kit leaves them out by default.
 - Fire-and-forget: every operation's promise is caught. Timeouts and disconnects are ignored, and other errors are logged once per kind.
-- Tracing via `localStorage['happy-dglab-debug'] = 'true'` or `LOG_LEVEL=debug` on the server, including `custom.action` events.
+- Tracing via `localStorage['happy-log'] = 'dglab=debug'` or `LOG_LEVEL=debug` on the server, including `custom.action` events. Client code logs through `createLogger(namespace)` in `src/client/utils/logger.ts`; levels are set per namespace with `setLogLevel()` or the `happy-log` override.
 
 ## Safety behaviour
 
@@ -296,6 +296,6 @@ Ideas for Coyote playback, taken from the [Restim stim theory wiki](https://gith
 | Sync loop | [components/funscriptSync.ts](../../src/client/components/funscriptSync.ts) |
 | Interface and registry | [haptic/backend.ts](../../src/client/components/haptic/backend.ts), [haptic/backendRegistry.ts](../../src/client/components/haptic/backendRegistry.ts) |
 | Intiface | [haptic/buttplugClient.ts](../../src/client/components/haptic/buttplugClient.ts) |
-| DG-Lab | [dglab/coyoteBackend.ts](../../src/client/components/haptic/dglab/coyoteBackend.ts), [dglab/waveform.ts](../../src/client/components/haptic/dglab/waveform.ts), [dglab/v4/pairing.ts](../../src/client/components/haptic/dglab/v4/pairing.ts), [dglab/v4/socket.ts](../../src/client/components/haptic/dglab/v4/socket.ts) |
+| DG-Lab | [dglab/index.ts](../../src/client/components/haptic/dglab/index.ts) (debug tracing), [dglab/coyoteBackend.ts](../../src/client/components/haptic/dglab/coyoteBackend.ts), [dglab/waveform.ts](../../src/client/components/haptic/dglab/waveform.ts), [dglab/v4/pairing.ts](../../src/client/components/haptic/dglab/v4/pairing.ts), [dglab/v4/socket.ts](../../src/client/components/haptic/dglab/v4/socket.ts) |
 | Device UI | [haptic/deviceAssignment.ts](../../src/client/components/haptic/deviceAssignment.ts), [haptic/deviceStatus.ts](../../src/client/components/haptic/deviceStatus.ts), [haptic/templates.ts](../../src/client/components/haptic/templates.ts) |
 | Timelines | [haptic/visualization/index.ts](../../src/client/components/haptic/visualization/index.ts), [haptic/visualization/geometry.ts](../../src/client/components/haptic/visualization/geometry.ts) |
