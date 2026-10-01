@@ -84,16 +84,30 @@ Not bundled with the source code. The Docker image installs the Alpine `ffmpeg` 
 
 ---
 
-## DG-Lab V4 Protocol
+## Client Dependencies
 
-The DG-Lab V4 WebSocket relay and client in this repository are a clean-room implementation
-written from the publicly documented wire format. No code was copied from the GPL-3.0 licensed
-`dglab-kit` / `dglab-websocket-server` projects.
+### dglab-kit
+
+**License:** [GPL-3.0](https://github.com/dungeonlab-open/dglab-kit/blob/main/LICENSE)
+
+**Source:** https://github.com/dungeonlab-open/dglab-kit
+
+Bundled into `public/js/app.js` as the DG-Lab V4 client. HAPPY's relay server is its own implementation.
+
+### eventemitter3
+
+**License:** [MIT](https://github.com/primus/eventemitter3/blob/master/LICENSE)
+
+**Copyright:** © 2014 Arnout Kazemier
+
+**Source:** https://github.com/primus/eventemitter3
+
+Dependency of dglab-kit.
 
 ---
 
 ## Project License
 
-This project itself is licensed under the [MIT License](LICENSE).
+Copyright (c) 2025 docker-haptic-player (HAPPY) contributors.
 
-The MIT license applies to the source code. Included test media may have different licenses as documented above.
+This project is licensed under the GNU General Public License v3.0 or later — see [LICENSE](LICENSE). Releases up to and including 0.12.0 were published under the MIT License.
