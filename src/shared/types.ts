@@ -140,6 +140,8 @@ export interface ClientSettings {
   /** Absolute bound of the delay sliders, in milliseconds. */
   hapticDelayLimit: number;
   dglabEnabled: boolean;
+  /** True when the server runs with `LOG_LEVEL=debug`. */
+  debugLogging: boolean;
   funscriptInterpolationMethod: InterpolationMethod;
   funscriptColorGradient: boolean;
   /** Process-local token allowing a remote playback receiver to fetch media only. */

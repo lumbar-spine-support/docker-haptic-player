@@ -13,15 +13,6 @@ import {
   type StateListener,
 } from '../backend';
 import {
-  Channel,
-  buildAppendPulseData,
-  buildClear,
-  buildResetIntensity,
-  buildSetTempIntensity,
-  type ChannelId,
-  type Device,
-} from './v4/protocol';
-import {
   DEFAULT_PULSE_FREQUENCY,
   DEFAULT_PULSE_WIDTH,
   FRAME_DURATION_MS,
@@ -29,7 +20,9 @@ import {
   clampFrequency,
   clampPulseWidth,
 } from './waveform';
-import { DglabV4Socket } from './v4/socket';
+import { Channel, DglabV4Socket, type Device } from './v4/socket';
+
+type ChannelId = Channel;
 
 const ASSIGNMENTS_KEY = 'happy-dglab-assignments';
 const STRENGTHS_KEY = 'happy-dglab-strengths';
@@ -90,9 +83,8 @@ interface CoyoteChannelRef {
 
 /** Device type string reported by a Coyote 3.0. */
 export function isCoyote(type: string): boolean {
-  // Matched loosely: the exact casing of the reported type is not guaranteed, and
-  // `unknown` means our own parser could not find the field at all.
-  return /coyote/i.test(type) || type === 'unknown';
+  // Matched loosely: the exact casing of the reported type is not guaranteed.
+  return /coyote/i.test(type);
 }
 
 /** Display names for device types reported by the app, keyed case-insensitively. */
@@ -102,16 +94,16 @@ const KNOWN_DEVICE_NAMES: Record<string, string> = {
 
 /** Human-readable model name, falling back to the raw reported type. */
 export function deviceModelName(type: string): string {
-  return KNOWN_DEVICE_NAMES[type.toUpperCase()] ?? (type && type !== 'unknown' ? type : 'Coyote');
+  return KNOWN_DEVICE_NAMES[type.toUpperCase()] ?? (type || 'Coyote');
 }
 
 /** Devices are surfaced to the UI under a stable display name per slot. */
 function deviceName(device: Device): string {
-  return `${deviceModelName(device.type)} (${device.id.slice(0, 6)})`;
+  return `${deviceModelName(device.type)} (${device.slotId.slice(0, 6)})`;
 }
 
 function featureId(device: Device, channel: ChannelId): string {
-  return `${FEATURE_PREFIX}#${device.id}#${channel}`;
+  return `${FEATURE_PREFIX}#${device.slotId}#${channel}`;
 }
 
 function channelState(device: Device, channel: ChannelId) {
@@ -330,12 +322,12 @@ export class CoyoteBackend implements HapticBackend {
 
   getDeviceBadge(name: string): DeviceBadge | null {
     const source = this.coyotes().find((d) => deviceName(d) === name);
-    if (!source || typeof source.index !== 'number') return null;
+    if (!source || typeof source.id !== 'number') return null;
     const light = String(source.slotState?.markLight ?? '').toLowerCase();
     return {
-      icon: `${source.index}-circle-fill`,
+      icon: `${source.id}-circle-fill`,
       color: MARK_LIGHT_COLORS[light],
-      title: `Slot ${source.index}`,
+      title: `Slot ${source.id}`,
     };
   }
 
@@ -429,7 +421,7 @@ export class CoyoteBackend implements HapticBackend {
 
     this.lastSent.set(id, value);
     this.lastSentAt.set(id, now);
-    this.socket.send((reqId) => buildSetTempIntensity(reqId, device.id, ch, value, STRENGTH_DURATION_MS));
+    this.socket.setTempIntensity(device.slotId, ch, value, STRENGTH_DURATION_MS);
   }
 
   /**
@@ -450,9 +442,7 @@ export class CoyoteBackend implements HapticBackend {
       CARRIER_FRAME_COUNT,
     );
     this.waveformSeq += 1;
-    const seq = this.waveformSeq;
-    const duration = frames.length * FRAME_DURATION_MS;
-    this.socket.send((reqId) => buildAppendPulseData(reqId, device.id, ch, frames, duration, seq));
+    this.socket.appendPulse(device.slotId, ch, frames, frames.length * FRAME_DURATION_MS, this.waveformSeq);
   }
 
   private warnAboutChannel(device: Device, ch: ChannelId, id: string): void {
@@ -482,9 +472,9 @@ export class CoyoteBackend implements HapticBackend {
     this.lastSentAt.clear();
     this.lastWaveformAt.clear();
     for (const device of this.coyotes()) {
-      this.socket.send((reqId) => buildClear(reqId, device.id));
+      this.socket.clear(device.slotId);
       for (const ch of [Channel.A, Channel.B] as ChannelId[]) {
-        this.socket.send((reqId) => buildResetIntensity(reqId, device.id, ch));
+        this.socket.resetIntensity(device.slotId, ch);
       }
     }
   }
@@ -525,8 +515,8 @@ export class CoyoteBackend implements HapticBackend {
    */
   private emitDeviceState(): void {
     const key = this.coyotes().map((device) => [
+      device.slotId,
       device.id,
-      device.index,
       device.slotState?.markLight,
       device.slotState?.hasDevice,
       device.props?.power,

@@ -1,46 +1,35 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Channel } from '../../src/client/components/haptic/dglab/v4/protocol';
-import type { Device } from '../../src/client/components/haptic/dglab/v4/protocol';
+import { Channel, type Device } from '../../src/client/components/haptic/dglab/v4/socket';
 import { channelCeiling, isChannelMuted, isLoopbackHost, mapIntensity, normalizeHost } from '../../src/client/components/haptic/dglab/coyoteBackend';
-import { parseDeviceList } from '../../src/client/components/haptic/dglab/v4/protocol';
 
 const TAG = '[client:dglab:mapping]';
 
 function device(intensityMax: number | undefined, comfortMax?: number, isMuted = false): Device {
     return {
-        id: 'U2j452hg',
+        slotId: 'U2j452hg',
         type: 'COYOTE_030',
         slotState: { channelA: { intensityMax, isMuted, comfortLimit: { comfortMax } } },
     };
 }
 
 /** The exact payload the DG-Lab 4 app answers `devices.get` with. */
-const REAL_PAYLOAD = {
-    devices: [{
-        id: 0,
-        slotId: 'U2j452hg',
-        name: 'COYOTE',
-        type: 'COYOTE_030',
-        props: { power: 0, connectState: 'connected', channelAStatus: 0, channelBStatus: 0 },
-        slotState: {
-            hasDevice: true,
-            channelA: { comfortLimit: { comfortMax: 24, absoluteMax: 25 }, intensityMax: 25, isMuted: true },
-            channelB: { comfortLimit: { comfortMax: 23, absoluteMax: 25 }, intensityMax: 25, isMuted: true },
-        },
-    }],
+const REAL_DEVICE: Device = {
+    id: 0,
+    slotId: 'U2j452hg',
+    name: 'COYOTE',
+    type: 'COYOTE_030',
+    props: { power: 0, connectState: 'connected', channelAStatus: 0, channelBStatus: 0 },
+    slotState: {
+        hasDevice: true,
+        channelA: { comfortLimit: { comfortMax: 24, absoluteMax: 25 }, intensityMax: 25, isMuted: true },
+        channelB: { comfortLimit: { comfortMax: 23, absoluteMax: 25 }, intensityMax: 25, isMuted: true },
+    },
 };
 
-test(`${TAG} the slot id is used as the device key, not the numeric device id`, () => {
-    const [parsed] = parseDeviceList(REAL_PAYLOAD);
-    // `device.op` echoes this back as `s`; sending `id` instead earns a slot_not_found.
-    assert.equal(parsed.id, 'U2j452hg');
-    assert.equal(parsed.type, 'COYOTE_030');
-});
-
 test(`${TAG} the ceiling is the app's computed intensityMax, not the comfort input`, () => {
-    const [parsed] = parseDeviceList(REAL_PAYLOAD);
+    const parsed = REAL_DEVICE;
     assert.equal(channelCeiling(parsed, Channel.A), 25);
     assert.equal(channelCeiling(parsed, Channel.B), 25);
     // Raising the limit in the app must actually raise the ceiling here.
@@ -48,7 +37,7 @@ test(`${TAG} the ceiling is the app's computed intensityMax, not the comfort inp
 });
 
 test(`${TAG} a channel muted in the app is reported as muted`, () => {
-    const [parsed] = parseDeviceList(REAL_PAYLOAD);
+    const parsed = REAL_DEVICE;
     assert.equal(isChannelMuted(parsed, Channel.A), true);
     assert.equal(isChannelMuted(device(25, 24, false), Channel.A), false);
 });

@@ -104,7 +104,7 @@ The idle timeout is sent as an `idle_timeout` frame, but the client does not han
 | App with an unknown `tid` | closed with 4001 `controller_not_found` |
 | A fifth app on one controller | closed with 4001 `too_many_clients` |
 | A ninth controller | closed with 4002 `too_many_controllers` |
-| Same id connects again (second tab, same login) | the old socket is closed with 4000 `replaced` |
+| Same id connects again (second tab, same login) | the old socket is closed with 4000 `replaced` and does not reconnect |
 | Frame over 64 KiB | connection closed by `ws` |
 | Controller socket drops | client reconnects after 1 s, 2 s, 4 s … up to 15 s |
 | Every 30 s | relay sends `heartbeat` to all sockets; while paired, the client re-requests the device list |
@@ -122,7 +122,7 @@ The idle timeout is sent as an `idle_timeout` frame, but the client does not han
 | Pairing UI | `initDglab` in [src/client/index.ts](../../../src/client/index.ts) |
 | Backend, pairing URL, output | [haptic/dglab/coyoteBackend.ts](../../../src/client/components/haptic/dglab/coyoteBackend.ts) |
 | Socket, reconnect, device refresh | [haptic/dglab/v4/socket.ts](../../../src/client/components/haptic/dglab/v4/socket.ts) |
-| Wire format, deep link, QR payload | [haptic/dglab/v4/protocol.ts](../../../src/client/components/haptic/dglab/v4/protocol.ts) |
+| Deep link, QR payload | [haptic/dglab/v4/pairing.ts](../../../src/client/components/haptic/dglab/v4/pairing.ts) |
 | Carrier waveform | [haptic/dglab/waveform.ts](../../../src/client/components/haptic/dglab/waveform.ts) |
 | Relay | [src/server/services/dglabRelay.ts](../../../src/server/services/dglabRelay.ts) |
 | Upgrade wiring | `attachUpgradeHandlers` in [src/server/index.ts](../../../src/server/index.ts) |
