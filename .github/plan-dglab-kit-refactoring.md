@@ -27,7 +27,7 @@ Read the HAPPY files above plus `node_modules/dglab-kit/dist/index.js` and the `
 
 | # | Behaviour | What to check |
 |---|-----------|---------------|
-| 1 | Connect and `hello` | Is HAPPY's relay `hello` (stable token-derived ID) accepted, and is `targetId` exposed the same way? Do the pairing URL (`tid`) and the QR (`https://dungeon-lab.cn/s/?v=1&action=socket&url=…`) stay unchanged? |
+| 1 | Connect and `hello` | Is HAPPY's relay `hello` (stable token-derived ID) accepted, and is `targetId` exposed the same way? Do the pairing URL (`tid`) and the QR (`https://dungeon-lab.com/s/?v=1&action=socket&url=…`) stay unchanged? |
 | 2 | Reconnect | HAPPY auto-reconnects with backoff and keeps paired apps (stable ID plus relay grace). Does the kit reconnect at all? What happens to `clients` and devices after a reconnect? |
 | 3 | Close handling | 'replaced' close reason; close codes 4000/4001/4002; `idle_timeout`; heartbeat/pong; difference between a user disconnect and a dropped connection. |
 | 4 | Multiple apps | HAPPY `appCount` and how a device/slot is addressed to an app, compared with the kit's per-`clientId` model. Check `client_attached` / `client_disconnected` and whether devices are re-requested on attach. |

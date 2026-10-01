@@ -1,3 +1,15 @@
+const RECONNECT_BASE_MS = 1_000;
+const RECONNECT_MAX_MS = 15_000;
+/** `props` such as battery level only arrive with a full snapshot, so re-ask for one. */
+const DEVICE_REFRESH_MS = 30_000;
+/** Pulse frame encoding version; 3 is the Coyote 3.0 `[freq×4, intensity×4]` layout. */
+const PULSE_VERSION = 3;
+/** Priority is a strict `0 | 1 | 2`; anything else is rejected as `invalid_operate`. */
+const PRIORITY = 1;
+
+/** `device.op` replies only arrive once a task ends; neither of these is a real failure. */
+const IGNORED_ERRORS = new Set(['DGLAB-socket-response-timeout', 'DGLAB-socket-disconnected']);
+
 import {
     DGLAB_SOCKET_STATE,
     DglabSocket,
@@ -5,6 +17,10 @@ import {
     type DglabSocketCloseEvent,
     type DglabSocketV4Client,
 } from 'dglab-kit';
+import { createLogger } from '../../../../utils/logger';
+
+const log = createLogger('dglab:socket');
+const trace = log.debug;
 
 export { V4Channel as Channel };
 
@@ -44,40 +60,11 @@ export interface Device {
     slotState?: SlotState;
 }
 
-const RECONNECT_BASE_MS = 1_000;
-const RECONNECT_MAX_MS = 15_000;
-/** `props` such as battery level only arrive with a full snapshot, so re-ask for one. */
-const DEVICE_REFRESH_MS = 30_000;
-/** Pulse frame encoding version; 3 is the Coyote 3.0 `[freq×4, intensity×4]` layout. */
-const PULSE_VERSION = 3;
-/** Priority is a strict `0 | 1 | 2`; anything else is rejected as `invalid_operate`. */
-const PRIORITY = 1;
-
-/** `device.op` replies only arrive once a task ends; neither of these is a real failure. */
-const IGNORED_ERRORS = new Set(['DGLAB-socket-response-timeout', 'DGLAB-socket-disconnected']);
-
-let debugLogging = false;
-
-/** Enabled by `LOG_LEVEL=debug` on the server. */
-export function setDglabDebug(enabled: boolean): void {
-    debugLogging = enabled;
-}
-
-/** Also enabled with `localStorage['happy-dglab-debug'] = 'true'`. */
-function tracing(): boolean {
-    if (debugLogging) return true;
-    try {
-        return globalThis.localStorage?.getItem('happy-dglab-debug') === 'true';
-    } catch {
-        return false;
-    }
-}
-
-function trace(...args: unknown[]): void {
-    if (tracing()) console.debug(...args);
-}
-
+/** Listener callback type for socket state or device changes. */
 type Listener<T> = (value: T) => void;
+
+/** Delegating instantiation of the underlying DglabSocketV4Client to a factory allows for insertion
+ * of test doubles or mocks. */
 export type SocketFactory = (url: string) => DglabSocketV4Client;
 
 /**
@@ -95,7 +82,6 @@ export class DglabV4Socket {
     private refreshTimer: ReturnType<typeof setInterval> | null = null;
     private closedByUser = false;
     private readonly loggedOnce = new Set<string>();
-
     private readonly stateListeners: Array<Listener<DglabV4SocketState>> = [];
     private readonly deviceListeners: Array<Listener<Device[]>> = [];
 
@@ -112,9 +98,13 @@ export class DglabV4Socket {
         return (this.kit?.clients ?? []).flatMap((client) => client.devices as unknown as Device[]);
     }
 
+    /** Establish a connection to the DG-Lab V4 relay at the specified URL. */
     connect(url: string): void {
-        if (this.state === 'connecting' || this.state === 'connected') return;
-        if (!this.kit || url !== this.url) {
+        if (this.state === 'connecting' || this.state === 'connected') {
+            return;
+        }
+        const shouldCreateNewSocket = !this.kit || url !== this.url;
+        if (shouldCreateNewSocket) {
             this.kit?.destroy();
             this.url = url;
             this.kit = this.createSocket(url);
@@ -170,9 +160,9 @@ export class DglabV4Socket {
     }
 
     private requestDevices(kit: DglabSocketV4Client, clientId: string): void {
-        trace('[dglab] -> devices.get', clientId);
+        trace('-> devices.get', clientId);
         kit.requestDevices(clientId).catch((err: Error) => {
-            if (err.name !== 'DGLAB-socket-disconnected') console.warn('[dglab] devices.get failed:', err.message);
+            if (err.name !== 'DGLAB-socket-disconnected') log.warn('devices.get failed:', err.message);
         });
     }
 
@@ -180,10 +170,10 @@ export class DglabV4Socket {
         const kit = this.kit;
         const clientId = kit?.clients.find((c) => c.devices.some((d) => d.slotId === slotId))?.clientId;
         if (!kit || !clientId || this.state !== 'connected') return;
-        trace('[dglab] ->', clientId, slotId, what);
+        trace('->', clientId, slotId, what);
         send(kit, clientId).catch((err: Error) => {
             if (IGNORED_ERRORS.has(err.name)) return;
-            this.logOnce(`${err.message}:${what.split(' ')[0]}`, `[dglab] ${what} on ${slotId} rejected:`, err.message);
+            this.logOnce(`${err.message}:${what.split(' ')[0]}`, `${what} on ${slotId} rejected:`, err.message);
         });
     }
 
@@ -193,15 +183,15 @@ export class DglabV4Socket {
             if (next === DGLAB_SOCKET_STATE.WaitingForPeer || next === DGLAB_SOCKET_STATE.Paired) this.setState('connected');
         });
         kit.on('error', (err) => {
-            trace('[dglab] error', err);
+            trace('error', err);
             if (this.state !== 'connected') this.setState('error');
         });
         kit.on('close', (event) => this.handleClose(event));
         kit.on('frame', (frame) => {
             const type = (frame as { type?: unknown }).type;
-            if (type !== 'heartbeat' && type !== 'pong' && type !== 'message') trace('[dglab] <-', frame);
+            if (type !== 'heartbeat' && type !== 'pong' && type !== 'message') trace('<-', frame);
         });
-        kit.on('action', (action) => trace('[dglab] custom.action', action));
+        kit.on('action', (action) => trace('custom.action', action));
         kit.on('client-attached', (clientId) => {
             this.requestDevices(kit, clientId);
             this.startDeviceRefresh();
@@ -211,7 +201,7 @@ export class DglabV4Socket {
             this.emitDevices();
         });
         kit.on('devices', (devices, clientId) => {
-            trace('[dglab] devices', clientId, devices);
+            trace('devices', clientId, devices);
             this.emitDevices();
         });
     }
@@ -224,7 +214,7 @@ export class DglabV4Socket {
             return;
         }
         if (event.reason === 'replaced') {
-            console.warn('[dglab] another tab took over the DG-Lab connection');
+            log.warn('another tab took over the DG-Lab connection');
             this.closedByUser = true;
             this.setState('disconnected');
             return;
@@ -273,7 +263,7 @@ export class DglabV4Socket {
     private logOnce(key: string, ...args: unknown[]): void {
         if (this.loggedOnce.has(key)) return;
         this.loggedOnce.add(key);
-        console.warn(...args);
+        log.warn(...args);
     }
 
     private setState(next: DglabV4SocketState): void {

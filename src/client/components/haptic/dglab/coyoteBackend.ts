@@ -21,6 +21,7 @@ import {
   clampPulseWidth,
 } from './waveform';
 import { Channel, DglabV4Socket, type Device } from './v4/socket';
+import { log } from '.';
 
 type ChannelId = Channel;
 
@@ -448,11 +449,11 @@ export class CoyoteBackend implements HapticBackend {
   private warnAboutChannel(device: Device, ch: ChannelId, id: string): void {
     if (channelCeiling(device, ch) === 0 && !this.ceilingWarned.has(id)) {
       this.ceilingWarned.add(id);
-      console.warn('[dglab] no usable limit reported for this channel, refusing to guess one', device.slotState);
+      log.warn('no usable limit reported for this channel, refusing to guess one', device.slotState);
     }
     if (isChannelMuted(device, ch) && !this.mutedWarned.has(id)) {
       this.mutedWarned.add(id);
-      console.warn(`[dglab] channel ${ch === Channel.A ? 'A' : 'B'} is muted in the DG-Lab app; it will stay silent`);
+      log.warn(`channel ${ch === Channel.A ? 'A' : 'B'} is muted in the DG-Lab app; it will stay silent`);
     }
   }
 

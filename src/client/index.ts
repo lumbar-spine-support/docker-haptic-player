@@ -9,7 +9,7 @@ import { ButtplugClientManager } from './components/haptic/buttplugClient';
 import { HapticBackendRegistry } from './components/haptic/backendRegistry';
 import { CoyoteBackend } from './components/haptic/dglab/coyoteBackend';
 import { pairingDeepLink, pairingQR } from './components/haptic/dglab/v4/pairing';
-import { setDglabDebug } from './components/haptic/dglab/v4/socket';
+import { setLogLevel } from './utils/logger';
 import { FunscriptSync } from './components/funscriptSync';
 import { DeviceStatus } from './components/haptic/deviceStatus';
 import { DeviceAssignment } from './components/haptic/deviceAssignment';
@@ -508,7 +508,7 @@ class App {
       return;
     }
 
-    setDglabDebug(this.settings.debugLogging);
+    if (this.settings.debugLogging) setLogLevel('dglab', 'debug');
     const coyote = new CoyoteBackend();
     this.haptics.add(coyote);
     this.bindDelaySlider(this.createSyncEngine(coyote), 'dglab-delay', DGLAB_DELAY_KEY);
