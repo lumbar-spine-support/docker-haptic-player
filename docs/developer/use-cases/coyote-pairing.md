@@ -4,7 +4,7 @@
 
 **Goal:** the user connects a DG-Lab Coyote 3.0 so it follows e-stim scripts.
 
-The Coyote talks Bluetooth only to the **DG-Lab app** on a phone. The app, in turn, connects to a WebSocket relay using the DG-Lab V4 socket protocol. HAPPY hosts that relay itself at `/ws/dglab`. The relay is a dumb passthrough: it pairs one browser tab (the **controller**) with up to four apps and forwards opaque frames. All haptic logic stays in the browser and all safety limits stay in the app.
+The Coyote talks Bluetooth only to the **DG-Lab app** on a phone. The app, in turn, connects to a WebSocket relay using the DG-Lab V4 socket protocol. HAPPY hosts that relay itself at `/ws/dglab`. The relay is a dumb passthrough: it pairs one browser tab (the **controller**) with one app and forwards opaque frames. All haptic logic stays in the browser and all safety limits stay in the app.
 
 ```mermaid
 flowchart LR
@@ -42,7 +42,7 @@ sequenceDiagram
   UI->>UI: badge "Waiting for app"<br/>pairingUrl = ws(s)://pairingHost/ws/dglab?tid=clientId<br/>show deep link and QR code
   U->>P: scan QR code or open deep link
   P->>R: WebSocket upgrade /ws/dglab?tid=clientId
-  R->>R: attachApp: tid known, fewer than 4 apps
+  R->>R: attachApp: tid known, replaces any previous app
   R-->>P: hello(appId), controller_attached
   R-->>SK: client_attached(appId)
   SK->>R: message: devices.get request
@@ -86,9 +86,9 @@ stateDiagram-v2
   Waiting --> Waiting: idle 5 min, close 4002, tab reconnects
   Waiting --> Detached: tab socket closes
   Paired --> Detached: tab socket closes (reload, backgrounded)
-  Detached --> Paired: any tab back within 5 min, apps re-announced
-  Detached --> Waiting: any tab back, no apps left
-  Detached --> [*]: 5 min grace expires, apps closed 4000
+  Detached --> Paired: any tab back within 5 min, app re-announced
+  Detached --> Waiting: any tab back, no app left
+  Detached --> [*]: 5 min grace expires, app closed 4000
 ```
 
 The grace period exists because switching to the DG-Lab app on a phone often backgrounds the browser, and mobile browsers may close its WebSocket. The relay keeps the slot so the `tid` the user just scanned still works.
@@ -102,7 +102,7 @@ The idle timeout is sent as an `idle_timeout` frame, but the client does not han
 | Controller without a valid cookie (auth enabled) | HTTP 401 at the upgrade |
 | Path other than `/ws/dglab` | HTTP 404 at the upgrade |
 | App with an unknown `tid` | closed with 4001 `controller_not_found` |
-| A fifth app | closed with 4001 `too_many_clients` |
+| A second app connects | the old app is closed with 4000 `replaced`, the controller gets `client_disconnected` then `client_attached` |
 | App connects while no controller exists (never connected, or grace expired) | closed with 4001 `controller_not_found` |
 | Another tab or device connects | the old socket is closed with 4000 `replaced` and does not reconnect |
 | Frame over 64 KiB | connection closed by `ws` |

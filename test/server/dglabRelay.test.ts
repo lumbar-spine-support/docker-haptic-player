@@ -3,8 +3,7 @@ import assert from 'node:assert';
 import WebSocket from 'ws';
 import { startTestServer } from '../helpers';
 import {
-    CLOSE_CONTROLLER_DISCONNECTED,
-    CLOSE_CONTROLLER_NOT_FOUND,
+    DGLAB_CLOSE_CODE,
     DGLAB_WS_PATH,
 } from '../../src/server/services/dglabRelay';
 
@@ -166,11 +165,31 @@ test(`${TAG} attaches an app that presents a known tid and notifies both sides`,
     });
 });
 
+test(`${TAG} a new app connection replaces the previous one`, async () => {
+    await withRelay(async ({ port, token }) => {
+        const controller = open(port, '', token);
+        const { clientId: tid } = await nextFrame(controller, 'hello');
+        const first = open(port, `?tid=${tid as string}`, null);
+        await nextFrame(controller, 'client_attached');
+
+        const firstClosed = nextClose(first);
+        const second = open(port, `?tid=${tid as string}`, null);
+        const { clientId: secondId } = await nextFrame(second, 'hello');
+        const attached = await nextFrame(controller, 'client_attached');
+
+        assert.equal(await firstClosed, DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED);
+        assert.equal(attached.clientId, secondId);
+
+        second.close();
+        controller.close();
+    });
+});
+
 test(`${TAG} closes an app that presents an unknown tid`, async () => {
     await withRelay(async ({ port }) => {
         const app = open(port, '?tid=00000000-0000-4000-8000-000000000000', null);
         const code = await nextClose(app);
-        assert.equal(code, CLOSE_CONTROLLER_NOT_FOUND);
+        assert.equal(code, DGLAB_CLOSE_CODE.CONTROLLER_NOT_FOUND);
     });
 });
 
@@ -212,7 +231,7 @@ test(`${TAG} closes attached apps once the controller's grace period expires`, a
 
         controller.close();
         const code = await nextClose(app);
-        assert.equal(code, CLOSE_CONTROLLER_DISCONNECTED);
+        assert.equal(code, DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED);
     }, (config) => {
         const app = createApp(config, { ...Config.DEFAULT_CLIENT_CONFIG, dglabEnabled: true });
         app.dglabRelay?.close();
