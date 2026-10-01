@@ -166,7 +166,7 @@ The full flow is in [Log in](use-cases/login.md).
 
 ## DG-Lab relay
 
-The relay is protocol-agnostic. It knows one **controller** (the browser tab) and up to four **apps** (DG-Lab apps) and forwards `message` frames between them. Its state:
+The relay is protocol-agnostic. It knows one **controller** (the browser tab) and one **app** (the DG-Lab app) and forwards `message` frames between them. Its state:
 
 ```mermaid
 classDiagram
@@ -175,11 +175,11 @@ classDiagram
     +close()
     -controllerId: random UUID per process
     -controller: WebSocket or null
-    -apps: Map~appId, WebSocket~
+    -app: id + WebSocket, or null
     -graceTimer
     -idleTimer
   }
-  DglabRelay "1" --> "0..4" App
+  DglabRelay "1" --> "0..1" App
   class App {
     id: random UUID
     socket: WebSocket

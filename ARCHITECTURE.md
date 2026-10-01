@@ -19,7 +19,7 @@ is redacted from request logs.
 
 The one carve-out is the optional **DG-Lab V4 relay** (`/ws/dglab`). A browser cannot accept
 WebSocket connections, so pairing a phone-hosted DG-Lab app with the player needs a meeting
-point. The relay is a dumb passthrough: it pairs one controller with one or more apps and
+point. The relay is a dumb passthrough: it pairs one controller with one app and
 forwards opaque payloads. It never parses a device command, so all haptic logic still lives in
 the browser and all safety limits still live in the DG-Lab app.
 
@@ -27,8 +27,8 @@ HAPPY is single-user, so the relay has exactly one controller slot with a random
 startup. Any authenticated tab that connects takes the slot (the previous one is closed as
 `replaced`), so the pairing URL survives reloads and switching devices. The slot also outlives
 its socket by a grace period: switching to the DG-Lab app backgrounds the browser and mobile
-Chrome may close the WebSocket, so the relay keeps the apps, accepts ones that arrive meanwhile,
-and hands them to the tab when it returns.
+Chrome may close the WebSocket, so the relay keeps the app, accepts one that arrives meanwhile,
+and hands it to the tab when it returns. A newly connecting app likewise replaces the previous one.
 
 ## High-level system architecture
 
