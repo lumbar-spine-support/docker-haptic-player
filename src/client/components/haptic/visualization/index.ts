@@ -9,6 +9,9 @@ import { curvePoints, heatColor, MediaClock } from './geometry';
 interface ScriptRenderer {
   channel: HapticChannel;
   canvas: HTMLCanvasElement;
+  cursor: HTMLDivElement;
+  /** Last applied cursor offset, so a fixed (zoomed) cursor isn't restyled every frame. */
+  cursorX: number;
   wrapper: HTMLDivElement;
   prepared: PreparedScript;
   /** CSS pixel size; the backing buffer is this times devicePixelRatio. */
@@ -22,7 +25,7 @@ const CANVAS_HEIGHT = 60;
  * Renders a line graph for each loaded Funscript on a canvas element.
  *
  * Supports horizontal zoom (zoom > 1 magnifies around the playhead) and
- * uses Bootstrap theme colours for the cursor line.
+ * draws the cursor as a composited overlay element.
  */
 export class Visualization {
   private renderers: ScriptRenderer[] = [];
@@ -34,7 +37,7 @@ export class Visualization {
   private visible = true;
   private readonly mediaClock = new MediaClock();
   private readonly resizeObserver = new ResizeObserver(() => this.resizeCanvases());
-  private colors = { line: '#6c757d', cursor: '#0d6efd' };
+  private colors = { line: '#6c757d' };
   private colorGradient = false;
 
   /** Horizontal zoom factor (1 = full view, 2 = 2× zoom, etc.) */
@@ -100,12 +103,15 @@ export class Visualization {
       }).trim();
       const wrapper = template.content.firstElementChild as HTMLDivElement;
       const canvas = wrapper.querySelector('canvas') as HTMLCanvasElement;
+      const cursor = wrapper.querySelector('.viz-cursor') as HTMLDivElement;
       canvas.addEventListener('pointerdown', (event) => this.handleSeek(event, canvas));
       container.appendChild(wrapper);
 
       this.renderers.push({
         channel,
         canvas,
+        cursor,
+        cursorX: Number.NaN,
         wrapper,
         prepared,
         width: 0,
@@ -181,7 +187,6 @@ export class Visualization {
     const read = (name: string, fallback: string): string => style.getPropertyValue(name).trim() || fallback;
     this.colors = {
       line: read('--bs-secondary', '#6c757d'),
-      cursor: read('--bs-primary', '#0d6efd'),
     };
   }
 
@@ -213,6 +218,7 @@ export class Visualization {
     ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
     ctx.clearRect(0, 0, W, H);
 
+    r.cursor.hidden = duration <= 0;
     if (duration <= 0) return;
 
     const { startSec, endSec } = this.getVisibleWindow(currentTime, duration, Math.max(1, this.zoomLevel));
@@ -254,13 +260,13 @@ export class Visualization {
       ctx.stroke();
     }
 
-    const cursorX = Math.round(toX(currentTime * 1000)) + 0.5;
-    ctx.beginPath();
-    ctx.strokeStyle = this.colors.cursor;
-    ctx.lineWidth = 2;
-    ctx.moveTo(cursorX, 0);
-    ctx.lineTo(cursorX, H);
-    ctx.stroke();
+    this.placeCursor(r, toX(currentTime * 1000));
+  }
+
+  private placeCursor(r: ScriptRenderer, x: number): void {
+    if (x === r.cursorX) return;
+    r.cursorX = x;
+    r.cursor.style.transform = `translateX(${x}px)`;
   }
 
   private handleSeek(event: PointerEvent, canvas: HTMLCanvasElement): void {
