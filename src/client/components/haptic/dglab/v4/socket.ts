@@ -130,26 +130,26 @@ export class DglabV4Socket {
     setTempIntensity(slotId: string, channel: V4Channel, value: number, durationMs: number): void {
         const v = Math.max(0, Math.round(value));
         const d = Math.max(1, Math.round(durationMs));
-        this.op(slotId, `SetTempIntensity ${JSON.stringify({ c: channel, v, d })}`, (kit, cid) =>
+        this.op(slotId, 'SetTempIntensity', { c: channel, v, d }, (kit, cid) =>
             kit.setTempIntensity(cid, slotId, channel, v, d, { priority: PRIORITY, immediate: true }));
     }
 
     /** `immediate` replaces the queue; appending would build an ever-growing backlog. */
     appendPulse(slotId: string, channel: V4Channel, frames: string[], durationMs: number, seq: number): void {
         const d = Math.max(1, Math.round(durationMs));
-        this.op(slotId, `AppendPulseData ${JSON.stringify({ c: channel, d, seq })}`, (kit, cid) =>
+        this.op(slotId, 'AppendPulseData', { c: channel, d, seq }, (kit, cid) =>
             kit.sendPulse(cid, slotId, channel, d, frames, { priority: PRIORITY, immediate: true, version: PULSE_VERSION, seq }));
     }
 
     /** `SetIntensity` accepts no value other than 0. */
     resetIntensity(slotId: string, channel: V4Channel): void {
-        this.op(slotId, `SetIntensity ${JSON.stringify({ c: channel })}`, (kit, cid) =>
+        this.op(slotId, 'SetIntensity', { c: channel }, (kit, cid) =>
             kit.resetIntensity(cid, slotId, channel, { priority: PRIORITY }));
     }
 
     /** Cancel every running task on a slot. */
     clear(slotId: string): void {
-        this.op(slotId, 'device.op.clear', (kit, cid) => kit.clearOperate(cid, { slotId }));
+        this.op(slotId, 'device.op.clear', undefined, (kit, cid) => kit.clearOperate(cid, { slotId }));
     }
 
     /** Re-read the device list from every attached app. */
@@ -166,14 +166,20 @@ export class DglabV4Socket {
         });
     }
 
-    private op(slotId: string, what: string, send: (kit: DglabSocketV4Client, clientId: string) => Promise<unknown>): void {
+    private op(
+        slotId: string,
+        what: string,
+        args: Record<string, unknown> | undefined,
+        send: (kit: DglabSocketV4Client, clientId: string) => Promise<unknown>,
+    ): void {
         const kit = this.kit;
         const clientId = kit?.clients.find((c) => c.devices.some((d) => d.slotId === slotId))?.clientId;
         if (!kit || !clientId || this.state !== 'connected') return;
-        trace('->', clientId, slotId, what);
+        if (args) trace('->', clientId, slotId, what, args);
+        else trace('->', clientId, slotId, what);
         send(kit, clientId).catch((err: Error) => {
             if (IGNORED_ERRORS.has(err.name)) return;
-            this.logOnce(`${err.message}:${what.split(' ')[0]}`, `${what} on ${slotId} rejected:`, err.message);
+            this.logOnce(`${err.message}:${what}`, `${what} on ${slotId} rejected:`, err.message, ...(args ? [args] : []));
         });
     }
 

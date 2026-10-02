@@ -7,5 +7,8 @@
   "chat.permissions.default": "autoApprove",
   "chat.agent.maxRequests": 100,
   "chat.sessionSync.enabled": true,
-  "eslint.enable": false
+  "eslint.enable": false,
+  "editor.rulers": [
+    120
+  ]
 }

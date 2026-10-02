@@ -18,7 +18,7 @@ flowchart TD
   Load -. "async, does not block" .-> Probe{"isFfprobeAvailable()"}
   Probe -- no --> Warn["log an error:<br/>no metadata, artwork, chapters"]
   Create --> Listen["app.listen(port)"]
-  Listen --> Upgrade["attachUpgradeHandlers()<br/>WebSocket upgrades → relay"]
+  Listen --> Upgrade["attachWebSocketUpgradeHandlers()<br/>route + authenticate WebSocket upgrades"]
   Create -. "in the background" .-> Warm["libraryIndex.get()<br/>warms the cache, logs a summary"]
 ```
 
@@ -164,6 +164,10 @@ Passwords are compared in constant time. On success the server issues a random t
 
 The full flow is in [Log in](use-cases/login.md).
 
+### WebSocket upgrades
+
+Express middleware never runs on WebSocket upgrades, so `attachWebSocketUpgradeHandlers()` in `index.ts` is the single `upgrade` listener on the HTTP server. It maps paths to handlers, answers unknown paths with 404, and requires a valid session cookie (401 otherwise) whenever a password is set. A route can mark some requests as public with `isPublic(req)` when they carry their own credential; the DG-Lab route does this for app connections with a `tid`. Handlers therefore receive only routed, authenticated requests. To add a WebSocket service, register another path there instead of adding a second `upgrade` listener.
+
 ## DG-Lab relay
 
 The relay is protocol-agnostic. It knows one **controller** (the browser tab) and one **app** (the DG-Lab app) and forwards `message` frames between them. Its state:
@@ -192,7 +196,7 @@ classDiagram
 ```
 
 - HAPPY is single-user, so there is one controller slot. Any authenticated tab takes it over (the old socket is closed as `replaced`), so reloads and switching devices keep the paired app. The id changes on server restart.
-- An app connects with `?tid=<controllerId>`. Because the id is unguessable, it acts as the app's credential.
+- An app connects with `?tid=<controllerId>`. Because the id is unguessable, it acts as the app's credential. Cookie checks for the controller happen in the upgrade dispatcher, not in the relay.
 - Timers: a heartbeat every 30 s, a 5 min grace period after the controller disconnects, and a 5 min idle timeout while no app is attached.
 
 The full sequence is in [Pair a DG-Lab Coyote](use-cases/coyote-pairing.md).

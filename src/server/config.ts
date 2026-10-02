@@ -14,6 +14,9 @@ export namespace Config {
   export const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv'];
   export const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'wav', 'flac'];
 
+  /** Dungeon Lab WebSocket route for relay enabling communication between App and Controller. */
+  export const DGLAB_WS_PATH = '/ws/dglab';
+
   export type ConfigEntry = number | string | boolean | string[];
 
   /** Stores the application configuration. Can be loaded from YAML or environment variables. */

@@ -2,17 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import WebSocket from 'ws';
 import { startTestServer } from '../helpers';
-import {
-    DGLAB_CLOSE_CODE,
-    DGLAB_WS_PATH,
-} from '../../src/server/services/dglabRelay';
+import { DGLAB_CLOSE_CODE } from '../../src/server/services/dglabRelay';
+import { Config } from '../../src/server/config';
 
 const TAG = '[server:dglab]';
 
 interface Frame { type: string;[key: string]: unknown }
 
 function open(port: number, query: string, token?: string | null): WebSocket {
-    return new WebSocket(`ws://localhost:${port}${DGLAB_WS_PATH}${query}`, {
+    return new WebSocket(`ws://localhost:${port}${Config.DGLAB_WS_PATH}${query}`, {
         headers: token ? { Cookie: `happy_token=${token}` } : {},
     });
 }
@@ -72,6 +70,17 @@ test(`${TAG} refuses upgrades on any other path`, async () => {
         const err = await new Promise<Error>((resolve) => ws.once('error', resolve));
         assert.match(err.message, /404/);
     });
+});
+
+test(`${TAG} accepts a controller without a cookie when no password is set`, async () => {
+    const server = await startTestServer(undefined, { password: '' }, { dglabEnabled: true });
+    try {
+        const controller = open(server.port, '', null);
+        await nextFrame(controller, 'hello');
+        controller.close();
+    } finally {
+        await server.close();
+    }
 });
 
 test(`${TAG} greets an authenticated controller with a client id`, async () => {
@@ -218,8 +227,7 @@ test(`${TAG} relays opaque payloads in both directions, stamping the sender id`,
 
 test(`${TAG} closes attached apps once the controller's grace period expires`, async () => {
     const { createApp } = await import('../../src/server/index');
-    const { createDglabRelay } = await import('../../src/server/services/dglabRelay');
-    const { createTokenStore } = await import('../../src/server/services/tokenStore');
+    const { DglabRelay } = await import('../../src/server/services/dglabRelay');
     const { Config } = await import('../../src/server/config');
 
     // A controller that never comes back must not pin its apps open forever.
@@ -235,7 +243,7 @@ test(`${TAG} closes attached apps once the controller's grace period expires`, a
     }, (config) => {
         const app = createApp(config, { ...Config.DEFAULT_CLIENT_CONFIG, dglabEnabled: true });
         app.dglabRelay?.close();
-        app.dglabRelay = createDglabRelay(createTokenStore(Config.tokenFilePath(config.configDir)), 50);
+        app.dglabRelay = new DglabRelay(50);
         return app;
     });
 });
