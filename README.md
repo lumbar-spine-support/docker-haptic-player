@@ -25,6 +25,7 @@
 
 - A funscript editor. There are plenty of good tools already ([HapticsEditor-v2](https://github.com/ilor1/HapticsEditor-v2)).
 - A media file metadata editor. Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Kid3](https://kid3.kde.org/) (Linux) instead.
+- Do Video Transcoding; Please make sure your browser has the relevant decoding capabilities.
 
 🚀 Planned:
 
