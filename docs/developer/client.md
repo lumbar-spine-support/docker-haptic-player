@@ -51,6 +51,15 @@ flowchart TD
 
 Note that each `FunscriptSync` engine and each `DeviceAssignment` list is bound to **one backend**, not to the registry, because each backend has its own delay slider and settings section. Only `DeviceStatus` and the `pagehide` → `stopAll()` handler use the registry.
 
+## Player theming
+
+The Video.js skin takes its look from Bootstrap's CSS variables. The mapping lives in [public/css/scss/_videojs.scss](../../public/css/scss/_videojs.scss):
+
+- `:root` sets the accent color and font.
+- An unlayered `.media-skin` block sets the control size (the height of a `.btn`), the radii (`--bs-border-radius*`) and the focus ring (`--bs-focus-ring-*`). It must stay unlayered so it overrides the skin's `@layer base.theme` defaults.
+
+To restyle the player, change the Bootstrap theme instead of the skin CSS.
+
 ## Bootstrap
 
 ```mermaid
