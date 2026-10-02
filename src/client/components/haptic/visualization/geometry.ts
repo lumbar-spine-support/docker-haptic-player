@@ -73,21 +73,35 @@ export class MediaClock {
     private stamp = 0;
     private rate = 1;
     private paused = true;
+    private reported = Number.NaN;
+
+    /** Drift beyond this (seconds) is treated as a seek and snapped immediately. */
+    static readonly SNAP_THRESHOLD = 0.5;
+    /** Fraction of small drift corrected per update, so the estimate glides instead of jumping. */
+    static readonly CORRECTION = 0.1;
 
     constructor(private readonly now: () => number = () => performance.now()) { }
 
     sync(time: number, paused: boolean, rate: number): void {
-        // Only re-anchor when the reported time moved, so repeated identical updates don't stall the estimate.
-        if (time !== this.time || paused !== this.paused || rate !== this.rate) {
-            this.time = time;
-            this.stamp = this.now();
-        }
+        // Repeated identical updates carry no new information and must not stall the estimate.
+        if (time === this.reported && paused === this.paused && rate === this.rate) return;
+        const now = this.now();
+        const predicted = this.estimate(now);
+        const error = time - predicted;
+        const hard = paused || this.paused || rate !== this.rate || Math.abs(error) > MediaClock.SNAP_THRESHOLD;
+        this.time = hard ? time : predicted + error * MediaClock.CORRECTION;
+        this.stamp = now;
+        this.reported = time;
         this.paused = paused;
         this.rate = rate;
     }
 
     read(duration: number): number {
-        const elapsed = this.paused ? 0 : ((this.now() - this.stamp) / 1000) * this.rate;
-        return Math.max(0, Math.min(duration, this.time + elapsed));
+        return Math.max(0, Math.min(duration, this.estimate(this.now())));
+    }
+
+    private estimate(now: number): number {
+        const elapsed = this.paused ? 0 : ((now - this.stamp) / 1000) * this.rate;
+        return this.time + elapsed;
     }
 }
