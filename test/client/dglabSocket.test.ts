@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DglabSocket } from 'dglab-kit';
+import { DglabSocket, V4Channel } from 'dglab-kit';
 
 import { pairingDeepLink } from '../../src/client/components/haptic/dglab/v4/pairing';
-import { Channel, DglabV4Socket } from '../../src/client/components/haptic/dglab/v4/socket';
+import { DglabV4Socket } from '../../src/client/components/haptic/dglab/v4/socket';
 import {
     carrierFrames,
     clampFrequency,
@@ -68,7 +68,7 @@ test(`${TAG} attaching an app asks it for its devices`, () => {
 
 test(`${TAG} strength is sent as SetTempIntensity with im:true and a valid priority`, () => {
     const { socket, sent } = setup();
-    socket.setTempIntensity('slot-1', Channel.B, 7.4, 300);
+    socket.setTempIntensity('slot-1', V4Channel.B, 7.4, 300);
     const frame = lastOp(sent);
     assert.equal(frame.clientId, 'app1');
     assert.equal(frame.data?.m, 'device.op');
@@ -79,16 +79,16 @@ test(`${TAG} strength is sent as SetTempIntensity with im:true and a valid prior
 
 test(`${TAG} strength never goes negative and is always an integer`, () => {
     const { socket, sent } = setup();
-    socket.setTempIntensity('slot-1', Channel.A, -5, 300);
+    socket.setTempIntensity('slot-1', V4Channel.A, -5, 300);
     assert.equal(lastOp(sent).data?.data?.v, 0);
-    socket.setTempIntensity('slot-1', Channel.A, 3.6, 300);
+    socket.setTempIntensity('slot-1', V4Channel.A, 3.6, 300);
     assert.equal(lastOp(sent).data?.data?.v, 4);
     socket.disconnect();
 });
 
 test(`${TAG} pulse data carries the frame list, version and sequence with im:true`, () => {
     const { socket, sent } = setup();
-    socket.appendPulse('slot-1', Channel.A, ['0A0A0A0A64646464'], 1000, 12);
+    socket.appendPulse('slot-1', V4Channel.A, ['0A0A0A0A64646464'], 1000, 12);
     // Without im:true the queue grows unboundedly and the device plays stale frames.
     assert.deepEqual(lastOp(sent).data?.data, {
         s: 'slot-1', c: 0, p: 1, im: true, t: 0, d: 1000, v: ['0A0A0A0A64646464'], ver: 3, seq: 12,
@@ -98,7 +98,7 @@ test(`${TAG} pulse data carries the frame list, version and sequence with im:tru
 
 test(`${TAG} reset uses SetIntensity, which only accepts zero`, () => {
     const { socket, sent } = setup();
-    socket.resetIntensity('slot-1', Channel.A);
+    socket.resetIntensity('slot-1', V4Channel.A);
     assert.deepEqual(lastOp(sent).data?.data, { s: 'slot-1', c: 0, p: 1, t: 7, v: 0 });
     socket.disconnect();
 });
@@ -146,7 +146,7 @@ test(`${TAG} an error reply is logged once per kind and never rejects unhandled`
     const warn = t.mock.method(console, 'warn', () => { });
     const { socket, sent, recv } = setup();
     for (let i = 0; i < 2; i += 1) {
-        socket.setTempIntensity('slot-1', Channel.A, 1, 300);
+        socket.setTempIntensity('slot-1', V4Channel.A, 1, 300);
         recv({ type: 'message', clientId: 'app1', data: { t: 'resp', reqId: lastOp(sent).data?.reqId, error: 'invalid_operate' } });
     }
     await new Promise((resolve) => setImmediate(resolve));

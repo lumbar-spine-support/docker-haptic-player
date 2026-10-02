@@ -156,7 +156,11 @@ function main() {
   });
   const app = createApp(config.server, config.client);
   const port = config.server.port
-  const server = app.listen(port, () => {
+  const server = app.listen(port, (err?: Error) => {
+    if (err) {
+      log.error(`Failed to listen on port ${port}: ${err.message}`);
+      process.exit(1);
+    }
     log.info(`Listening on http://0.0.0.0:${port}`);
   });
   attachWebSocketUpgradeHandlers(server, app);

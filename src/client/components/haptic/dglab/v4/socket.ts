@@ -4,8 +4,7 @@ const RECONNECT_MAX_MS = 15_000;
 const DEVICE_REFRESH_MS = 30_000;
 /** Pulse frame encoding version; 3 is the Coyote 3.0 `[freq×4, intensity×4]` layout. */
 const PULSE_VERSION = 3;
-/** Priority is a strict `0 | 1 | 2`; anything else is rejected as `invalid_operate`. */
-const PRIORITY = 1;
+const PRIORITY: NonNullable<V4OperateOptions['priority']> = 1;
 
 /** `device.op` replies only arrive once a task ends; neither of these is a real failure. */
 const IGNORED_ERRORS = new Set(['DGLAB-socket-response-timeout', 'DGLAB-socket-disconnected']);
@@ -13,52 +12,27 @@ const IGNORED_ERRORS = new Set(['DGLAB-socket-response-timeout', 'DGLAB-socket-d
 import {
     DGLAB_SOCKET_STATE,
     DglabSocket,
-    V4Channel,
+    V4ActionType,
     type DglabSocketCloseEvent,
     type DglabSocketV4Client,
+    type V4Channel,
+    type V4DeviceInfo,
+    type V4OperateOptions,
+    type V4RpcMethod,
+    type V4ServerFrame,
 } from 'dglab-kit';
 import { createLogger } from '../../../../utils/logger';
+import type { ConnectionState } from '../../backend';
 
 const log = createLogger('dglab:socket');
 const trace = log.debug;
 
-export { V4Channel as Channel };
+/** `id` is the app's own slot number; the app sends it but the kit does not type it. */
+export type Device = V4DeviceInfo & { id?: number };
 
-export type DglabV4SocketState = 'disconnected' | 'connecting' | 'connected' | 'error';
+type OpKind = V4ActionType | Extract<V4RpcMethod, 'device.op.clear'>;
 
-export interface ChannelState {
-    isMuted?: boolean;
-    warmUpScale?: number;
-    intensityMax?: number;
-    comfortLimit?: { comfortMax?: number; absoluteMax?: number;[key: string]: unknown };
-    [key: string]: unknown;
-}
-
-export interface SlotState {
-    channelA?: ChannelState;
-    channelB?: ChannelState;
-    markLight?: string | null;
-    /** False while the slot is configured in the app but no hardware is connected. */
-    hasDevice?: boolean;
-    [key: string]: unknown;
-}
-
-/** A `V4DeviceInfo` with the fields HAPPY reads typed. */
-export interface Device {
-    /** Slot id used as `s` in every `device.op`. */
-    slotId: string;
-    /** The app's own slot number, shown in its UI. */
-    id?: number;
-    name?: string;
-    type: string;
-    props?: {
-        power?: number;
-        channelAStatus?: number;
-        channelBStatus?: number;
-        [key: string]: unknown;
-    };
-    slotState?: SlotState;
-}
+const opName = (kind: OpKind): string => typeof kind === 'number' ? V4ActionType[kind] : kind;
 
 /** Listener callback type for socket state or device changes. */
 type Listener<T> = (value: T) => void;
@@ -76,28 +50,28 @@ export type SocketFactory = (url: string) => DglabSocketV4Client;
 export class DglabV4Socket {
     private kit: DglabSocketV4Client | null = null;
     private url = '';
-    private state: DglabV4SocketState = 'disconnected';
+    private state: ConnectionState = 'disconnected';
     private reconnectAttempts = 0;
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     private refreshTimer: ReturnType<typeof setInterval> | null = null;
     private closedByUser = false;
     private readonly loggedOnce = new Set<string>();
-    private readonly stateListeners: Array<Listener<DglabV4SocketState>> = [];
+    private readonly stateListeners: Array<Listener<ConnectionState>> = [];
     private readonly deviceListeners: Array<Listener<Device[]>> = [];
     private readonly activityListeners: Array<Listener<number>> = [];
 
     constructor(private readonly createSocket: SocketFactory = (url) => new DglabSocket({ url })) { }
 
-    onStateChange(l: Listener<DglabV4SocketState>): void { this.stateListeners.push(l); }
+    onStateChange(l: Listener<ConnectionState>): void { this.stateListeners.push(l); }
     onDevicesChange(l: Listener<Device[]>): void { this.deviceListeners.push(l); }
     onActivity(l: Listener<number>): void { this.activityListeners.push(l); }
 
-    get connectionState(): DglabV4SocketState { return this.state; }
+    get connectionState(): ConnectionState { return this.state; }
     /** Value the DG-Lab app must pass as `?tid=`; null until the relay says hello. */
     get targetId(): string | null { return this.kit?.targetId ?? null; }
     get appCount(): number { return this.kit?.clientIds.length ?? 0; }
     get devices(): Device[] {
-        return (this.kit?.clients ?? []).flatMap((client) => client.devices as unknown as Device[]);
+        return (this.kit?.clients ?? []).flatMap((client) => client.devices);
     }
 
     /** Establish a connection to the DG-Lab V4 relay at the specified URL. */
@@ -132,20 +106,20 @@ export class DglabV4Socket {
     setTempIntensity(slotId: string, channel: V4Channel, value: number, durationMs: number): void {
         const v = Math.max(0, Math.round(value));
         const d = Math.max(1, Math.round(durationMs));
-        this.op(slotId, 'SetTempIntensity', { c: channel, v, d }, (kit, cid) =>
+        this.op(slotId, V4ActionType.SetTempIntensity, { c: channel, v, d }, (kit, cid) =>
             kit.setTempIntensity(cid, slotId, channel, v, d, { priority: PRIORITY, immediate: true }));
     }
 
     /** `immediate` replaces the queue; appending would build an ever-growing backlog. */
     appendPulse(slotId: string, channel: V4Channel, frames: string[], durationMs: number, seq: number): void {
         const d = Math.max(1, Math.round(durationMs));
-        this.op(slotId, 'AppendPulseData', { c: channel, d, seq }, (kit, cid) =>
+        this.op(slotId, V4ActionType.AppendPulseData, { c: channel, d, seq }, (kit, cid) =>
             kit.sendPulse(cid, slotId, channel, d, frames, { priority: PRIORITY, immediate: true, version: PULSE_VERSION, seq }));
     }
 
     /** `SetIntensity` accepts no value other than 0. */
     resetIntensity(slotId: string, channel: V4Channel): void {
-        this.op(slotId, 'SetIntensity', { c: channel }, (kit, cid) =>
+        this.op(slotId, V4ActionType.SetIntensity, { c: channel }, (kit, cid) =>
             kit.resetIntensity(cid, slotId, channel, { priority: PRIORITY }));
     }
 
@@ -162,21 +136,23 @@ export class DglabV4Socket {
     }
 
     private requestDevices(kit: DglabSocketV4Client, clientId: string): void {
-        trace('-> devices.get', clientId);
+        const method: V4RpcMethod = 'devices.get';
+        trace('->', method, clientId);
         kit.requestDevices(clientId).catch((err: Error) => {
-            if (err.name !== 'DGLAB-socket-disconnected') log.warn('devices.get failed:', err.message);
+            if (err.name !== 'DGLAB-socket-disconnected') log.warn(`${method} failed:`, err.message);
         });
     }
 
     private op(
         slotId: string,
-        what: string,
+        kind: OpKind,
         args: Record<string, unknown> | undefined,
         send: (kit: DglabSocketV4Client, clientId: string) => Promise<unknown>,
     ): void {
         const kit = this.kit;
         const clientId = kit?.clients.find((c) => c.devices.some((d) => d.slotId === slotId))?.clientId;
         if (!kit || !clientId || this.state !== 'connected') return;
+        const what = opName(kind);
         if (args) trace('->', clientId, slotId, what, args);
         else trace('->', clientId, slotId, what);
         send(kit, clientId).catch((err: Error) => {
@@ -198,7 +174,7 @@ export class DglabV4Socket {
         kit.on('frame', (frame) => {
             const now = Date.now();
             for (const l of this.activityListeners) l(now);
-            const type = (frame as { type?: unknown }).type;
+            const { type } = frame as V4ServerFrame;
             if (type !== 'heartbeat' && type !== 'pong' && type !== 'message') trace('<-', frame);
         });
         kit.on('action', (action) => trace('custom.action', action));
@@ -276,7 +252,7 @@ export class DglabV4Socket {
         log.warn(...args);
     }
 
-    private setState(next: DglabV4SocketState): void {
+    private setState(next: ConnectionState): void {
         if (this.state === next) return;
         this.state = next;
         for (const l of this.stateListeners) l(next);
