@@ -19,6 +19,12 @@ export const DGLAB_CLOSE_CODE = {
  */
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
+/** Native ping cadence; half-open sockets never emit `close`, so the relay must probe them.
+ * Values taken from: https://github.com/dungeonlab-open/dglab-websocket-server/blob/main/v4-server.ts
+ */
+const WS_PING_INTERVAL_MS = 10_000;
+const MAX_MISSED_PONGS = 3;
+
 /** A controller nobody ever paired with is a forgotten browser tab; reclaim it.
  * Value taken from: https://github.com/dungeonlab-open/dglab-websocket-server/blob/main/v4-server.ts
  */
@@ -96,6 +102,8 @@ export class DglabRelay {
   // Random per process: unguessable because it is the app's only credential.
   private readonly controllerId = crypto.randomUUID();
   private readonly heartbeat: NodeJS.Timeout;
+  private readonly wsPing: NodeJS.Timeout;
+  private readonly missedPongs = new WeakMap<WebSocket, number>();
   private readonly graceMs: number;
 
   /** Null while the tab is away; the app is kept until the grace period runs out. */
@@ -105,9 +113,10 @@ export class DglabRelay {
   private graceTimer: NodeJS.Timeout | null = null;
 
   /** Expects upgrades already authenticated by the dispatcher; requests with `tid` are apps. */
-  constructor(graceMs = DETACH_GRACE_MS) {
+  constructor(graceMs = DETACH_GRACE_MS, pingMs = WS_PING_INTERVAL_MS) {
     this.graceMs = graceMs;
     this.heartbeat = this.startHeartbeat();
+    this.wsPing = this.startWsPing(pingMs);
   }
 
   /** Handles an incoming WebSocket upgrade request after the initial HTTP handshake. */
@@ -127,6 +136,7 @@ export class DglabRelay {
   /** Closes the relay and all associated connections. */
   close(): void {
     clearInterval(this.heartbeat);
+    clearInterval(this.wsPing);
     this.idleTimer = clearTimer(this.idleTimer);
     this.controller?.close();
     this.controller = null;
@@ -145,6 +155,31 @@ export class DglabRelay {
     return heartbeat;
   }
 
+  /** Terminates peers that missed too many native pongs; `close` then runs the usual detach path. */
+  private startWsPing(intervalMs: number): NodeJS.Timeout {
+    const probe = () => {
+      for (const ws of [this.controller, this.app?.socket]) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) continue;
+        const missed = this.missedPongs.get(ws) ?? 0;
+        if (missed >= MAX_MISSED_PONGS) {
+          log.debug(`Peer missed ${missed} pongs, terminating`);
+          ws.terminate();
+          continue;
+        }
+        this.missedPongs.set(ws, missed + 1);
+        ws.ping();
+      }
+    };
+    const timer = setInterval(probe, intervalMs);
+    timer.unref?.();
+    return timer;
+  }
+
+  private trackPongs(socket: WebSocket): void {
+    this.missedPongs.set(socket, 0);
+    socket.on('pong', () => this.missedPongs.set(socket, 0));
+  }
+
   /** Attaches a controller, replacing any previous one. */
   private attachController(socket: WebSocket): void {
     this.graceTimer = clearTimer(this.graceTimer);
@@ -158,6 +193,7 @@ export class DglabRelay {
     log.debug('Controller connected');
 
     listen(socket, (frame) => this.relayFromController(frame.clientId, frame.data));
+    this.trackPongs(socket);
     socket.on('close', () => this.detachController(socket));
     socket.on('error', () => this.detachController(socket));
   }
@@ -207,6 +243,7 @@ export class DglabRelay {
     log.debug(`App ${id} attached`);
 
     listen(socket, (frame) => send(this.controller, { type: 'message', clientId: id, data: frame.data }));
+    this.trackPongs(socket);
     socket.on('close', () => this.detachApp(socket));
     socket.on('error', () => this.detachApp(socket));
   }
