@@ -1,9 +1,21 @@
  :root {
      --media-accent-color: var(--bs-primary);
-     --media-accent-text-color: var(--bs-primary-text);
+     --media-accent-text-color: var(--bs-body-bg);
      --media-font-family: var(--bs-body-font-family);
      --media-scale-unit: 1rem;
      --media-border-radius: var(--bs-border-radius);
+ }
+
+ /* Unlayered so it beats the skin's @layer base.theme defaults. */
+ .media-skin {
+     --media-control-size: calc(1.5rem + 0.75rem + 2 * var(--bs-border-width));
+     --media-control-radius: var(--bs-border-radius);
+     --media-control-corner-shape: round;
+     --media-controls-radius: var(--bs-border-radius-lg);
+     --media-menu-item-radius: var(--bs-border-radius-sm);
+     --media-popup-radius: var(--bs-border-radius-lg);
+     --media-dialog-radius: var(--bs-border-radius-xl);
+     --media-ring: var(--bs-focus-ring-color);
  }
 
  #player-slot-a,
