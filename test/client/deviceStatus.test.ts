@@ -15,7 +15,7 @@ test(`${TAG} assigned but nothing usable is an error that lists the reasons once
     const alert = { level: 'danger' as const, message: 'Device not connected to DG-Lab' };
     const view = describeChannel({ total: 2, usable: 0, alerts: [alert, alert] });
     assert.equal(view.status, 'error');
-    assert.equal(view.label, 'No device');
+    assert.equal(view.label, 'Error');
     assert.equal(view.description.split('Device not connected to DG-Lab').length, 2);
 });
 
@@ -30,7 +30,7 @@ test(`${TAG} a partial failure or a warning still plays, but asks for a check`, 
 
     const muted = describeChannel({ total: 1, usable: 1, alerts: [{ level: 'warning', message: 'Channel A muted in DG-Lab' }] });
     assert.equal(muted.status, 'warning');
-    assert.equal(muted.label, 'Check device');
+    assert.equal(muted.label, 'Warning');
 });
 
 test(`${TAG} usable outputs without alerts show as connected`, () => {
