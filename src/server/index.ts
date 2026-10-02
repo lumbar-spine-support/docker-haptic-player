@@ -61,7 +61,7 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
   app.use(express.static(path.join(__dirname, '..', '..', 'public')));
   app.use('/api/config', createConfigRouter(client, mediaAccessToken));
   app.use('/api/library', createLibraryRouter(libraryIndex));
-  app.use('/api/media', createMediaRouter(config));
+  app.use('/api/media', createMediaRouter(config, libraryIndex));
   app.use('/api/artwork', createArtworkRouter(config, artworkCache));
   app.use('/api/funscript', createFunscriptRouter(config));
   app.use('/api/version', createVersionRouter());

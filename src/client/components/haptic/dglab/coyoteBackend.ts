@@ -14,6 +14,8 @@ import {
   type HapticDevice,
   type StateListener,
 } from '../backend';
+import { Emitter } from '../emitter';
+import { FeatureSettings, readJsonRecord, writeJsonRecord } from '../featureSettings';
 import {
   DEFAULT_PULSE_FREQUENCY,
   DEFAULT_PULSE_WIDTH,
@@ -207,8 +209,7 @@ export function normalizeHost(raw: string): string {
  */
 export class CoyoteBackend implements HapticBackend {
   private readonly socket = new DglabV4Socket();
-  private readonly assignments = new Map<string, string>();
-  private readonly strengths = new Map<string, number>();
+  private readonly settings = new FeatureSettings(ASSIGNMENTS_KEY, STRENGTHS_KEY);
   /** Feature id -> last integer value sent, for change suppression. */
   private readonly lastSent = new Map<string, number>();
   private readonly lastSentAt = new Map<string, number>();
@@ -217,10 +218,9 @@ export class CoyoteBackend implements HapticBackend {
   private readonly ceilingWarned = new Set<string>();
   private readonly mutedWarned = new Set<string>();
 
-  private readonly stateListeners: StateListener[] = [];
-  private readonly deviceListeners: DeviceListener[] = [];
-  private readonly assignmentListeners: AssignmentListener[] = [];
-  private readonly deviceStateListeners: Array<() => void> = [];
+  private readonly assignmentsChanged = new Emitter<ReadonlyMap<string, string>>();
+  private readonly devicesChanged = new Emitter<HapticDevice[]>();
+  private readonly deviceStateChanged = new Emitter();
 
   private waveformSeq = 0;
   /** Device set last reported to listeners; guards against slot-state churn. */
@@ -229,10 +229,6 @@ export class CoyoteBackend implements HapticBackend {
   private lastStateKey = '';
   /** Empty means "use the browser's own host". */
   private hostOverride = '';
-
-  /** The Coyote has no linear actuator; kept only to satisfy the interface. */
-  readonly linearRangeMin = 0;
-  readonly linearRangeMax = 1;
 
   /** Pulse rate in Hz per device name. */
   private readonly frequencies = new Map<string, number>();
@@ -245,7 +241,7 @@ export class CoyoteBackend implements HapticBackend {
 
   setCarrierFrequency(name: string, frequency: number): void {
     this.frequencies.set(name, clampFrequency(frequency));
-    this.persist();
+    writeJsonRecord(FREQUENCY_KEY, this.frequencies);
   }
 
   getPulseWidth(name: string): number | null {
@@ -255,14 +251,11 @@ export class CoyoteBackend implements HapticBackend {
 
   setPulseWidth(name: string, width: number): void {
     this.pulseWidths.set(name, clampPulseWidth(width));
-    this.persist();
+    writeJsonRecord(PULSE_WIDTH_KEY, this.pulseWidths);
   }
 
   constructor() {
     this.loadPersisted();
-    this.socket.onStateChange((state) => {
-      for (const l of this.stateListeners) l(state);
-    });
     this.socket.onDevicesChange(() => {
       this.emitDevices();
       this.emitDeviceState();
@@ -290,13 +283,13 @@ export class CoyoteBackend implements HapticBackend {
     // Comparing against the default, not the current value, so re-typing the
     // default clears the override instead of pinning it.
     this.hostOverride = normalized === this.defaultPairingHost ? '' : normalized;
-    this.persist();
+    this.persistPairingHost();
   }
 
   /** Drops any override and goes back to the automatically detected host. */
   resetPairingHost(): void {
     this.hostOverride = '';
-    this.persist();
+    this.persistPairingHost();
   }
 
   /** Relay URL the DG-Lab app must be pointed at; null until the relay says hello. */
@@ -323,10 +316,10 @@ export class CoyoteBackend implements HapticBackend {
 
   // --- HapticBackend ---
 
-  onStateChange(listener: StateListener): void { this.stateListeners.push(listener); }
-  onDevicesChange(listener: DeviceListener): void { this.deviceListeners.push(listener); }
-  onAssignmentsChange(listener: AssignmentListener): void { this.assignmentListeners.push(listener); }
-  onDeviceStateChange(listener: () => void): void { this.deviceStateListeners.push(listener); }
+  onStateChange(listener: StateListener): void { this.socket.onStateChange(listener); }
+  onDevicesChange(listener: DeviceListener): void { this.devicesChanged.on(listener); }
+  onAssignmentsChange(listener: AssignmentListener): void { this.assignmentsChanged.on(listener); }
+  onDeviceStateChange(listener: () => void): void { this.deviceStateChanged.on(listener); }
 
   get connectionState(): ConnectionState { return this.socket.connectionState; }
 
@@ -387,26 +380,20 @@ export class CoyoteBackend implements HapticBackend {
   }
 
   setFeatureChannel(id: string, channel: HapticChannel | null): void {
-    const next = channel ? channelKey(channel) : null;
-    if ((this.assignments.get(id) ?? null) === next) return;
-    if (next === null) this.assignments.delete(id);
-    else this.assignments.set(id, next);
-    this.persist();
-    const snapshot = new Map(this.assignments);
-    for (const l of this.assignmentListeners) l(snapshot);
+    if (!this.settings.setChannel(id, channel ? channelKey(channel) : null)) return;
+    this.assignmentsChanged.emit(this.settings.assignmentSnapshot);
   }
 
   getFeatureChannel(id: string): string | null {
-    return this.assignments.get(id) ?? null;
+    return this.settings.getChannel(id);
   }
 
   getDeviceStrength(name: string): number {
-    return this.strengths.get(name) ?? 1;
+    return this.settings.getStrength(name);
   }
 
   setDeviceStrength(name: string, strength: number): void {
-    this.strengths.set(name, clamp01(strength));
-    this.persist();
+    this.settings.setStrength(name, strength);
   }
 
   hasFeaturesFor(channel: HapticChannel): boolean {
@@ -530,7 +517,7 @@ export class CoyoteBackend implements HapticBackend {
     const refs: CoyoteChannelRef[] = [];
     for (const device of this.coyotes()) {
       for (const ch of [V4Channel.A, V4Channel.B]) {
-        if (this.assignments.get(featureId(device, ch)) === key) refs.push({ device, channel: ch });
+        if (this.settings.getChannel(featureId(device, ch)) === key) refs.push({ device, channel: ch });
       }
     }
     return refs;
@@ -544,7 +531,7 @@ export class CoyoteBackend implements HapticBackend {
     const key = devices.map((d) => d.name).join('|');
     if (key === this.lastDeviceKey) return;
     this.lastDeviceKey = key;
-    for (const l of this.deviceListeners) l(devices);
+    this.devicesChanged.emit(devices);
   }
 
   /**
@@ -570,28 +557,16 @@ export class CoyoteBackend implements HapticBackend {
 
     if (key === this.lastStateKey) return;
     this.lastStateKey = key;
-    for (const l of this.deviceStateListeners) l();
+    this.deviceStateChanged.emit();
   }
 
-  setLinearRange(): void { /* no linear actuator */ }
-
-  private persist(): void {
+  private persistPairingHost(): void {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(Object.fromEntries(this.assignments)));
-    window.localStorage.setItem(STRENGTHS_KEY, JSON.stringify(Object.fromEntries(this.strengths)));
-    window.localStorage.setItem(FREQUENCY_KEY, JSON.stringify(Object.fromEntries(this.frequencies)));
-    window.localStorage.setItem(PULSE_WIDTH_KEY, JSON.stringify(Object.fromEntries(this.pulseWidths)));
     window.localStorage.setItem(PAIRING_HOST_KEY, this.hostOverride);
   }
 
   private loadPersisted(): void {
     if (typeof window === 'undefined') return;
-    for (const [id, key] of Object.entries(readJsonRecord(ASSIGNMENTS_KEY))) {
-      if (typeof key === 'string') this.assignments.set(id, key);
-    }
-    for (const [name, value] of Object.entries(readJsonRecord(STRENGTHS_KEY))) {
-      if (typeof value === 'number') this.strengths.set(name, clamp01(value));
-    }
     for (const [name, value] of Object.entries(readJsonRecord(FREQUENCY_KEY))) {
       if (typeof value === 'number') this.frequencies.set(name, clampFrequency(value));
     }
@@ -600,17 +575,5 @@ export class CoyoteBackend implements HapticBackend {
       if (typeof value === 'number') this.pulseWidths.set(name, clampPulseWidth(value));
     }
     this.hostOverride = normalizeHost(window.localStorage.getItem(PAIRING_HOST_KEY) ?? '');
-  }
-}
-
-function readJsonRecord(key: string): Record<string, unknown> {
-  const raw = window.localStorage.getItem(key);
-  if (!raw) return {};
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    window.localStorage.removeItem(key);
-    return {};
   }
 }

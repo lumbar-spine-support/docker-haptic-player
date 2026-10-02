@@ -10,7 +10,7 @@ If below description does not help, you can find a more detailed tutorial here: 
 
 1. In Intiface Central, start the server with the big "play" button.
 2. Press "start scan" with your devices in pairing mode.
-3. In HAPPY, open the settings panel, enter the Intiface address (default `ws://localhost:12345`) and press **Connect**.
+3. In HAPPY, open the settings panel, enter the Intiface address (default `ws://localhost:12345`) and press **Connect**. Pick `wss://` in the dropdown when Intiface is reachable only through a TLS proxy, for example when HAPPY itself is served over `https://` and Intiface is not on `localhost`.
 
 Use the address of the machine running Intiface as seen from the device running the browser. `localhost` only works when browser and Intiface run on the same machine.
 
@@ -19,6 +19,8 @@ With `AUTO_RECONNECT_INTIFACE=true`, HAPPY reconnects on page load if Intiface w
 ## Device Assignment
 
 Each device exposes features like "linear", "vibrate" or "rotate". Strokers are usually "linear" features but may also have "vibrate" features. A Nexus Revo Stealth exposes both a "rotate" and a "vibrate" feature through Intiface. You can assign each feature to the same or a different funscript!
+
+Each stroker has its own position limits on its device card, so a long and a short stroker can use different ranges. New devices start at 0–100 %.
 
 See [docs/library.md#funscripts](library.md#funscripts) for how funscripts must be stored in your library for HAPPY to connect them with your audio or video file.
 

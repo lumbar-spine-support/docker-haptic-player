@@ -6,7 +6,7 @@ const TAG = '[client:playlistCover]';
 
 type DrawCall = { src: string; dx: number; dy: number; dw: number; dh: number; sx: number; sy: number; side: number };
 
-let artwork: typeof import('../../src/client/utils/artwork');
+let artwork: typeof import('../../src/client/api');
 let draws: DrawCall[] = [];
 let canvasCount = 0;
 
@@ -54,7 +54,7 @@ test.before(async () => {
         },
     };
     (globalThis as any).Image = FakeImage;
-    artwork = await import('../../src/client/utils/artwork');
+    artwork = await import('../../src/client/api');
 });
 
 test.beforeEach(() => {

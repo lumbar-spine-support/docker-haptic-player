@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import fs from 'fs';
-import path from 'path';
 import { Config } from '../config';
+import type { LibraryIndex } from '../services/libraryIndex';
 import { HttpError } from '../utils/errorHandler';
 import { decodeTrackId, requireMediaFile } from '../utils/mediaFiles';
 
@@ -13,50 +13,20 @@ function stripFrontmatter(content: string): string {
   return afterOpen.slice(closeIdx + 3).replace(/^\r?\n/, '');
 }
 
-function findMarkdownByStem(mediaDir: string, targetStem: string): string | null {
-  const target = targetStem.toLowerCase();
-  const mediaRoot = path.resolve(mediaDir);
-  const matches: string[] = [];
-
-  const walk = (currentDir: string): void => {
-    let entries: fs.Dirent[] = [];
-    try {
-      entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const absolute = path.join(currentDir, entry.name);
-      if (entry.isDirectory()) {
-        walk(absolute);
-        continue;
-      }
-      if (!entry.isFile() || path.extname(entry.name).toLowerCase() !== '.md') continue;
-      if (path.basename(entry.name, '.md').toLowerCase() !== target) continue;
-      matches.push(path.relative(mediaRoot, absolute).replace(/\\/g, '/'));
-    }
-  };
-
-  walk(mediaRoot);
-  matches.sort((a, b) => a.localeCompare(b));
-  return matches[0] ?? null;
-}
-
-export function createMediaRouter(config: Config.ServerConfig): Router {
+export function createMediaRouter(config: Config.ServerConfig, libraryIndex: LibraryIndex): Router {
   const router = Router();
   const mediaDir = config.mediaDir;
 
-  router.get('/:id/description', (req, res) => {
-    const filename = decodeTrackId(req.params.id);
-    const trackStem = path.basename(filename, path.extname(filename));
-    const descriptionFilename = findMarkdownByStem(mediaDir, trackStem);
-
-    if (!descriptionFilename) {
+  // The library index already matched each file to its .md companion; no directory walk per request.
+  router.get('/:id/description', async (req, res) => {
+    const library = await libraryIndex.get();
+    const id = req.params.id;
+    const track = library.tracks.find((item) => item.id === id) ?? library.videos.find((item) => item.id === id);
+    if (!track?.descriptionFilename) {
       throw new HttpError(404, 'Description not found');
     }
 
-    const descriptionPath = requireMediaFile(mediaDir, descriptionFilename, 'Description not found');
+    const descriptionPath = requireMediaFile(mediaDir, track.descriptionFilename, 'Description not found');
     const body = fs.readFileSync(descriptionPath, 'utf-8');
     res.type('text/markdown; charset=utf-8');
     res.send(stripFrontmatter(body));

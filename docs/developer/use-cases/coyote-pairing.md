@@ -24,7 +24,7 @@ flowchart LR
 sequenceDiagram
   autonumber
   actor U as User
-  participant UI as Settings panel<br/>App.initDglab
+  participant UI as Settings panel<br/>bindPairingPanel
   participant CB as CoyoteBackend
   participant SK as DglabV4Socket
   participant R as Relay (server)
@@ -120,7 +120,7 @@ The idle timeout is sent as an `idle_timeout` frame, but the client does not han
 
 | Step | Files |
 | --- | --- |
-| Pairing UI | `initDglab` in [src/client/index.ts](../../../src/client/index.ts) |
+| Pairing UI | [haptic/dglab/pairingPanel.ts](../../../src/client/components/haptic/dglab/pairingPanel.ts) |
 | Backend, pairing URL, output | [haptic/dglab/coyoteBackend.ts](../../../src/client/components/haptic/dglab/coyoteBackend.ts) |
 | Socket, reconnect, device refresh | [haptic/dglab/v4/socket.ts](../../../src/client/components/haptic/dglab/v4/socket.ts) |
 | Deep link, QR payload | [haptic/dglab/v4/pairing.ts](../../../src/client/components/haptic/dglab/v4/pairing.ts) |

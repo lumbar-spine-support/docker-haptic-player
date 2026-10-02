@@ -10,6 +10,7 @@ import {
 } from 'buttplug';
 import { channelKey, type HapticChannel } from '../../../shared/haptics';
 import {
+    clamp01,
     type AssignmentListener,
     type ConnectionState,
     type DeviceFeature,
@@ -19,22 +20,18 @@ import {
     type HapticBackend,
     type HapticDevice,
     type StateListener,
+    type StrokerRange,
 } from './backend';
+import { Emitter } from './emitter';
+import { FeatureSettings, readJsonRecord, writeJsonRecord } from './featureSettings';
+import { OUTPUT_ICONS } from './icons';
 
 export type { ConnectionState, DeviceFeature, FeatureKind } from './backend';
 
 const FEATURE_ASSIGNMENTS_KEY = 'happy-feature-assignments';
 const DEVICE_STRENGTHS_KEY = 'happy-device-strengths';
-const LINEAR_RANGE_KEY = 'happy-stroker-range';
-
-const OUTPUT_ICONS: Partial<Record<OutputType, string>> = {
-    [OutputType.Oscillate]: 'bi-water',
-    [OutputType.Constrict]: 'bi-arrows-angle-contract',
-    [OutputType.Inflate]: 'bi-arrows-angle-expand',
-    [OutputType.Temperature]: 'bi-thermometer-half',
-    [OutputType.Led]: 'bi-lightbulb-fill',
-    [OutputType.Spray]: 'bi-droplet-fill',
-};
+const STROKER_RANGES_KEY = 'happy-stroker-ranges';
+const FULL_RANGE: StrokerRange = { min: 0, max: 1 };
 
 /** Outputs that must not be driven by a script; see docs/intiface.md. */
 const UNSUPPORTED_OUTPUTS: ReadonlySet<OutputType> = new Set([OutputType.Temperature, OutputType.Led, OutputType.Spray]);
@@ -42,8 +39,6 @@ const UNSUPPORTED_OUTPUTS: ReadonlySet<OutputType> = new Set([OutputType.Tempera
 /** A Buttplug actuator, which additionally carries its wire-level output type. */
 interface ButtplugFeature extends DeviceFeature {
     actuator: OutputType;
-    /** Device-reported resolution; commands are quantised to 0..stepCount. */
-    stepCount: number;
     range: readonly [min: number, max: number];
     durationRange?: readonly [min: number, max: number];
     source: IButtplugClientDeviceFeature;
@@ -83,14 +78,11 @@ export function positionToRotate(pos: number): { speed: number; clockwise: boole
 export class ButtplugClientManager implements HapticBackend {
     private client: ButtplugClient | null = null;
     private state: ConnectionState = 'disconnected';
-    private readonly stateListeners: StateListener[] = [];
-    private readonly deviceListeners: DeviceListener[] = [];
-    private readonly assignmentListeners: AssignmentListener[] = [];
+    private readonly stateChanged = new Emitter<ConnectionState>();
+    private readonly devicesChanged = new Emitter<HapticDevice[]>();
+    private readonly assignmentsChanged = new Emitter<ReadonlyMap<string, string>>();
+    private readonly settings = new FeatureSettings(FEATURE_ASSIGNMENTS_KEY, DEVICE_STRENGTHS_KEY);
 
-    /** Feature id → channel key. */
-    private readonly featureAssignments = new Map<string, string>();
-    /** Device name → strength multiplier 0–1. */
-    private readonly deviceStrengths = new Map<string, number>();
     /** Feature id → last value sent, in device steps (signed for rotation direction). */
     private readonly lastSteps = new Map<string, number>();
     private readonly featureCache = new Map<ButtplugClientDevice, ButtplugFeature[]>();
@@ -99,27 +91,33 @@ export class ButtplugClientManager implements HapticBackend {
     /** Device → timestamp of the last continuous command, for messageTimingGap throttling. */
     private readonly lastSendAt = new Map<ButtplugClientDevice, number>();
 
-    /** Min/max output range (0–1) that linear (stroker) positions are rescaled into. */
-    linearRangeMin = 0;
-    linearRangeMax = 1;
+    /** Device name → travel limits that stroker positions are rescaled into. */
+    private readonly strokerRanges = new Map<string, StrokerRange>();
 
     constructor() {
-        this.loadPersisted();
+        for (const [name, value] of Object.entries(readJsonRecord(STROKER_RANGES_KEY))) {
+            const { min, max } = (value ?? {}) as Partial<StrokerRange>;
+            if (typeof min === 'number' && typeof max === 'number') {
+                this.strokerRanges.set(name, { min: clamp01(min), max: clamp01(max) });
+            }
+        }
     }
 
-    /** Set the min/max position range (0–1) used to rescale stroker moves. */
-    setLinearRange(min: number, max: number): void {
-        this.linearRangeMin = clamp01(min);
-        this.linearRangeMax = clamp01(max);
-        this.persist();
+    getStrokerRange(deviceName: string): StrokerRange {
+        return this.strokerRanges.get(deviceName) ?? FULL_RANGE;
+    }
+
+    setStrokerRange(deviceName: string, { min, max }: StrokerRange): void {
+        this.strokerRanges.set(deviceName, { min: clamp01(min), max: clamp01(max) });
+        writeJsonRecord(STROKER_RANGES_KEY, this.strokerRanges);
     }
 
     /** Registers a listener for connection-state changes. */
-    onStateChange(l: StateListener): void { this.stateListeners.push(l); }
+    onStateChange(l: StateListener): void { this.stateChanged.on(l); }
     /** Registers a listener for device add/remove changes. */
-    onDevicesChange(l: DeviceListener): void { this.deviceListeners.push(l); }
+    onDevicesChange(l: DeviceListener): void { this.devicesChanged.on(l); }
     /** Registers a listener for feature-assignment changes. */
-    onAssignmentsChange(l: AssignmentListener): void { this.assignmentListeners.push(l); }
+    onAssignmentsChange(l: AssignmentListener): void { this.assignmentsChanged.on(l); }
 
     /** Current Intiface connection state. */
     get connectionState(): ConnectionState { return this.state; }
@@ -153,7 +151,7 @@ export class ButtplugClientManager implements HapticBackend {
             return [
                 { label: 'Value', value: `${current}` },
                 { label: 'Limits', value: `[${low}, ${high}]` },
-                { label: 'Step Limit', value: `[0, ${feature.stepCount}]` },
+                { label: 'Step Limit', value: `[0, ${Math.max(Math.abs(low), Math.abs(high))}]` },
             ];
         }
         return [];
@@ -161,31 +159,23 @@ export class ButtplugClientManager implements HapticBackend {
 
     /** Assign one actuator to a channel, or pass null to unassign it. */
     setFeatureChannel(featureId: string, channel: HapticChannel | null): void {
-        const next = channel ? channelKey(channel) : null;
-        const current = this.featureAssignments.get(featureId) ?? null;
-        if (current === next) return;
-
-        if (next === null) this.featureAssignments.delete(featureId);
-        else this.featureAssignments.set(featureId, next);
-
+        if (!this.settings.setChannel(featureId, channel ? channelKey(channel) : null)) return;
         this.channelCache.clear();
-        this.persist();
-        this.emitAssignments();
+        this.assignmentsChanged.emit(this.settings.assignmentSnapshot);
     }
 
     /** Channel key assigned to an actuator, or null. */
     getFeatureChannel(featureId: string): string | null {
-        return this.featureAssignments.get(featureId) ?? null;
+        return this.settings.getChannel(featureId);
     }
 
     /** Per-device strength multiplier (0–1); defaults to full strength. */
     getDeviceStrength(deviceName: string): number {
-        return this.deviceStrengths.get(deviceName) ?? 1;
+        return this.settings.getStrength(deviceName);
     }
 
     setDeviceStrength(deviceName: string, strength: number): void {
-        this.deviceStrengths.set(deviceName, clamp01(strength));
-        this.persist();
+        this.settings.setStrength(deviceName, strength);
     }
 
     /** Whether any connected actuator is currently driven by this channel. */
@@ -266,13 +256,14 @@ export class ButtplugClientManager implements HapticBackend {
     sendLinear(channel: HapticChannel, position: number, durationMs: number): void {
         if (this.state !== 'connected') return;
 
-        // Stroker travel is rescaled into the configured min/max range, not the device strength.
-        const scaled = this.linearRangeMin + clamp01(position) * (this.linearRangeMax - this.linearRangeMin);
         // Buttplug requires an integer (u32) duration in ms.
         const duration = Math.max(1, Math.round(durationMs));
 
-        for (const { feature } of this.resolve(channel)) {
+        for (const { device, feature } of this.resolve(channel)) {
             if (feature.kind !== 'linear') continue;
+            // Stroker travel is rescaled into the device's min/max range, not the device strength.
+            const { min, max } = this.getStrokerRange(device.name);
+            const scaled = min + clamp01(position) * (max - min);
             // The library rejects durations outside the device-reported range.
             const [minMs, maxMs] = feature.durationRange ?? [duration, duration];
             const clamped = Math.min(maxMs, Math.max(minMs, duration));
@@ -317,7 +308,7 @@ export class ButtplugClientManager implements HapticBackend {
         for (const device of this.getConnectedDevices()) {
             for (const feature of this.featuresOf(device)) {
                 if (feature.unsupported) continue;
-                if (this.featureAssignments.get(feature.id) === key) matches.push({ device, feature });
+                if (this.settings.getChannel(feature.id) === key) matches.push({ device, feature });
             }
         }
         this.channelCache.set(key, matches);
@@ -336,7 +327,7 @@ export class ButtplugClientManager implements HapticBackend {
             this.invalidateDeviceCaches();
             this.lastSteps.clear();
         }
-        for (const l of this.stateListeners) l(s);
+        this.stateChanged.emit(s);
     }
 
     /** A device that (re)appears starts stopped, so its last-sent values must not suppress the next command. */
@@ -349,40 +340,12 @@ export class ButtplugClientManager implements HapticBackend {
 
     private emitDevices(): void {
         this.invalidateDeviceCaches();
-        const devices = this.getConnectedDevices();
-        for (const l of this.deviceListeners) l(devices);
-    }
-
-    private emitAssignments(): void {
-        const assignments = new Map(this.featureAssignments);
-        for (const l of this.assignmentListeners) l(assignments);
+        this.devicesChanged.emit(this.getConnectedDevices());
     }
 
     private getConnectedDevices(): ButtplugClientDevice[] {
         if (!this.client || !this.client.connected) return [];
         return Array.from(this.client.devices.values());
-    }
-
-    private persist(): void {
-        if (typeof window === 'undefined') return;
-        window.localStorage.setItem(FEATURE_ASSIGNMENTS_KEY, JSON.stringify(Object.fromEntries(this.featureAssignments)));
-        window.localStorage.setItem(DEVICE_STRENGTHS_KEY, JSON.stringify(Object.fromEntries(this.deviceStrengths)));
-        window.localStorage.setItem(LINEAR_RANGE_KEY, JSON.stringify({ min: this.linearRangeMin, max: this.linearRangeMax }));
-    }
-
-    private loadPersisted(): void {
-        if (typeof window === 'undefined') return;
-
-        for (const [id, key] of Object.entries(readJsonRecord(FEATURE_ASSIGNMENTS_KEY))) {
-            if (typeof key === 'string') this.featureAssignments.set(id, key);
-        }
-        for (const [name, value] of Object.entries(readJsonRecord(DEVICE_STRENGTHS_KEY))) {
-            if (typeof value === 'number') this.deviceStrengths.set(name, clamp01(value));
-        }
-
-        const range = readJsonRecord(LINEAR_RANGE_KEY);
-        if (typeof range['min'] === 'number') this.linearRangeMin = clamp01(range['min']);
-        if (typeof range['max'] === 'number') this.linearRangeMax = clamp01(range['max']);
     }
 }
 
@@ -399,15 +362,13 @@ function buildFeatures(device: ButtplugClientDevice): ButtplugFeature[] {
             const name = outputLabel(output.type, kind);
             const ordinal = (counts.get(name) ?? 0) + 1;
             counts.set(name, ordinal);
-            const [min, max] = output.valueRange;
             features.push({
                 id: makeFeatureId(device.name, kind, source.index),
                 deviceName: device.name,
                 kind,
                 index: source.index,
                 actuator: output.type,
-                stepCount: Math.max(Math.abs(min), Math.abs(max)),
-                range: [min, max],
+                range: output.valueRange,
                 durationRange: output.durationRange,
                 descriptor: source.featureDescriptor,
                 source,
@@ -428,10 +389,6 @@ function outputKind(type: OutputType): FeatureKind | null {
     return type === OutputType.Position ? null : 'scalar';
 }
 
-function clamp01(value: number): number {
-    return Math.max(0, Math.min(1, value));
-}
-
 /** Map a signed target (-1..1) onto the library's 0..1 percent of [min, max]. */
 function toPercent([min]: readonly [number, number], target: number): number {
     return min < 0 ? (target + 1) / 2 : Math.abs(target);
@@ -442,27 +399,11 @@ function percentToValue([min, max]: readonly [number, number], percent: number):
     return Math.ceil(min + (max - min) * percent);
 }
 
-function kindLabel(kind: FeatureKind): string {
-    return kind === 'linear' ? 'Linear' : kind === 'rotate' ? 'Rotate' : 'Scalar';
-}
-
 function outputLabel(type: OutputType, kind: FeatureKind): string {
     switch (type) {
         case OutputType.HwPositionWithDuration: return 'Stroker';
         case OutputType.Led: return 'LED';
-        case OutputType.Unknown: return kindLabel(kind);
+        case OutputType.Unknown: return kind === 'linear' ? 'Linear' : kind === 'rotate' ? 'Rotate' : 'Scalar';
         default: return String(type);
-    }
-}
-
-function readJsonRecord(key: string): Record<string, unknown> {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return {};
-    try {
-        const parsed: unknown = JSON.parse(raw);
-        return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
-    } catch {
-        window.localStorage.removeItem(key);
-        return {};
     }
 }

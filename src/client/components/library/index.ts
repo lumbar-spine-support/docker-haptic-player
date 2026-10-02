@@ -1,8 +1,7 @@
 import { qs } from '../../utils/html';
-import { fetchLibrary } from '../../utils/api';
-import { buildUrl, trackHref, detailHref } from '../../utils/routes';
-import { renderHapticIcons } from '../../utils/hapticIcons';
-import { FALLBACK_ART_DATA_URI, applyPlaylistCover, renderTrackArt } from '../../utils/artwork';
+import { fetchLibrary, FALLBACK_ART_DATA_URI, applyPlaylistCover, renderTrackArt } from '../../api';
+import { buildUrl, trackHref, detailHref } from '../../router';
+import { renderHapticIcons } from '../haptic/icons';
 import { formatHoursMinutes } from '../../utils/formatTime';
 import {
     albumMatchesActiveTags,

@@ -11,7 +11,9 @@ import type {
   HapticBackend,
   HapticDevice,
   StateListener,
+  StrokerRange,
 } from './backend';
+import { Emitter } from './emitter';
 
 /**
  * Presents several haptic transports to the rest of the app as one.
@@ -22,32 +24,23 @@ import type {
  */
 export class HapticBackendRegistry implements HapticBackend {
   private readonly backends: HapticBackend[] = [];
-  private readonly stateListeners: StateListener[] = [];
-  private readonly deviceListeners: DeviceListener[] = [];
-  private readonly assignmentListeners: AssignmentListener[] = [];
-  private readonly deviceStateListeners: Array<() => void> = [];
-
-  private rangeMin = 0;
-  private rangeMax = 1;
+  private readonly stateChanged = new Emitter<ConnectionState>();
+  private readonly devicesChanged = new Emitter<HapticDevice[]>();
+  private readonly assignmentsChanged = new Emitter<ReadonlyMap<string, string>>();
+  private readonly deviceStateChanged = new Emitter();
 
   add(backend: HapticBackend): void {
     this.backends.push(backend);
-    if (this.backends.length === 1) {
-      this.rangeMin = backend.linearRangeMin;
-      this.rangeMax = backend.linearRangeMax;
-    }
-    backend.onStateChange(() => this.emitState());
-    backend.onDevicesChange(() => this.emitDevices());
+    backend.onStateChange(() => this.stateChanged.emit(this.connectionState));
+    backend.onDevicesChange(() => this.devicesChanged.emit(this.devices));
     backend.onAssignmentsChange(() => this.emitAssignments());
-    backend.onDeviceStateChange?.(() => {
-      for (const l of this.deviceStateListeners) l();
-    });
+    backend.onDeviceStateChange?.(() => this.deviceStateChanged.emit());
   }
 
-  onStateChange(listener: StateListener): void { this.stateListeners.push(listener); }
-  onDevicesChange(listener: DeviceListener): void { this.deviceListeners.push(listener); }
-  onAssignmentsChange(listener: AssignmentListener): void { this.assignmentListeners.push(listener); }
-  onDeviceStateChange(listener: () => void): void { this.deviceStateListeners.push(listener); }
+  onStateChange(listener: StateListener): void { this.stateChanged.on(listener); }
+  onDevicesChange(listener: DeviceListener): void { this.devicesChanged.on(listener); }
+  onAssignmentsChange(listener: AssignmentListener): void { this.assignmentsChanged.on(listener); }
+  onDeviceStateChange(listener: () => void): void { this.deviceStateChanged.on(listener); }
 
   /** Connected as soon as any backend is; the UI then keys off per-channel assignment. */
   get connectionState(): ConnectionState {
@@ -60,15 +53,6 @@ export class HapticBackendRegistry implements HapticBackend {
 
   get devices(): HapticDevice[] {
     return this.backends.flatMap((b) => b.devices);
-  }
-
-  get linearRangeMin(): number { return this.rangeMin; }
-  get linearRangeMax(): number { return this.rangeMax; }
-
-  setLinearRange(min: number, max: number): void {
-    this.rangeMin = min;
-    this.rangeMax = max;
-    for (const backend of this.backends) backend.setLinearRange(min, max);
   }
 
   getFeatures(device: HapticDevice): DeviceFeature[] {
@@ -97,6 +81,16 @@ export class HapticBackendRegistry implements HapticBackend {
   setPulseWidth(deviceName: string, width: number): void {
     const owner = this.backends.find((b) => b.devices.some((d) => d.name === deviceName));
     owner?.setPulseWidth?.(deviceName, width);
+  }
+
+  getStrokerRange(deviceName: string): StrokerRange | null {
+    const owner = this.backends.find((b) => b.devices.some((d) => d.name === deviceName));
+    return owner?.getStrokerRange?.(deviceName) ?? null;
+  }
+
+  setStrokerRange(deviceName: string, range: StrokerRange): void {
+    const owner = this.backends.find((b) => b.devices.some((d) => d.name === deviceName));
+    owner?.setStrokerRange?.(deviceName, range);
   }
 
   getDeviceBadge(deviceName: string): DeviceBadge | null {
@@ -187,16 +181,6 @@ export class HapticBackendRegistry implements HapticBackend {
     return this.backends.find((b) => b.devices.some((d) => b.getFeatures(d).some((f) => f.id === featureId)));
   }
 
-  private emitState(): void {
-    const state = this.connectionState;
-    for (const l of this.stateListeners) l(state);
-  }
-
-  private emitDevices(): void {
-    const devices = this.devices;
-    for (const l of this.deviceListeners) l(devices);
-  }
-
   private emitAssignments(): void {
     const merged = new Map<string, string>();
     for (const backend of this.backends) {
@@ -207,6 +191,6 @@ export class HapticBackendRegistry implements HapticBackend {
         }
       }
     }
-    for (const l of this.assignmentListeners) l(merged);
+    this.assignmentsChanged.emit(merged);
   }
 }

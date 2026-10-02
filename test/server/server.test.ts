@@ -85,6 +85,21 @@ test(`${TAG} GET /api/media/:id/description returns markdown without frontmatter
     assert.ok(text.length > 0, 'Should return description content');
 });
 
+test(`${TAG} GET /api/media/:id/description returns 404 for an id not in the library`, async () => {
+    const unknownId = Buffer.from('does/not/exist.mp3').toString('base64url');
+    const { status } = await httpGet(testServer.port, `/api/media/${unknownId}/description`);
+    assert.equal(status, 404);
+});
+
+test(`${TAG} GET /api/media/:id/description returns 404 for a track without a description`, async () => {
+    const { body } = await httpGet(testServer.port, '/api/library');
+    const libResponse = body as LibraryResponse;
+    const track = [...libResponse.tracks, ...libResponse.videos].find((t) => !t.descriptionFilename);
+    if (!track) return;
+    const { status } = await httpGet(testServer.port, `/api/media/${track.id}/description`);
+    assert.equal(status, 404);
+});
+
 test(`${TAG} GET /api/funscript/:trackId/:filename returns JSON for valid funscript`, async () => {
     const { status: libStatus, body: libBody } = await httpGet(testServer.port, '/api/library');
     const libResponse = libBody as LibraryResponse;

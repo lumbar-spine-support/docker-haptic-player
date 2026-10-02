@@ -1,25 +1,30 @@
-import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, setMediaAccessToken, logout, formatVersion, qs, buildUrl, trackHref, detailHref, renderHapticIcons, artworkUrl } from './utils';
-import { applyPlaylistCover } from './utils/artwork';
-import { detailRowHtml } from './templates';
-import { bindDragOnlyRange, syncRangeFill } from './utils/rangeSlider';
-import { resetScrollPosition } from '../shared/scroll';
+import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, setMediaAccessToken, logout, artworkUrl } from './api';
+import { formatVersion } from './utils/formatVersion';
+import { qs } from './utils/html';
+import { storedSetting } from './utils/storedSetting';
+import { Router, buildUrl, trackHref, detailHref } from './router';
+import { bindDragOnlyRange, syncRangeFill } from './components/ui/rangeSlider';
+import { resetScrollPosition } from './scroll';
 import { PlaybackSession, PlaybackQueue, PlaybackController } from './components/player';
 import type { PlayerFooterElement } from './components/player';
 import { ButtplugClientManager } from './components/haptic/buttplugClient';
 import { HapticBackendRegistry } from './components/haptic/backendRegistry';
 import { CoyoteBackend } from './components/haptic/dglab/coyoteBackend';
-import { pairingDeepLink, pairingQR } from './components/haptic/dglab/v4/pairing';
+import { bindPairingPanel } from './components/haptic/dglab/pairingPanel';
 import { setLogLevel } from './utils/logger';
-import { DGLAB_DETACH_GRACE_MS } from '../shared/dglab';
-import { FunscriptSync } from './components/funscriptSync';
+import { FunscriptSync, type LoadedScript } from './components/funscriptSync';
+import { prepareScript } from '../shared/interpolation';
 import { DeviceStatus } from './components/haptic/deviceStatus';
 import { DeviceAssignment } from './components/haptic/deviceAssignment';
-import type { DeviceAlert, HapticBackend } from './components/haptic/backend';
-import { deviceAlertHtml } from './components/haptic/templates';
+import type { HapticBackend } from './components/haptic/backend';
 import { Visualization } from './components/haptic/visualization';
 import { Markdown } from './components/markdown';
 import { Library } from './components/library';
-import type { TrackInfo, QueueSource, FunscriptInfo, ClientSettings } from '../shared/types';
+import { DetailView } from './components/library/detail';
+import { bindIntifaceSettings } from './components/settings/intiface';
+import { bindDelaySlider, bindUpdateRateSlider } from './components/settings/haptics';
+import { bindToggle } from './components/settings/toggle';
+import type { TrackInfo, QueueSource, ClientSettings } from '../shared/types';
 import type { HapticChannel } from '../shared/haptics';
 
 import '@videojs/html/ui/title';
@@ -32,16 +37,8 @@ import '@/components/videojs/player';
 // Registers <video-minimal-skin> from the ejected skin.html/skin.css.
 import '@/components/videojs/skins/video/minimal/element';
 
-const INTIFACE_ADDRESS_KEY = 'happy-intiface-address';
 const INTIFACE_DELAY_KEY = 'happy-haptic-delay-ms';
 const DGLAB_DELAY_KEY = 'happy-dglab-delay-ms';
-const HAPTIC_UPDATE_RATE_KEY = 'happy-haptic-update-rate-hz';
-const AUTOPLAY_KEY = 'happy-autoplay';
-const BLUR_CONTENT_KEY = 'happy-blur-content';
-const COLOR_GRADIENT_KEY = 'happy-color-gradient';
-const INTIFACE_LAST_STATE_KEY = 'happy-intiface-last-state';
-const DGLAB_LAST_STATE_KEY = 'happy-dglab-last-state';
-const DGLAB_LAST_SEEN_KEY = 'happy-dglab-last-seen';
 
 /** Used when the server config cannot be reached. */
 const FALLBACK_SETTINGS: ClientSettings = {
@@ -59,23 +56,6 @@ const FALLBACK_SETTINGS: ClientSettings = {
   mediaAccessToken: null,
 };
 
-type DetailContext =
-  | { type: 'playlist'; playlistId: string }
-  | { type: 'album'; albumId: string }
-  | null;
-type LoadedScript = { channel: HapticChannel; funscript: import('../shared/types').Funscript };
-
-function normalizeIntifaceAddress(rawAddress: string): string {
-  const trimmed = rawAddress.trim();
-  const address = trimmed || 'ws://localhost:12345';
-  const withoutPrefix = address.replace(/^ws:\/\//i, '');
-  return `ws://${withoutPrefix.replace(/^\/+/, '')}`;
-}
-
-function formatIntifaceHost(rawAddress: string): string {
-  return normalizeIntifaceAddress(rawAddress).replace(/^ws:\/\//i, '');
-}
-
 class App {
   private readonly libraryView = qs<HTMLElement>('#library-view');
   private readonly playerView = qs<HTMLElement>('#player-view');
@@ -83,16 +63,6 @@ class App {
   private readonly docsView = qs<HTMLElement>('#docs-view');
   private readonly docsContent = qs<HTMLElement>('#docs-content');
   private readonly docsButton = qs<HTMLAnchorElement>('#btn-docs');
-  private readonly detailList = qs<HTMLElement>('#detail-list');
-  private readonly detailTitle = qs<HTMLElement>('#detail-title');
-  private readonly detailSubtitle = qs<HTMLElement>('#detail-subtitle');
-  private readonly detailTypeLabel = qs<HTMLElement>('#detail-type-label');
-  private readonly detailPlayBtn = qs<HTMLButtonElement>('#btn-detail-play');
-  private readonly detailCover = qs<HTMLImageElement>('#detail-cover');
-  private readonly detailMeta = qs<HTMLElement>('#detail-meta');
-  private readonly connectBtn = qs<HTMLButtonElement>('#btn-connect');
-  private readonly resetBtn = qs<HTMLButtonElement>('#btn-reset');
-  private readonly intifaceInput = qs<HTMLInputElement>('#intiface-address');
   private readonly vizContainer = qs<HTMLElement>('#visualization');
   private readonly descriptionSection = qs<HTMLElement>('#track-description-section');
   private readonly descriptionEl = qs<HTMLElement>('#track-description');
@@ -101,11 +71,7 @@ class App {
   private readonly zoomSlider = qs<HTMLInputElement>('#viz-zoom');
   private readonly timelineToggleButton = qs<HTMLButtonElement>('#viz-toggle');
   private readonly timelineLockButton = qs<HTMLButtonElement>('#viz-lock');
-  private readonly hapticUpdateRateSlider = qs<HTMLInputElement>('#haptic-update-rate');
-  private readonly hapticUpdateRateLabel = qs<HTMLElement>('#haptic-update-rate-label');
   private readonly footer = qs<PlayerFooterElement>('#player-footer');
-  private readonly blurContentToggle = qs<HTMLInputElement>('#blur-content-toggle');
-  private readonly colorGradientToggle = qs<HTMLInputElement>('#color-gradient-toggle');
   private readonly versionBadge = qs<HTMLElement>('#app-version');
   private readonly logoutBtn = qs<HTMLButtonElement>('#btn-logout');
 
@@ -126,9 +92,12 @@ class App {
   private trackChannels: HapticChannel[] = [];
   private readonly viz: Visualization;
   private readonly library: Library;
+  private readonly detail: DetailView;
+  private readonly router: Router;
+  /** Resampling rate picked in the settings; engines created later start with it. */
+  private updateRateHz: number | null = null;
 
   private currentTrackId: string | null = null;
-  private detailContext: DetailContext = null;
   /** Funscripts per track id, shared by the timeline view and the haptic engine. */
   private readonly scriptCache = new Map<string, Promise<LoadedScript[]>>();
   /** Scroll position to restore when returning to library view */
@@ -143,20 +112,36 @@ class App {
 
   private constructor(session: PlaybackSession) {
     this.session = session;
-    this.queue.autoplay = localStorage.getItem(AUTOPLAY_KEY) !== 'false';
+    this.queue.autoplay = storedSetting('happy-autoplay', true).get();
     this.haptics.add(this.buttplug);
     this.intifaceSync = this.createSyncEngine(this.buttplug);
     this.deviceStatus = new DeviceStatus(this.haptics);
     this.viz = new Visualization(session);
     this.viz.onSeek((time) => { void session.focusedStore.seek(time); });
 
+    this.router = new Router({
+      before: () => this.docsView?.classList.add('d-none'),
+      tags: (tags) => this.library.setActiveTags(tags),
+      docs: (page) => this.showDocs(page),
+      player: (id) => {
+        resetScrollPosition();
+        return this.openTrack(id, false, undefined, false);
+      },
+      playlist: async (id) => this.showPlaylistDetail(id, false),
+      album: async (id) => this.showAlbumDetail(id, false),
+      library: () => this.showLibrary(false),
+    });
     this.library = new Library({
       openTrack: (id) => { void this.openTrack(id, true); },
-      openAlbum: (id) => { void this.showAlbumDetail(id, true); },
-      openPlaylist: (id) => { void this.showPlaylistDetail(id, true); },
+      openAlbum: (id) => this.showAlbumDetail(id, true),
+      openPlaylist: (id) => this.showPlaylistDetail(id, true),
       navigateTo: (url) => this.navigateTo(url),
-      isLibraryRoute: () => this.isLibraryRoute(),
+      isLibraryRoute: () => this.router.isLibraryRoute(),
       showLibrary: () => this.showLibrary(false),
+    });
+    this.detail = new DetailView({
+      allMedia: () => this.allMedia(),
+      openTrack: (id, source, autoplay) => { void this.openTrack(id, true, source, autoplay); },
     });
     this.playback = new PlaybackController(this.library, this.queue, session);
   }
@@ -184,14 +169,13 @@ class App {
       console.warn('Falling back to built-in client settings:', err);
     }
     setMediaAccessToken(this.settings.mediaAccessToken);
-    for (const engine of this.syncEngines) engine.setInterpolation(this.settings.funscriptInterpolationMethod);
-    this.viz.setInterpolation(this.settings.funscriptInterpolationMethod);
     this.applySeekInterval();
     this.library.bindControls();
-    this.bindDetailControls();
-    this.bindSidebarControls();
-    this.initBlurContent();
-    this.initColorGradient();
+    bindIntifaceSettings(this.buttplug, this.settings.autoReconnectIntiface);
+    bindToggle('#blur-content-toggle', 'happy-blur-content', this.settings.blurContent,
+      (enabled) => document.body.classList.toggle('blur-content', enabled));
+    bindToggle('#color-gradient-toggle', 'happy-color-gradient', this.settings.funscriptColorGradient,
+      (enabled) => this.viz.setColorGradient(enabled));
     this.bindZoomControls();
     whenIdle(() => {
       void this.showVersion();
@@ -215,12 +199,10 @@ class App {
     await yieldToMain();
     await this.library.load();
     await yieldToMain();
-    await this.handleRouteChange();
+    await this.router.start();
 
     // Closing or backgrounding the tab must silence the devices, not leave them running.
     window.addEventListener('pagehide', () => { void this.haptics.stopAll(); });
-
-    window.addEventListener('popstate', () => { void this.handleRouteChange(); });
 
     if (this.docsButton) this.docsButton.href = buildUrl('docs', 'index');
     this.docsButton?.addEventListener('click', (event) => {
@@ -242,25 +224,6 @@ class App {
     assignment.setAvailableChannels(this.trackChannels);
     assignment.mount(container);
     this.deviceAssignments.push(assignment);
-  }
-
-  private bindDetailControls(): void {
-    this.detailPlayBtn?.addEventListener('click', () => {
-      if (!this.detailContext) return;
-      if (this.detailContext.type === 'playlist') {
-        const playlist = this.library.getPlaylist(this.detailContext.playlistId);
-        const firstTrackId = playlist?.entries[0]?.trackId;
-        if (playlist && firstTrackId) {
-          void this.openTrack(firstTrackId, true, { type: 'playlist', id: playlist.id }, true);
-        }
-      } else {
-        const album = this.library.getAlbum(this.detailContext.albumId);
-        const firstTrackId = album?.trackIds[0];
-        if (album && firstTrackId) {
-          void this.openTrack(firstTrackId, true, { type: 'album', id: album.id }, true);
-        }
-      }
-    });
   }
 
   // ── End tag management ─────────────────────────────────────────────────────
@@ -314,87 +277,6 @@ class App {
     this.logoutBtn.addEventListener('click', () => {
       void logout();
     });
-  }
-
-  private bindSidebarControls(): void {
-    const savedAddress = localStorage.getItem(INTIFACE_ADDRESS_KEY)?.trim();
-    const initialHost = formatIntifaceHost(savedAddress ?? 'ws://localhost:12345');
-    if (this.intifaceInput) this.intifaceInput.value = initialHost;
-
-    const syncConnectionButton = (): void => {
-      // Driven by the Intiface backend alone; the registry's state also covers DG-Lab.
-      const state = this.buttplug.connectionState;
-      const statusEl = document.getElementById('intiface-status');
-      if (statusEl) {
-        statusEl.className = 'badge ' + (
-          state === 'connected' ? 'bg-success' :
-            state === 'connecting' ? 'bg-warning text-dark' :
-              state === 'error' ? 'bg-danger' :
-                'bg-secondary'
-        );
-        statusEl.textContent = state.charAt(0).toUpperCase() + state.slice(1);
-      }
-      if (!this.connectBtn) return;
-      this.connectBtn.disabled = state === 'connecting';
-      this.connectBtn.classList.remove('btn-outline-primary', 'btn-outline-danger', 'btn-outline-secondary');
-      if (state === 'connected') {
-        this.connectBtn.textContent = 'Disconnect';
-        this.connectBtn.classList.add('btn-outline-danger');
-      } else if (state === 'connecting') {
-        this.connectBtn.textContent = 'Connecting…';
-        this.connectBtn.classList.add('btn-outline-secondary');
-      } else {
-        this.connectBtn.textContent = 'Connect';
-        this.connectBtn.classList.add('btn-outline-primary');
-      }
-      if (this.resetBtn) {
-        this.resetBtn.addEventListener('click', () => {
-          if (this.intifaceInput) this.intifaceInput.value = formatIntifaceHost('localhost:12345');
-          localStorage.setItem(INTIFACE_ADDRESS_KEY, 'localhost:12345');
-        });
-      }
-    };
-
-    this.intifaceInput?.addEventListener('change', () => {
-      const address = normalizeIntifaceAddress(this.intifaceInput?.value ?? 'localhost:12345');
-      if (this.intifaceInput) this.intifaceInput.value = formatIntifaceHost(address);
-      localStorage.setItem(INTIFACE_ADDRESS_KEY, address);
-    });
-    this.connectBtn?.addEventListener('click', () => {
-      if (this.buttplug.connectionState === 'connected') {
-        localStorage.setItem(INTIFACE_LAST_STATE_KEY, 'disconnected');
-        void this.buttplug.disconnect();
-        return;
-      }
-      const address = normalizeIntifaceAddress(this.intifaceInput?.value ?? 'localhost:12345');
-      if (this.intifaceInput) this.intifaceInput.value = formatIntifaceHost(address);
-      localStorage.setItem(INTIFACE_ADDRESS_KEY, address);
-      void this.buttplug.connect(address);
-    });
-    const syncAlerts = (): void => {
-      const container = document.getElementById('intiface-alerts');
-      if (!container) return;
-      const state = this.buttplug.connectionState;
-      const alerts: DeviceAlert[] = [];
-      if (state === 'error') {
-        alerts.push({ level: 'danger', message: 'Could not connect to Intiface WebSocket. Check if host:port are correct and the server is running.' });
-      } else if (state === 'connected' && this.buttplug.devices.length === 0) {
-        alerts.push({ level: 'warning', message: 'No devices paired with Intiface Server.' });
-      }
-      container.innerHTML = alerts.map(deviceAlertHtml).join('');
-    };
-    this.buttplug.onStateChange((state) => {
-      if (state === 'connected') localStorage.setItem(INTIFACE_LAST_STATE_KEY, 'connected');
-      syncConnectionButton();
-      syncAlerts();
-    });
-    this.buttplug.onDevicesChange(() => syncAlerts());
-    syncConnectionButton();
-    syncAlerts();
-
-    if (this.settings.autoReconnectIntiface && localStorage.getItem(INTIFACE_LAST_STATE_KEY) === 'connected') {
-      void this.buttplug.connect(normalizeIntifaceAddress(savedAddress ?? 'localhost:12345'));
-    }
   }
 
   private bindZoomControls(): void {
@@ -460,52 +342,16 @@ class App {
 
   private createSyncEngine(backend: HapticBackend): FunscriptSync {
     const engine = new FunscriptSync(this.session, backend);
-    const rate = Number(this.hapticUpdateRateSlider?.value);
-    if (Number.isFinite(rate) && rate > 0) engine.setUpdateFrequencyHz(rate);
-    engine.setInterpolation(this.settings.funscriptInterpolationMethod);
+    if (this.updateRateHz !== null) engine.setUpdateFrequencyHz(this.updateRateHz);
     engine.loadScripts(this.activeScripts);
     this.syncEngines.push(engine);
     return engine;
   }
 
-  private bindDelaySlider(engine: FunscriptSync, sliderId: string, storageKey: string, fallback = 0): void {
-    const slider = qs<HTMLInputElement>(`#${sliderId}`);
-    const label = qs<HTMLElement>(`#${sliderId}-label`);
-    if (!slider) return;
-    const saved = Number(localStorage.getItem(storageKey) ?? fallback);
-    const limit = this.settings.hapticDelayLimit;
-    slider.min = String(-limit);
-    slider.max = String(limit);
-    const initial = Number.isFinite(saved) ? Math.max(-limit, Math.min(limit, saved)) : 0;
-    const apply = (delay: number): void => {
-      if (label) label.textContent = `${delay > 0 ? '+' : ''}${delay}ms`;
-      engine.setDelayMs(delay);
-    };
-    bindDragOnlyRange(slider);
-    slider.value = String(initial);
-    syncRangeFill(slider);
-    apply(Number(slider.value));
-    slider.addEventListener('input', () => {
-      const delay = Number(slider.value);
-      localStorage.setItem(storageKey, String(delay));
-      apply(delay);
-    });
-  }
-
   private initHapticControls(): void {
-    this.bindDelaySlider(this.intifaceSync, 'haptic-delay', INTIFACE_DELAY_KEY, this.settings.hapticDelay);
-    if (!this.hapticUpdateRateSlider) return;
-    const savedRate = Number(localStorage.getItem(HAPTIC_UPDATE_RATE_KEY) ?? this.settings.hapticFrequency);
-    const initialRate = Number.isFinite(savedRate) ? Math.max(10, Math.min(240, savedRate)) : 30;
-    bindDragOnlyRange(this.hapticUpdateRateSlider);
-    this.hapticUpdateRateSlider.value = String(initialRate);
-    syncRangeFill(this.hapticUpdateRateSlider);
-    this.updateHapticUpdateRateLabel(initialRate);
-    for (const engine of this.syncEngines) engine.setUpdateFrequencyHz(initialRate);
-    this.hapticUpdateRateSlider.addEventListener('input', () => {
-      const rate = Number(this.hapticUpdateRateSlider?.value ?? 30);
-      localStorage.setItem(HAPTIC_UPDATE_RATE_KEY, String(rate));
-      this.updateHapticUpdateRateLabel(rate);
+    bindDelaySlider(this.intifaceSync, 'haptic-delay', INTIFACE_DELAY_KEY, this.settings.hapticDelay, this.settings.hapticDelayLimit);
+    bindUpdateRateSlider(this.settings.hapticFrequency, (rate) => {
+      this.updateRateHz = rate;
       for (const engine of this.syncEngines) engine.setUpdateFrequencyHz(rate);
     });
   }
@@ -526,164 +372,14 @@ class App {
     if (this.settings.debugLogging) setLogLevel('dglab', 'debug');
     const coyote = new CoyoteBackend();
     this.haptics.add(coyote);
-    this.bindDelaySlider(this.createSyncEngine(coyote), 'dglab-delay', DGLAB_DELAY_KEY);
+    bindDelaySlider(this.createSyncEngine(coyote), 'dglab-delay', DGLAB_DELAY_KEY, 0, this.settings.hapticDelayLimit);
     this.mountDeviceAssignment(coyote, '#dglab-devices');
-
-    const statusEl = document.getElementById('dglab-status');
-    const connectBtn = document.getElementById('btn-dglab-connect') as HTMLButtonElement | null;
-    const disconnectBtn = document.getElementById('btn-dglab-disconnect') as HTMLButtonElement | null;
-    const resetBtn = document.getElementById('btn-dglab-reset') as HTMLButtonElement | null;
-    const pairingEl = document.getElementById('dglab-pairing');
-    const linkEl = document.getElementById('dglab-pair-link') as HTMLAnchorElement | null;
-    const hostEl = document.getElementById('dglab-host') as HTMLInputElement | null;
-    const hostGroup = document.getElementById('dglab-host-group');
-    const urlGroup = document.getElementById('dglab-url-group');
-    const urlEl = document.getElementById('dglab-url') as HTMLInputElement | null;
-    const qrEl = document.getElementById('dglab-pair-qr') as HTMLImageElement | null;
-    let qrUrl: string | null = null;
-
-    const sync = (): void => {
-      const state = coyote.connectionState;
-      const paired = coyote.appCount > 0;
-      if (statusEl) {
-        statusEl.className = 'badge ' + (
-          paired ? 'bg-success' :
-            state === 'connected' ? 'bg-warning text-dark' :
-              state === 'connecting' ? 'bg-warning text-dark' :
-                state === 'error' ? 'bg-danger' : 'bg-secondary'
-        );
-        statusEl.textContent = paired ? 'Paired' : state === 'connected' ? 'Waiting for app' : state.charAt(0).toUpperCase() + state.slice(1);
-      }
-      const on = state === 'connected' || state === 'connecting';
-      hostGroup?.classList.toggle('d-none', on);
-      urlGroup?.classList.toggle('d-none', !on);
-      const url = coyote.pairingUrl;
-      if (urlEl) urlEl.value = url ?? '';
-      pairingEl?.classList.toggle('d-none', !url || paired);
-
-      if (url && linkEl) {
-        linkEl.href = pairingDeepLink(url);
-      }
-
-      const renderQr = url && !paired && qrEl && url !== qrUrl;
-      if (renderQr) {
-        qrUrl = url;
-        const updateUrl = (data: string) => { if (qrUrl === url) qrEl.src = data; };
-        pairingQR(url, updateUrl);
-      }
-      if (hostEl && document.activeElement !== hostEl) hostEl.value = coyote.pairingHost;
-    };
-
-    coyote.onStateChange((state) => {
-      if (state === 'connected') {
-        localStorage.setItem(DGLAB_LAST_STATE_KEY, 'connected');
-        localStorage.setItem(DGLAB_LAST_SEEN_KEY, String(Date.now()));
-      }
-      sync();
-    });
-    coyote.onDevicesChange(() => sync());
-    coyote.onActivity((at) => localStorage.setItem(DGLAB_LAST_SEEN_KEY, String(at)));
-    window.addEventListener('pagehide', () => {
-      if (coyote.connectionState === 'connected') localStorage.setItem(DGLAB_LAST_SEEN_KEY, String(Date.now()));
-    });
-
-    connectBtn?.addEventListener('click', () => {
-      coyote.connect();
-      sync();
-    });
-
-    disconnectBtn?.addEventListener('click', () => {
-      localStorage.setItem(DGLAB_LAST_STATE_KEY, 'disconnected');
-      coyote.disconnect();
-      sync();
-    });
-
-    urlEl?.addEventListener('focus', () => urlEl.select());
-
-    hostEl?.addEventListener('change', () => {
-      coyote.setPairingHost(hostEl.value);
-      sync();
-    });
-
-    resetBtn?.addEventListener('click', () => {
-      coyote.resetPairingHost();
-      if (hostEl) {
-        hostEl.blur();
-        hostEl.value = coyote.pairingHost;
-      }
-      sync();
-    });
-
-    sync();
-
-    // Past the grace period the relay has dropped the app, so pairing must start over by hand.
-    const lastSeen = Number(localStorage.getItem(DGLAB_LAST_SEEN_KEY));
-    const withinGrace = Number.isFinite(lastSeen) && Date.now() - lastSeen < DGLAB_DETACH_GRACE_MS;
-    if (this.settings.autoReconnectDglab && localStorage.getItem(DGLAB_LAST_STATE_KEY) === 'connected' && withinGrace) {
-      coyote.connect();
-      sync();
-    }
-  }
-
-  private initBlurContent(): void {
-    const stored = localStorage.getItem(BLUR_CONTENT_KEY);
-    const blurEnabled = stored === null ? this.settings.blurContent : stored === 'true';
-    if (this.blurContentToggle) {
-      this.blurContentToggle.checked = blurEnabled;
-      this.blurContentToggle.addEventListener('change', () => {
-        const isChecked = this.blurContentToggle?.checked ?? false;
-        localStorage.setItem(BLUR_CONTENT_KEY, String(isChecked));
-        document.body.classList.toggle('blur-content', isChecked);
-      });
-    }
-    document.body.classList.toggle('blur-content', blurEnabled);
-  }
-
-  private initColorGradient(): void {
-    const stored = localStorage.getItem(COLOR_GRADIENT_KEY);
-    const enabled = stored === null ? this.settings.funscriptColorGradient : stored === 'true';
-    this.viz.setColorGradient(enabled);
-    if (!this.colorGradientToggle) return;
-    this.colorGradientToggle.checked = enabled;
-    this.colorGradientToggle.addEventListener('change', () => {
-      const isChecked = this.colorGradientToggle?.checked ?? false;
-      localStorage.setItem(COLOR_GRADIENT_KEY, String(isChecked));
-      this.viz.setColorGradient(isChecked);
-    });
-  }
-
-  private async handleRouteChange(): Promise<void> {
-    const params = new URLSearchParams(location.search);
-    const view = params.get('view');
-    const id = params.get('id');
-    const tags = params.getAll('tag');
-    this.docsView?.classList.add('d-none');
-    if (tags.length > 0) {
-      this.library.setActiveTags(tags);
-    }
-    if (view === 'docs') {
-      await this.showDocs(id || 'index');
-      return;
-    }
-    if (view === 'player' && id) {
-      resetScrollPosition();
-      await this.openTrack(id, false, undefined, false);
-      return;
-    }
-    if (view === 'playlist' && id) {
-      await this.showPlaylistDetail(id, false);
-      return;
-    }
-    if (view === 'album' && id) {
-      await this.showAlbumDetail(id, false);
-      return;
-    }
-    this.showLibrary(false);
+    bindPairingPanel(coyote, this.settings.autoReconnectDglab);
   }
 
   private async showDocs(page: string): Promise<void> {
     this.currentTrackId = null;
-    this.detailContext = null;
+    this.detail.clear();
     this.libraryView?.classList.add('d-none');
     this.playerView?.classList.add('d-none');
     this.detailView?.classList.add('d-none');
@@ -720,117 +416,42 @@ class App {
     this.library.renderActiveTags();
     this.library.render();
     document.title = 'HAPPY';
-    this.detailContext = null;
+    this.detail.clear();
     // Restore scroll position when returning to library view
     window.scrollTo(0, this.savedLibraryScrollPosition);
   }
 
-
-
-  private async showPlaylistDetail(playlistId: string, pushState: boolean): Promise<void> {
-    // Save scroll position before navigating away from library
+  /** Shows the detail page over the (hidden) library grid, remembering where the grid was scrolled to. */
+  private enterDetailView(state: object, href: string, pushState: boolean): void {
     this.savedLibraryScrollPosition = window.scrollY;
+    if (pushState) history.pushState(state, '', href);
+    this.library.setControlsVisible(false);
+    this.libraryView?.classList.remove('d-none');
+    this.detailView?.classList.remove('d-none');
+    this.playerView?.classList.add('d-none');
+    this.library.setContentVisible(false);
+  }
 
+  private showPlaylistDetail(playlistId: string, pushState: boolean): void {
     const playlist = this.library.getPlaylist(playlistId);
     if (!playlist) {
       this.navigateTo(buildUrl('library'));
       return;
     }
-    if (pushState) history.pushState({ playlistId }, '', detailHref('playlist', playlistId));
-    this.detailContext = { type: 'playlist', playlistId };
-    this.library.setControlsVisible(false);
-    this.libraryView?.classList.remove('d-none');
-    this.detailView?.classList.remove('d-none');
-    this.playerView?.classList.add('d-none');
-    this.library.setContentVisible(false);
-    const artists = [...new Set(playlist.entries.map((entry) => entry.artist).filter(Boolean))];
-    this.renderDetailHeader(
-      'Playlist',
-      playlist.name,
-      artists.join(', ') || 'Unknown artist',
-      `${playlist.entries.length} media`,
-      playlist.entries.map((entry) => entry.trackId),
-    );
-    this.renderDetailRows(
-      playlist.entries.map((entry) => ({
-        order: entry.order,
-        title: entry.title,
-        artist: entry.artist,
-        album: entry.album,
-        onClick: () => { void this.openTrack(entry.trackId, true, { type: 'playlist', id: playlist.id }, true); },
-      }))
-    );
-    this.updateDetailPlayButton(Boolean(playlist.entries[0]?.trackId));
+    this.enterDetailView({ playlistId }, detailHref('playlist', playlistId), pushState);
+    this.detail.showPlaylist(playlist);
     document.title = `${playlist.name} — HAPPY`;
   }
 
-  private async showAlbumDetail(albumId: string, pushState: boolean): Promise<void> {
-    // Save scroll position before navigating away from library
-    this.savedLibraryScrollPosition = window.scrollY;
-
+  private showAlbumDetail(albumId: string, pushState: boolean): void {
     const album = this.library.getAlbum(albumId);
     if (!album) {
       this.navigateTo(buildUrl('library'));
       return;
     }
-    if (pushState) history.pushState({ albumId }, '', detailHref('album', albumId));
-    this.detailContext = { type: 'album', albumId };
-    this.library.setControlsVisible(false);
-    this.libraryView?.classList.remove('d-none');
-    this.detailView?.classList.remove('d-none');
-    this.playerView?.classList.add('d-none');
-    this.library.setContentVisible(false);
-    this.renderDetailHeader('Album', album.title, album.artist || 'Unknown artist', '', [album.coverTrackId]);
-    this.renderDetailRows(
-      album.trackIds.map((trackId, index) => {
-        const track = this.allMedia().find((item) => item.id === trackId);
-        return {
-          order: index + 1,
-          title: track?.title ?? trackId,
-          artist: track?.artist ?? '',
-          album: track?.album ?? '',
-          funscripts: track?.funscripts ?? [],
-          onClick: () => { void this.openTrack(trackId, true, { type: 'album', id: album.id }); },
-        };
-      })
-    );
-    this.updateDetailPlayButton(Boolean(album.trackIds[0]));
+    this.enterDetailView({ albumId }, detailHref('album', albumId), pushState);
+    this.detail.showAlbum(album);
     document.title = `${album.title} — HAPPY`;
-  }
-
-  private renderDetailHeader(type: string, title: string, subtitle: string, meta: string, coverTrackIds: (string | null | undefined)[]): void {
-    this.detailTypeLabel!.textContent = type;
-    this.detailTitle!.textContent = title;
-    this.detailSubtitle!.textContent = subtitle;
-    this.detailMeta!.textContent = meta;
-    if (this.detailCover) {
-      const media = this.allMedia();
-      applyPlaylistCover(this.detailCover, coverTrackIds.map((id) => media.find((item) => item.id === id)));
-      this.detailCover.style.display = '';
-    }
-  }
-
-  private updateDetailPlayButton(enabled: boolean): void {
-    if (!this.detailPlayBtn) return;
-    this.detailPlayBtn.disabled = !enabled;
-  }
-
-  private renderDetailRows(rows: Array<{ order: number; title: string; artist: string; album: string; funscripts?: FunscriptInfo[]; onClick: () => void }>): void {
-    if (!this.detailList) return;
-    this.detailList.innerHTML = '';
-    for (const row of rows) {
-      const tr = document.createElement('tr');
-      tr.style.cursor = 'pointer';
-      tr.innerHTML = detailRowHtml({
-        order: String(row.order),
-        title: row.title,
-        artist: row.artist,
-        album: row.album,
-        hapticIcons: row.funscripts?.length ? renderHapticIcons(row.funscripts.map((f) => f.type)) : '',
-      });
-      tr.addEventListener('click', row.onClick);
-      this.detailList.appendChild(tr);
-    }
   }
 
   private async openTrack(trackId: string, pushState: boolean, source?: QueueSource, autoplay = false): Promise<void> {
@@ -919,7 +540,8 @@ class App {
     const pending = Promise.all(track.funscripts.map(async (fsInfo) => {
       try {
         const funscript = await fetchFunscript(track.id, fsInfo.filename);
-        return { channel: { type: fsInfo.type, ...(fsInfo.sub ? { sub: fsInfo.sub } : {}) }, funscript };
+        const channel: HapticChannel = { type: fsInfo.type, ...(fsInfo.sub ? { sub: fsInfo.sub } : {}) };
+        return { channel, prepared: prepareScript(funscript.actions, this.settings.funscriptInterpolationMethod) };
       } catch (err) {
         console.warn(`[player] Failed to load funscript ${fsInfo.filename}:`, err);
         return null;
@@ -943,18 +565,8 @@ class App {
     });
   }
 
-  private updateHapticUpdateRateLabel(rateHz: number): void {
-    if (this.hapticUpdateRateLabel) this.hapticUpdateRateLabel.textContent = `${rateHz}Hz`;
-  }
-
   private navigateTo(url: string): void {
-    history.pushState({}, '', url);
-    void this.handleRouteChange();
-  }
-
-  private isLibraryRoute(): boolean {
-    const params = new URLSearchParams(location.search);
-    return !params.get('view');
+    this.router.navigateTo(url);
   }
 }
 
