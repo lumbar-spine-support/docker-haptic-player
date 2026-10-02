@@ -84,11 +84,13 @@ export class DglabV4Socket {
     private readonly loggedOnce = new Set<string>();
     private readonly stateListeners: Array<Listener<DglabV4SocketState>> = [];
     private readonly deviceListeners: Array<Listener<Device[]>> = [];
+    private readonly activityListeners: Array<Listener<number>> = [];
 
     constructor(private readonly createSocket: SocketFactory = (url) => new DglabSocket({ url })) { }
 
     onStateChange(l: Listener<DglabV4SocketState>): void { this.stateListeners.push(l); }
     onDevicesChange(l: Listener<Device[]>): void { this.deviceListeners.push(l); }
+    onActivity(l: Listener<number>): void { this.activityListeners.push(l); }
 
     get connectionState(): DglabV4SocketState { return this.state; }
     /** Value the DG-Lab app must pass as `?tid=`; null until the relay says hello. */
@@ -194,6 +196,8 @@ export class DglabV4Socket {
         });
         kit.on('close', (event) => this.handleClose(event));
         kit.on('frame', (frame) => {
+            const now = Date.now();
+            for (const l of this.activityListeners) l(now);
             const type = (frame as { type?: unknown }).type;
             if (type !== 'heartbeat' && type !== 'pong' && type !== 'message') trace('<-', frame);
         });

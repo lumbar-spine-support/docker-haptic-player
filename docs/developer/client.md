@@ -83,6 +83,8 @@ sequenceDiagram
 
 User settings live in `localStorage` (all keys start with `happy-`). Server values from `/api/config` are only **defaults** for keys that have no stored value.
 
+Auto-reconnect: `happy-intiface-last-state` / `happy-dglab-last-state` become `connected` on a successful connection and `disconnected` only on an explicit Disconnect click. `happy-dglab-last-seen` is refreshed on every relay frame (heartbeats every 30 s) and on `pagehide`; DG-Lab reconnects only while it is younger than `DGLAB_DETACH_GRACE_MS` (`src/shared/dglab.ts`), otherwise the section stays *Disconnected*.
+
 ## Routing
 
 All state that should survive a reload is in the query string. `navigateTo(url)` pushes history and calls `handleRouteChange()`, and so does the browser back button.

@@ -14,6 +14,8 @@ If below description does not help, you can find a more detailed tutorial here: 
 
 Use the address of the machine running Intiface as seen from the device running the browser. `localhost` only works when browser and Intiface run on the same machine.
 
+With `AUTO_RECONNECT_INTIFACE=true`, HAPPY reconnects on page load if Intiface was connected last time and you did not press **Disconnect**.
+
 ## Device Assignment
 
 Each device exposes features like "linear", "vibrate" or "rotate". Strokers are usually "linear" features but may also have "vibrate" features. A Nexus Revo Stealth exposes both a "rotate" and a "vibrate" feature through Intiface. You can assign each feature to the same or a different funscript!

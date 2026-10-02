@@ -37,6 +37,10 @@ There is a single pairing per server. Opening HAPPY in another browser or on ano
 over the paired DG-Lab app without pairing again; the previous tab is disconnected. After a server
 restart you have to pair again.
 
+With `AUTO_RECONNECT_DGLAB=true`, a page reload reconnects to the relay automatically if DG-Lab was
+connected before and the relay was last heard from less than 5 minutes ago (the time the server keeps
+the paired app). After that the section stays *Disconnected* and you pair again by hand.
+
 ## Debugging
 
 To trace the wire protocol when something misbehaves, set `localStorage['happy-log'] =

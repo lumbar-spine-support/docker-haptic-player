@@ -3,6 +3,7 @@ import type { IncomingMessage } from 'http';
 import type { Duplex } from 'stream';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createLogger } from '../utils/logger';
+import { Config } from '../config';
 
 const log = createLogger('dglab:relay');
 
@@ -33,7 +34,7 @@ const IDLE_TIMEOUT_MS = 5 * 60_000;
  * Note that the grace feature does not exist in reference implementation:
  * https://github.com/dungeonlab-open/dglab-websocket-server/blob/main/v4-server.ts
  */
-const DETACH_GRACE_MS = 5 * 60_000;
+const DETACH_GRACE_MS = Config.DGLAB_DETACH_GRACE_MS;
 
 /** Guards against a peer streaming junk; real frames are a few hundred bytes. */
 const MAX_FRAME_BYTES = 64 * 1024;
