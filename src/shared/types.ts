@@ -140,6 +140,8 @@ export interface ClientSettings {
   /** Absolute bound of the delay sliders, in milliseconds. */
   hapticDelayLimit: number;
   dglabEnabled: boolean;
+  /** Only true when `dglabEnabled` is as well. */
+  dglabSandboxEnabled: boolean;
   autoReconnectIntiface: boolean;
   autoReconnectDglab: boolean;
   /** True when the server runs with `LOG_LEVEL=debug`. */

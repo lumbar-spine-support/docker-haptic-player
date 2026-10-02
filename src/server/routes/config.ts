@@ -14,6 +14,7 @@ export function createConfigRouter(clientConfig: Config.ClientConfig, mediaAcces
     hapticDelay: Number(clientConfig.hapticDelay),
     hapticDelayLimit: Math.max(0, Math.abs(Number(clientConfig.hapticDelayLimit)) || 0),
     dglabEnabled: Boolean(clientConfig.dglabEnabled),
+    dglabSandboxEnabled: Boolean(clientConfig.dglabEnabled) && Boolean(clientConfig.dglabSandboxEnabled),
     autoReconnectIntiface: Boolean(clientConfig.autoReconnectIntiface),
     autoReconnectDglab: Boolean(clientConfig.autoReconnectDglab),
     funscriptInterpolationMethod: isInterpolationMethod(clientConfig.funscriptInterpolationMethod)

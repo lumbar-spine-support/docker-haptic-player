@@ -273,6 +273,33 @@
     <section id="docs-view" class="d-none py-1">
       <article id="docs-content" class="docs-content mx-auto"></article>
     </section>
+
+    <section id="dglab-sandbox-view" class="d-none py-1">
+      <div class="mx-auto" style="max-width:900px">
+        <h2 class="h5 mb-3">DG-Lab Sandbox</h2>
+        <div class="row g-2 align-items-end mb-2">
+          <div class="col-12 col-md">
+            <label for="dglab-sandbox-channel" class="form-label small mb-1">Channel</label>
+            <select id="dglab-sandbox-channel"
+              class="form-select form-select-sm bg-dark text-light border-secondary"></select>
+          </div>
+          <div class="col-12 col-md">
+            <label for="dglab-sandbox-pattern" class="form-label small mb-1">Pattern</label>
+            <select id="dglab-sandbox-pattern"
+              class="form-select form-select-sm bg-dark text-light border-secondary"></select>
+          </div>
+          <div class="col-12 col-md-auto">
+            <button id="btn-dglab-sandbox-toggle" type="button" class="btn btn-sm btn-primary w-100"
+              disabled>Start</button>
+          </div>
+        </div>
+        <p id="dglab-sandbox-info" class="small text-muted mb-2"></p>
+        <canvas id="dglab-sandbox-canvas" class="bg-black rounded w-100" style="height:240px"></canvas>
+        <p class="small text-muted mt-2 mb-0">Orange: pattern position. Blue: pulses at the chosen rate, height is
+          strength × width. Red dashed: held strength. Strength, pulse rate and width are set on the device card in the
+          settings.</p>
+      </div>
+    </section>
   </main>
 
   <player-footer id="player-footer" class="player-footer d-none bg-dark border-top border-secondary">
@@ -383,6 +410,8 @@
             max="500" step="100" value="0" />
         </div>
         <div id="dglab-devices"></div>
+        <a id="btn-dglab-sandbox" class="btn btn-sm btn-outline-primary w-100 mt-3" href="?view=dglab-sandbox"
+          data-bs-dismiss="offcanvas"><i class="bi bi-activity me-2" aria-hidden="true"></i>Sandbox</a>
       </div>
 
       <div class="settings-section">

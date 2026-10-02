@@ -6,14 +6,13 @@ import { DglabSocket, V4Channel } from 'dglab-kit';
 import { pairingDeepLink } from '../../src/client/components/haptic/dglab/v4/pairing';
 import { DglabV4Socket } from '../../src/client/components/haptic/dglab/v4/socket';
 import {
-    carrierFrames,
     clampFrequency,
     clampPulseWidth,
     decodeFrame,
     encodeFrame,
-    flatFrame,
     periodByte,
     periodFromByte,
+    positionStep,
     pulsePeriodMs,
 } from '../../src/client/components/haptic/dglab/waveform';
 
@@ -192,9 +191,12 @@ test(`${TAG} the pairing deep link url-encodes the relay address`, () => {
     assert.equal(link, 'https://dungeon-lab.com/s/?v=1&action=socket&url=ws%3A%2F%2F192.168.1.5%3A3000%2Fws%2Fdglab%3Ftid%3Dabc');
 });
 
-test(`${TAG} a carrier frame is four period bytes then four pulse width bytes`, () => {
-    assert.equal(flatFrame(100), '0A0A0A0A64646464');
-    assert.equal(flatFrame(50, 40), '1414141428282828');
+test(`${TAG} a script position becomes a step whose width is scaled by the pulse width setting`, () => {
+    assert.deepEqual(positionStep(1, 100, 100), { periodMs: 10, width: 100 });
+    assert.deepEqual(positionStep(0.5, 50, 40), { periodMs: 20, width: 20 });
+    assert.deepEqual(positionStep(0, 50, 100), { periodMs: 20, width: 0 });
+    assert.deepEqual(positionStep(7, 50, 100), { periodMs: 20, width: 100 });
+    assert.deepEqual(positionStep(Number.NaN, 50, 100), { periodMs: 20, width: 0 });
 });
 
 test(`${TAG} the pulse rate in Hz is sent as its period in ms`, () => {
@@ -209,20 +211,14 @@ test(`${TAG} pulse rate stays where the period byte is valid and uncompressed`, 
     assert.equal(clampFrequency(0), 10);
     assert.equal(clampFrequency(500), 100);
     assert.equal(clampFrequency(Number.NaN), 50);
-    assert.equal(flatFrame(500), '0A0A0A0A64646464');
-    assert.equal(flatFrame(1), '6464646464646464');
+    assert.equal(positionStep(1, 500, 100).periodMs, 10);
+    assert.equal(positionStep(1, 1, 100).periodMs, 100);
 });
 
 test(`${TAG} pulse width never reaches zero or exceeds the wire maximum`, () => {
     assert.equal(clampPulseWidth(0), 10);
     assert.equal(clampPulseWidth(150), 100);
     assert.equal(clampPulseWidth(Number.NaN), 100);
-});
-
-test(`${TAG} the carrier repeats one identical frame`, () => {
-    const frames = carrierFrames(100, 100, 3);
-    assert.equal(frames.length, 3);
-    assert.deepEqual(new Set(frames), new Set(['0A0A0A0A64646464']));
 });
 
 test(`${TAG} periods above 100 ms are compressed into the 101–240 byte range`, () => {

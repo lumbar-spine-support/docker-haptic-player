@@ -11,6 +11,7 @@ import { ButtplugClientManager } from './components/haptic/buttplugClient';
 import { HapticBackendRegistry } from './components/haptic/backendRegistry';
 import { CoyoteBackend } from './components/haptic/dglab/coyoteBackend';
 import { bindPairingPanel } from './components/haptic/dglab/pairingPanel';
+import { DglabSandbox } from './components/haptic/dglab/sandboxView';
 import { setLogLevel } from './utils/logger';
 import { FunscriptSync, type LoadedScript } from './components/funscriptSync';
 import { prepareScript } from '../shared/interpolation';
@@ -48,6 +49,7 @@ const FALLBACK_SETTINGS: ClientSettings = {
   hapticDelay: 0,
   hapticDelayLimit: 500,
   dglabEnabled: false,
+  dglabSandboxEnabled: false,
   autoReconnectIntiface: false,
   autoReconnectDglab: false,
   debugLogging: false,
@@ -96,6 +98,7 @@ class App {
   private readonly router: Router;
   /** Resampling rate picked in the settings; engines created later start with it. */
   private updateRateHz: number | null = null;
+  private dglabSandbox: DglabSandbox | null = null;
 
   private currentTrackId: string | null = null;
   /** Funscripts per track id, shared by the timeline view and the haptic engine. */
@@ -120,7 +123,10 @@ class App {
     this.viz.onSeek((time) => { void session.focusedStore.seek(time); });
 
     this.router = new Router({
-      before: () => this.docsView?.classList.add('d-none'),
+      before: () => {
+        this.docsView?.classList.add('d-none');
+        this.dglabSandbox?.hide();
+      },
       tags: (tags) => this.library.setActiveTags(tags),
       docs: (page) => this.showDocs(page),
       player: (id) => {
@@ -130,6 +136,7 @@ class App {
       playlist: async (id) => this.showPlaylistDetail(id, false),
       album: async (id) => this.showAlbumDetail(id, false),
       library: () => this.showLibrary(false),
+      dglabSandbox: () => this.showDglabSandbox(),
     });
     this.library = new Library({
       openTrack: (id) => { void this.openTrack(id, true); },
@@ -375,6 +382,33 @@ class App {
     bindDelaySlider(this.createSyncEngine(coyote), 'dglab-delay', DGLAB_DELAY_KEY, 0, this.settings.hapticDelayLimit);
     this.mountDeviceAssignment(coyote, '#dglab-devices');
     bindPairingPanel(coyote, this.settings.autoReconnectDglab);
+
+    const sandboxButton = qs<HTMLAnchorElement>('#btn-dglab-sandbox');
+    if (!this.settings.dglabSandboxEnabled) {
+      sandboxButton?.remove();
+      return;
+    }
+    // Media haptics would fight the pattern for the same channel.
+    this.dglabSandbox = new DglabSandbox(coyote, () => this.session.activeStore.pause());
+    sandboxButton?.addEventListener('click', (event) => {
+      event.preventDefault();
+      this.navigateTo(buildUrl('dglab-sandbox'));
+    });
+  }
+
+  /** Falls back to the library when the sandbox is disabled. */
+  private showDglabSandbox(): void {
+    if (!this.dglabSandbox) {
+      this.showLibrary(false);
+      return;
+    }
+    this.currentTrackId = null;
+    this.detail.clear();
+    this.libraryView?.classList.add('d-none');
+    this.playerView?.classList.add('d-none');
+    this.detailView?.classList.add('d-none');
+    this.library.setViewToggleVisible(false);
+    this.dglabSandbox.show();
   }
 
   private async showDocs(page: string): Promise<void> {

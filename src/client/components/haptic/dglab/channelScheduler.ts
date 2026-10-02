@@ -1,5 +1,5 @@
 import { clamp01 } from '../backend';
-import { FRAME_DURATION_MS, carrierFrames } from './waveform';
+import { FRAME_DURATION_MS, STEPS_PER_FRAME, STEP_DURATION_MS, encodeFrame, positionStep } from './waveform';
 
 /**
  * How long a strength task stays alive. Longer than the refresh interval so output
@@ -15,9 +15,13 @@ export const STRENGTH_DURATION_MS = 300;
  */
 export const STRENGTH_INTERVAL_MS = 100;
 
-/** Carrier batch size and how often it is refreshed. */
-export const CARRIER_FRAME_COUNT = 10;
-export const CARRIER_INTERVAL_MS = 800;
+/** Frames per look-ahead batch and how often a batch replaces the queue; the overlap absorbs relay jitter. */
+export const LOOKAHEAD_FRAME_COUNT = 5;
+export const LOOKAHEAD_INTERVAL_MS = 200;
+export const LOOKAHEAD_MS = LOOKAHEAD_FRAME_COUNT * FRAME_DURATION_MS;
+
+/** Position 0–1 at `offsetMs` from now; null where the script has no points. */
+export type PositionSampler = (offsetMs: number) => number | null;
 
 export interface PulseSettings {
     /** Pulse rate in Hz. */
@@ -50,14 +54,25 @@ export function mapIntensity(position: number, strength: number, ceiling: number
     return Math.round(clamp01(position) * clamp01(strength) * Math.max(0, ceiling));
 }
 
+/** Pulse frames for the next `LOOKAHEAD_MS`: each 25 ms step's width follows the position at that time. */
+export function lookaheadFrames(sample: PositionSampler, pulse: PulseSettings): string[] {
+    return Array.from({ length: LOOKAHEAD_FRAME_COUNT }, (_, f) => encodeFrame(
+        Array.from({ length: STEPS_PER_FRAME }, (_, s) =>
+            positionStep(sample((f * STEPS_PER_FRAME + s) * STEP_DURATION_MS) ?? 0, pulse.frequency, pulse.width)),
+    ));
+}
+
 /**
- * Throttles one channel's target strength into relay commands, without any I/O,
- * so the same timing can be replayed offline.
+ * Turns one channel's script into relay commands, without any I/O, so the same
+ * timing can be replayed offline.
+ *
+ * Strength is held at the user's level (and expires as a dead-man's switch); the
+ * script drives the pulse width per 25 ms step, four times finer than strength.
  */
 export class CoyoteChannelScheduler {
     private lastValue: number | null = null;
     private lastStrengthAt = -Infinity;
-    private lastCarrierAt = -Infinity;
+    private lastBatchAt = -Infinity;
 
     /** Strength follows the script and is refreshed before its dead-man's timer runs out. */
     strength(now: number, value: number): StrengthCommand | null {
@@ -71,27 +86,29 @@ export class CoyoteChannelScheduler {
         return { kind: 'strength', value, durationMs: STRENGTH_DURATION_MS };
     }
 
-    /**
-     * Keep a flat carrier queued.
-     *
-     * Strength only scales pulses the device is already emitting, so without a
-     * carrier a non-zero strength produces nothing. Batches are sent with `im: true`
-     * so they replace rather than stack; restarting a constant carrier is inaudible.
-     */
-    carrier(now: number, pulse: PulseSettings): PulseCommand | null {
-        if (now - this.lastCarrierAt < CARRIER_INTERVAL_MS) return null;
-        this.lastCarrierAt = now;
-        const frames = carrierFrames(pulse.frequency, pulse.width, CARRIER_FRAME_COUNT);
+    /** A look-ahead batch; sent with `im: true`, so it replaces the queued frames. */
+    pulses(now: number, sample: PositionSampler, pulse: PulseSettings): PulseCommand | null {
+        if (now - this.lastBatchAt < LOOKAHEAD_INTERVAL_MS) return null;
+        this.lastBatchAt = now;
+        const frames = lookaheadFrames(sample, pulse);
         return { kind: 'pulse', frames, durationMs: frames.length * FRAME_DURATION_MS };
     }
 
-    /** Commands for one sync tick: strength, plus a carrier refresh while there is output. */
-    update(now: number, value: number, pulse: PulseSettings): CoyoteCommand[] {
+    /**
+     * Commands for one sync tick. `level` is the held strength; it drops to 0 when
+     * the script has nothing in the look-ahead window, which also stops the frames.
+     */
+    update(now: number, level: number, sample: PositionSampler, pulse: PulseSettings): CoyoteCommand[] {
+        const active = level > 0 && (sample(0) !== null || sample(LOOKAHEAD_MS) !== null);
         const commands: CoyoteCommand[] = [];
-        const strength = this.strength(now, value);
+        const strength = this.strength(now, active ? level : 0);
         if (strength) commands.push(strength);
-        const carrier = value > 0 ? this.carrier(now, pulse) : null;
-        if (carrier) commands.push(carrier);
+        if (!active) {
+            this.lastBatchAt = -Infinity;
+            return commands;
+        }
+        const batch = this.pulses(now, sample, pulse);
+        if (batch) commands.push(batch);
         return commands;
     }
 }

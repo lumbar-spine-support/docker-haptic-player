@@ -239,20 +239,21 @@ flowchart LR
 
 ### DG-Lab Coyote
 
-The Coyote has no position or speed. It emits pulses: a carrier waveform whose strength can be set. HAPPY keeps a flat carrier queued and uses the funscript to drive the channel **strength**. The DG-Lab app owns the safety limits, and HAPPY never asks for more than the ceiling the app reports.
+The Coyote has no position or speed. It emits pulses whose voltage comes from the channel strength and whose charge comes from the pulse width. Strength can only change once per 100 ms frame, but each frame carries four 25 ms width steps, so HAPPY **holds the strength** at the user's level and plays the funscript through the **pulse width**, planned ahead from the script. The DG-Lab app owns the safety limits, and HAPPY never asks for more than the ceiling the app reports.
 
 ```mermaid
 flowchart LR
-  SC["sendContinuous(channel, 0..1)"] --> Res["resolve(channel)<br/>assigned slot + channel A/B"]
-  Res --> Usable{"channel status OK?<br/>not no-circuit, damaged, masked"}
-  Usable -- no --> Zero["value = 0"]
-  Usable -- yes --> Map["value = round(pos × strength × intensityMax)<br/>mapIntensity()"]
+  SC["sendContinuous(channel, pos, lookahead)"] --> Res["resolve(channel)<br/>assigned slot + channel A/B"]
+  Res --> Usable{"channel status OK<br/>and script has points<br/>now or 500 ms ahead?"}
+  Usable -- no --> Zero["level = 0, no frames"]
+  Usable -- yes --> Map["level = round(strength × intensityMax)<br/>mapIntensity(1, …)"]
   Zero & Map --> Str{"CoyoteChannelScheduler.strength<br/>changed and ≥100 ms since last,<br/>or unchanged and ≥150 ms"}
-  Str -- send --> ST["SetTempIntensity(value, 300 ms)<br/>expires by itself: dead-man switch"]
-  Map --> Pos{"value > 0?"}
-  Pos -- yes --> Car{"≥800 ms since last carrier?"}
-  Car -- yes --> AP["AppendPulseData<br/>10 flat frames at the chosen pulse rate and width,<br/>im: true replaces the queue"]
+  Str -- send --> ST["SetTempIntensity(level, 300 ms)<br/>expires by itself: dead-man switch"]
+  Map --> Batch{"≥200 ms since last batch?"}
+  Batch -- yes --> AP["AppendPulseData<br/>5 frames = 20 steps of 25 ms,<br/>width = lookahead(t) × Pulse Width,<br/>im: true replaces the queue"]
 ```
+
+The sync loop passes `lookahead(offsetMs)`, the interpolated position that far ahead; Intiface ignores it. Batches overlap (500 ms of frames every 200 ms), so relay jitter never empties the queue, and each new batch replaces the old one with fresher positions.
 
 #### Pulse frames
 
@@ -261,11 +262,15 @@ The V4 protocol carries Coyote 3.0 pulse frames unchanged (`ver: 3`), so the [Co
 | Byte | Range | Meaning | HAPPY setting |
 | --- | --- | --- | --- |
 | Period ("waveform frequency") | 10–240 | Pulse period in ms. 10–100 is literal; 101–1000 ms is compressed into 101–240. Out of range drops all four steps. | Pulse Frequency, 10–100 Hz (default 50), sent as `round(1000 / Hz)` |
-| Waveform intensity | 0–100 | Relative pulse width. The pulse voltage comes from the channel strength. | Pulse Width, 10–100 % (default 100) |
+| Waveform intensity | 0–100 | Relative pulse width. The pulse voltage comes from the channel strength. | Pulse Width, 10–100 % (default 100): the width at script position 100 |
 
-`waveform.ts` keeps both values constant across the frame. The funscript only drives channel strength. `encodeFrame()` / `decodeFrame()` convert between frames and per-step `{ periodMs, width }`.
+`positionStep()` turns a position into one step; the period stays constant. `encodeFrame()` / `decodeFrame()` convert between frames and per-step `{ periodMs, width }`.
 
-The timing decisions (when to send strength, when to refresh the carrier) live in `CoyoteChannelScheduler` in `channelScheduler.ts`, together with `mapIntensity()`. It has no socket dependency: `CoyoteBackend` keeps one scheduler per channel and sends the commands it returns, and the e-stim sandbox replays the same scheduler.
+The timing decisions and frame building live in `CoyoteChannelScheduler` and `lookaheadFrames()` in `channelScheduler.ts`, together with `mapIntensity()`. It has no socket dependency: `CoyoteBackend` keeps one scheduler per channel and sends the commands it returns, and both sandboxes reuse it.
+
+#### DG-Lab sandbox page
+
+`?view=dglab-sandbox` (button under the DG-Lab device cards, `DGLAB_SANDBOX_ENABLED`, only with `DGLAB_ENABLED`) plays a looping pattern from `patterns.ts` on one Coyote channel, so users can test strength and pulse settings without funscript media. `DglabSandbox` (`sandboxView.ts`) samples the pattern with `patternSampler()` (interpolation from `shared/interpolation.ts`) and calls `CoyoteBackend.sendToFeature()` at 30 Hz, the same path the sync loop takes. The canvas draws the position and the pulses each 25 ms step would play. Starting pauses media playback; leaving the route (`Router` `before` hook) or stopping calls `stopAll()`.
 
 #### E-stim sandbox
 
@@ -273,7 +278,7 @@ The timing decisions (when to send strength, when to refresh the carrier) live i
 
 - Run `npm run sandbox` (esbuild serve with live reload on port 8100, `PORT` overrides), or the **E-stim Sandbox** launch config, which also opens a Chrome debug session.
 - Bootstrap and Plotly come from a CDN.
-- `strategies.ts` holds the translation approaches to compare. *Strength envelope* is the production path; *Width modulation* is an experiment that holds strength and drives the pulse width per 25 ms step with look-ahead. To add one, append an `EstimStrategy` to `STRATEGIES`.
+- `strategies.ts` wraps the production scheduler. To compare an alternative, append an `EstimStrategy` to `STRATEGIES`.
 - `appModel.ts` is an **assumption** about the DG-Lab app, not its code: it plays one queued frame and forwards the current strength every 100 ms, after a fixed latency. `SetTempIntensity` expires after its duration, and `im: true` replaces the queue from the next tick.
 
 `stopAll()` sends `device.op.clear` and resets both channel intensities to 0. See [Pair a DG-Lab Coyote](use-cases/coyote-pairing.md) for the connection side.
@@ -308,7 +313,7 @@ Ideas for Coyote playback, taken from the [Restim stim theory wiki](https://gith
 | --- | --- | --- | --- |
 | Perceptual intensity curve | Perceived intensity grows as $M = \alpha I^{\beta}$ with $\beta \approx 1.5$–2.5 ([nerve activation](https://github.com/diglet48/restim/wiki/nerve-activation)). A linear mapping makes the lower half of a script feel almost empty. | In `mapIntensity()`: $out = floor + (1 - floor) \cdot pos^{\gamma}$ for $pos > 0$, with $\gamma \approx 0.5$ and a floor of about 15–25 %. Both per device. | The floor must stay below the ceiling the app reports. Position 0 must still send 0. |
 | Onset ramp | A sudden jump in strength causes an onset spike that can hurt ([volume ramp](https://github.com/diglet48/restim/wiki/volume-ramp)). | Limit how fast strength can rise per update, and ramp up over a few seconds after play or seek. Decreases stay immediate. | The DG-Lab app has its own soft-start. Both together must not make fast scripts feel mushy. |
-| Random pulse spacing | Randomising the gap between pulses (5–10 ms) slows numbing and softens sudden changes ([pulse rate](https://github.com/diglet48/restim/wiki/pulse-rate)). | Vary the period byte by about ±20 % per 25 ms step in `flatFrame()`. Opt-in. | DG-Lab says periods longer than 25 ms, or periods that change between steps, are processed in an undocumented way. Only predictable at 40 Hz and above. |
+| Random pulse spacing | Randomising the gap between pulses (5–10 ms) slows numbing and softens sudden changes ([pulse rate](https://github.com/diglet48/restim/wiki/pulse-rate)). | Vary the period byte by about ±20 % per 25 ms step in `positionStep()`. Opt-in. | DG-Lab says periods longer than 25 ms, or periods that change between steps, are processed in an undocumented way. Only predictable at 40 Hz and above. |
 | A/B position mode | Moving the sensation between electrodes; the Coyote can do the two simplest three-phase patterns ([three-phase effects](https://github.com/diglet48/restim/wiki/threephase-effects)). | Drive channel A with $f(pos)$ and channel B with $f(1 - pos)$ from one `estim` script. | Needs a new assignment option. It only makes sense when both channels share an electrode area. |
 | Narrow pulses by default | Narrow pulses at higher voltage reach the same nerve activation with less charge and less heating ([nerve activation](https://github.com/diglet48/restim/wiki/nerve-activation), [safety](https://github.com/diglet48/restim/wiki/estim-safety)). | Once the Pulse Width setting has been tested, consider a lower default. | A narrower pulse needs a higher strength, which the app caps. Users would have to raise their comfort limit. |
 | Safety docs | One isolated channel per nipple. Keep electrodes below the waist otherwise ([safety](https://github.com/diglet48/restim/wiki/estim-safety)). | Add a note to the user docs for `estim:nipples`. | — |
@@ -322,7 +327,7 @@ Ideas for Coyote playback, taken from the [Restim stim theory wiki](https://gith
 | Sync loop | [components/funscriptSync.ts](../../src/client/components/funscriptSync.ts) |
 | Interface and registry | [haptic/backend.ts](../../src/client/components/haptic/backend.ts), [haptic/backendRegistry.ts](../../src/client/components/haptic/backendRegistry.ts) |
 | Intiface | [haptic/buttplugClient.ts](../../src/client/components/haptic/buttplugClient.ts) |
-| DG-Lab | [dglab/index.ts](../../src/client/components/haptic/dglab/index.ts) (debug tracing), [dglab/coyoteBackend.ts](../../src/client/components/haptic/dglab/coyoteBackend.ts), [dglab/channelScheduler.ts](../../src/client/components/haptic/dglab/channelScheduler.ts), [dglab/waveform.ts](../../src/client/components/haptic/dglab/waveform.ts), [dglab/v4/pairing.ts](../../src/client/components/haptic/dglab/v4/pairing.ts), [dglab/v4/socket.ts](../../src/client/components/haptic/dglab/v4/socket.ts) |
+| DG-Lab | [dglab/index.ts](../../src/client/components/haptic/dglab/index.ts) (debug tracing), [dglab/coyoteBackend.ts](../../src/client/components/haptic/dglab/coyoteBackend.ts), [dglab/channelScheduler.ts](../../src/client/components/haptic/dglab/channelScheduler.ts), [dglab/patterns.ts](../../src/client/components/haptic/dglab/patterns.ts), [dglab/sandboxView.ts](../../src/client/components/haptic/dglab/sandboxView.ts), [dglab/waveform.ts](../../src/client/components/haptic/dglab/waveform.ts), [dglab/v4/pairing.ts](../../src/client/components/haptic/dglab/v4/pairing.ts), [dglab/v4/socket.ts](../../src/client/components/haptic/dglab/v4/socket.ts) |
 | E-stim sandbox | [sandbox/src/main.ts](../../sandbox/src/main.ts), [sandbox/src/strategies.ts](../../sandbox/src/strategies.ts), [sandbox/src/appModel.ts](../../sandbox/src/appModel.ts), [sandbox/src/simulate.ts](../../sandbox/src/simulate.ts), [sandbox/src/plot.ts](../../sandbox/src/plot.ts) |
 | Device UI | [haptic/deviceAssignment.ts](../../src/client/components/haptic/deviceAssignment.ts), [haptic/deviceStatus.ts](../../src/client/components/haptic/deviceStatus.ts), [haptic/templates.ts](../../src/client/components/haptic/templates.ts) |
 | Timelines | [haptic/visualization/index.ts](../../src/client/components/haptic/visualization/index.ts), [haptic/visualization/geometry.ts](../../src/client/components/haptic/visualization/geometry.ts) |
