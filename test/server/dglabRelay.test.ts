@@ -248,6 +248,47 @@ test(`${TAG} closes attached apps once the controller's grace period expires`, a
     });
 });
 
+async function withFastPing(fn: (ctx: { port: number; token: string }) => Promise<void>): Promise<void> {
+    const { createApp } = await import('../../src/server/index');
+    const { DglabRelay } = await import('../../src/server/services/dglabRelay');
+    await withRelay(fn, (config) => {
+        const app = createApp(config, { ...Config.DEFAULT_CLIENT_CONFIG, dglabEnabled: true });
+        app.dglabRelay?.close();
+        app.dglabRelay = new DglabRelay(Config.DGLAB_DETACH_GRACE_MS, 20);
+        return app;
+    });
+}
+
+test(`${TAG} terminates an app that stops answering native pings`, async () => {
+    await withFastPing(async ({ port, token }) => {
+        const controller = open(port, '', token);
+        const { clientId: tid } = await nextFrame(controller, 'hello');
+        // autoPong off simulates a half-open socket that never answers.
+        const app = new WebSocket(`ws://localhost:${port}${Config.DGLAB_WS_PATH}?tid=${tid as string}`, { autoPong: false });
+        const { clientId: appId } = await nextFrame(app, 'hello');
+        await nextFrame(controller, 'client_attached');
+
+        const gone = await nextFrame(controller, 'client_disconnected');
+        assert.equal(gone.clientId, appId);
+        controller.close();
+    });
+});
+
+test(`${TAG} keeps peers that answer native pings`, async () => {
+    await withFastPing(async ({ port, token }) => {
+        const controller = open(port, '', token);
+        const { clientId: tid } = await nextFrame(controller, 'hello');
+        const app = open(port, `?tid=${tid as string}`, null);
+        await nextFrame(controller, 'client_attached');
+
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        assert.equal(controller.readyState, WebSocket.OPEN);
+        assert.equal(app.readyState, WebSocket.OPEN);
+        controller.close();
+        app.close();
+    });
+});
+
 test(`${TAG} answers ping with pong`, async () => {
     await withRelay(async ({ port, token }) => {
         const controller = open(port, '', token);

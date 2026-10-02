@@ -108,6 +108,7 @@ The idle timeout is sent as an `idle_timeout` frame, but the client does not han
 | Frame over 64 KiB | connection closed by `ws` |
 | Controller socket drops | client reconnects after 1 s, 2 s, 4 s … up to 15 s |
 | Every 30 s | relay sends `heartbeat` to all sockets; while paired, the client re-requests the device list |
+| Every 10 s | relay sends a native WebSocket ping; a peer that misses 3 pongs is terminated and detached as if it had closed |
 
 ## Debugging
 
