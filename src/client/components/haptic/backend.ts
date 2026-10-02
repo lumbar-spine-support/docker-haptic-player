@@ -47,6 +47,15 @@ export interface DeviceAlert {
   message: string;
 }
 
+/** How well the actuators assigned to one channel can actually play it. */
+export interface ChannelHealth {
+  /** Assigned actuators on devices the backend currently knows about. */
+  total: number;
+  /** Of those, how many can produce output right now. */
+  usable: number;
+  alerts: DeviceAlert[];
+}
+
 /** One `label: value` line in a feature's collapsible detail panel. */
 export interface FeatureDetail {
   label: string;
@@ -102,6 +111,9 @@ export interface HapticBackend {
   getDeviceBadge?(deviceName: string): DeviceBadge | null;
   getDeviceAlerts?(deviceName: string): DeviceAlert[];
   getFeatureDetails?(featureId: string): FeatureDetail[];
+
+  /** Optional: backends without it count every assigned actuator as usable. */
+  getChannelHealth?(channel: HapticChannel): ChannelHealth;
 
   /**
    * Optional: fired when displayed device metadata changes, e.g. a channel is
