@@ -18,9 +18,7 @@ import { Emitter } from '../emitter';
 import { FeatureSettings, readJsonRecord, writeJsonRecord } from '../featureSettings';
 import {
   DEFAULT_PULSE_FREQUENCY,
-  DEFAULT_PULSE_WIDTH,
   clampFrequency,
-  clampPulseWidth,
 } from './waveform';
 import { CoyoteChannelScheduler, mapIntensity, type PositionSampler, type PulseSettings } from './channelScheduler';
 import { DglabSocketDeviceType, V4Channel } from 'dglab-kit';
@@ -34,7 +32,8 @@ const STRENGTHS_KEY = 'happy-dglab-strengths';
 const FREQUENCY_KEY = 'happy-dglab-pulse-rate';
 /** Held the raw period byte mislabelled as Hz; dropped so it is not read as a rate. */
 const LEGACY_FREQUENCY_KEY = 'happy-dglab-frequency';
-const PULSE_WIDTH_KEY = 'happy-dglab-pulse-width';
+/** The removed Pulse Width setting; dropped so it does not linger in storage. */
+const LEGACY_PULSE_WIDTH_KEY = 'happy-dglab-pulse-width';
 const PAIRING_HOST_KEY = 'happy-dglab-pairing-host';
 
 /** Feature ids are namespaced so they never collide with Buttplug ids. */
@@ -52,6 +51,15 @@ const STATUS_MASKED = 4;
  * here to give `intensityMax` a denominator.
  */
 const ABSOLUTE_SCALE = 200;
+
+/** Minimum gap after a stop reset, spanning at least one 100 ms app tick. */
+const RESET_SETTLE_MS = 200;
+/** Resume anyway if the app never answers the reset. */
+const RESET_TIMEOUT_MS = 1000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /** Slot marker colours the app uses; anything else is ignored rather than injected as CSS. */
 const MARK_LIGHT_COLORS: Record<string, string> = {
@@ -203,6 +211,8 @@ export class CoyoteBackend implements HapticBackend {
   private readonly deviceStateChanged = new Emitter();
 
   private waveformSeq = 0;
+  /** Pending stop reset; output is held until it settles so the app cannot apply it after a new strength. */
+  private resetHold: Promise<void> | null = null;
   /** Device set last reported to listeners; guards against slot-state churn. */
   private lastDeviceKey = '';
   /** Displayed metadata last reported, so the UI only re-renders on real changes. */
@@ -212,7 +222,6 @@ export class CoyoteBackend implements HapticBackend {
 
   /** Pulse rate in Hz per device name. */
   private readonly frequencies = new Map<string, number>();
-  private readonly pulseWidths = new Map<string, number>();
 
   getCarrierFrequency(name: string): number | null {
     if (!this.coyotes().some((d) => deviceName(d) === name)) return null;
@@ -222,16 +231,6 @@ export class CoyoteBackend implements HapticBackend {
   setCarrierFrequency(name: string, frequency: number): void {
     this.frequencies.set(name, clampFrequency(frequency));
     writeJsonRecord(FREQUENCY_KEY, this.frequencies);
-  }
-
-  getPulseWidth(name: string): number | null {
-    if (!this.coyotes().some((d) => deviceName(d) === name)) return null;
-    return this.pulseWidths.get(name) ?? DEFAULT_PULSE_WIDTH;
-  }
-
-  setPulseWidth(name: string, width: number): void {
-    this.pulseWidths.set(name, clampPulseWidth(width));
-    writeJsonRecord(PULSE_WIDTH_KEY, this.pulseWidths);
   }
 
   constructor() {
@@ -428,6 +427,7 @@ export class CoyoteBackend implements HapticBackend {
   }
 
   private drive(device: Device, ch: V4Channel, sample: PositionSampler, now: number): void {
+    if (this.resetHold) return;
     const id = featureId(device, ch);
     this.warnAboutChannel(device, ch, id);
 
@@ -439,7 +439,7 @@ export class CoyoteBackend implements HapticBackend {
         this.socket.setTempIntensity(device.slotId, ch, command.value, command.durationMs);
       } else {
         this.waveformSeq += 1;
-        this.socket.appendPulse(device.slotId, ch, command.frames, command.durationMs, this.waveformSeq);
+        this.socket.appendPulse(device.slotId, ch, command.frames, command.durationMs, this.waveformSeq, command.replace);
       }
     }
   }
@@ -450,10 +450,7 @@ export class CoyoteBackend implements HapticBackend {
   }
 
   private pulseFor(name: string): PulseSettings {
-    return {
-      frequency: this.frequencies.get(name) ?? DEFAULT_PULSE_FREQUENCY,
-      width: this.pulseWidths.get(name) ?? DEFAULT_PULSE_WIDTH,
-    };
+    return { frequency: this.frequencies.get(name) ?? DEFAULT_PULSE_FREQUENCY };
   }
 
   private warnAboutChannel(device: Device, ch: V4Channel, id: string): void {
@@ -480,12 +477,23 @@ export class CoyoteBackend implements HapticBackend {
   async stopAll(): Promise<void> {
     if (this.socket.connectionState !== 'connected') return;
     this.schedulers.clear();
+    const ops: Promise<void>[] = [];
     for (const device of this.coyotes()) {
-      this.socket.clear(device.slotId);
+      ops.push(this.socket.clear(device.slotId));
       for (const ch of [V4Channel.A, V4Channel.B]) {
-        this.socket.resetIntensity(device.slotId, ch);
+        ops.push(this.socket.resetIntensity(device.slotId, ch));
       }
     }
+    // A strength landing in the same app tick as the reset can lose to it, and identical refreshes never recover.
+    const hold: Promise<void> = Promise.all([
+      Promise.race([Promise.all(ops), delay(RESET_TIMEOUT_MS)]),
+      delay(RESET_SETTLE_MS),
+    ]).then(() => {
+      if (this.resetHold !== hold) return;
+      this.resetHold = null;
+      this.schedulers.clear();
+    });
+    this.resetHold = hold;
   }
 
   // --- Internals ---
@@ -553,9 +561,7 @@ export class CoyoteBackend implements HapticBackend {
       if (typeof value === 'number') this.frequencies.set(name, clampFrequency(value));
     }
     window.localStorage.removeItem(LEGACY_FREQUENCY_KEY);
-    for (const [name, value] of Object.entries(readJsonRecord(PULSE_WIDTH_KEY))) {
-      if (typeof value === 'number') this.pulseWidths.set(name, clampPulseWidth(value));
-    }
+    window.localStorage.removeItem(LEGACY_PULSE_WIDTH_KEY);
     this.hostOverride = normalizeHost(window.localStorage.getItem(PAIRING_HOST_KEY) ?? '');
   }
 }

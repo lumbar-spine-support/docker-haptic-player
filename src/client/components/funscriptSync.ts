@@ -1,6 +1,7 @@
 import type { HapticChannel } from '../../shared/haptics';
 import { bracketIndex, positionAt, type PreparedScript } from '../../shared/interpolation';
 import type { HapticBackend } from './haptic/backend';
+import { MediaClock } from './haptic/visualization/geometry';
 import type { PlaybackSession } from './player';
 
 /** Travel time for a stroker jump without interpolation; as fast as devices reliably accept. */
@@ -49,6 +50,8 @@ export class FunscriptSync {
   private isPlaying = false;
   private delayMs = 0;
   private updateIntervalMs = 1000 / 30;
+  /** The store's time only moves on `timeupdate`; look-ahead batches would otherwise join at stale offsets. */
+  private readonly clock = new MediaClock();
   private readonly session: PlaybackSession;
   private readonly buttplug: HapticBackend;
 
@@ -116,6 +119,7 @@ export class FunscriptSync {
 
   /** Mirrors the active player's transport state; seeking invalidates pending moves. */
   private handleStoreChange(): void {
+    this.syncClock();
     const { paused, seeking } = this.session.activeStore.state;
     if (seeking) this.resetScriptState();
     if (paused && this.isPlaying) this.pause();
@@ -180,10 +184,16 @@ export class FunscriptSync {
     }
   }
 
+  private syncClock(): void {
+    const { currentTime, paused, playbackRate } = this.session.activeStore.state as { currentTime: number; paused: boolean; playbackRate?: number };
+    this.clock.sync(currentTime, paused, typeof playbackRate === 'number' && playbackRate > 0 ? playbackRate : 1);
+  }
+
   private getEffectivePlaybackTimeMs(): number {
-    const { currentTime, duration } = this.session.activeStore.state;
+    this.syncClock();
+    const { duration } = this.session.activeStore.state;
     const durationMs = Math.max(0, (duration || 0) * 1000);
-    return Math.max(0, Math.min(currentTime * 1000 + this.delayMs, durationMs));
+    return Math.max(0, Math.min(this.clock.read(duration || 0) * 1000 + this.delayMs, durationMs));
   }
 
   /** Drive every actuator assigned to this script's channel, in its native style. */

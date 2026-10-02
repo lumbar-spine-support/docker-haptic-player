@@ -7,7 +7,6 @@ import { pairingDeepLink } from '../../src/client/components/haptic/dglab/v4/pai
 import { DglabV4Socket } from '../../src/client/components/haptic/dglab/v4/socket';
 import {
     clampFrequency,
-    clampPulseWidth,
     decodeFrame,
     encodeFrame,
     periodByte,
@@ -89,13 +88,14 @@ test(`${TAG} strength never goes negative and is always an integer`, () => {
     socket.disconnect();
 });
 
-test(`${TAG} pulse data carries the frame list, version and sequence with im:true`, () => {
+test(`${TAG} pulse data carries the frame list, version and sequence, and lasts exactly as long as its frames`, () => {
     const { socket, sent } = setup();
-    socket.appendPulse('slot-1', V4Channel.A, ['0A0A0A0A64646464'], 1000, 12);
-    // Without im:true the queue grows unboundedly and the device plays stale frames.
+    socket.appendPulse('slot-1', V4Channel.A, ['0A0A0A0A64646464'], 100, 12);
     assert.deepEqual(lastOp(sent).data?.data, {
-        s: 'slot-1', c: 0, p: 1, im: true, t: 0, d: 1000, v: ['0A0A0A0A64646464'], ver: 3, seq: 12,
+        s: 'slot-1', c: 0, p: 1, im: true, t: 0, d: 100, v: ['0A0A0A0A64646464'], ver: 3, seq: 12,
     });
+    socket.appendPulse('slot-1', V4Channel.A, ['0A0A0A0A64646464'], 100, 12, false);
+    assert.equal(lastOp(sent).data?.data?.im, false);
     socket.disconnect();
 });
 
@@ -191,12 +191,12 @@ test(`${TAG} the pairing deep link url-encodes the relay address`, () => {
     assert.equal(link, 'https://dungeon-lab.com/s/?v=1&action=socket&url=ws%3A%2F%2F192.168.1.5%3A3000%2Fws%2Fdglab%3Ftid%3Dabc');
 });
 
-test(`${TAG} a script position becomes a step whose width is scaled by the pulse width setting`, () => {
-    assert.deepEqual(positionStep(1, 100, 100), { periodMs: 10, width: 100 });
-    assert.deepEqual(positionStep(0.5, 50, 40), { periodMs: 20, width: 20 });
-    assert.deepEqual(positionStep(0, 50, 100), { periodMs: 20, width: 0 });
-    assert.deepEqual(positionStep(7, 50, 100), { periodMs: 20, width: 100 });
-    assert.deepEqual(positionStep(Number.NaN, 50, 100), { periodMs: 20, width: 0 });
+test(`${TAG} a script position becomes a step whose width follows the position`, () => {
+    assert.deepEqual(positionStep(1, 100), { periodMs: 10, width: 100 });
+    assert.deepEqual(positionStep(0.5, 50), { periodMs: 20, width: 50 });
+    assert.deepEqual(positionStep(0, 50), { periodMs: 20, width: 0 });
+    assert.deepEqual(positionStep(7, 50), { periodMs: 20, width: 100 });
+    assert.deepEqual(positionStep(Number.NaN, 50), { periodMs: 20, width: 0 });
 });
 
 test(`${TAG} the pulse rate in Hz is sent as its period in ms`, () => {
@@ -211,14 +211,8 @@ test(`${TAG} pulse rate stays where the period byte is valid and uncompressed`, 
     assert.equal(clampFrequency(0), 10);
     assert.equal(clampFrequency(500), 100);
     assert.equal(clampFrequency(Number.NaN), 50);
-    assert.equal(positionStep(1, 500, 100).periodMs, 10);
-    assert.equal(positionStep(1, 1, 100).periodMs, 100);
-});
-
-test(`${TAG} pulse width never reaches zero or exceeds the wire maximum`, () => {
-    assert.equal(clampPulseWidth(0), 10);
-    assert.equal(clampPulseWidth(150), 100);
-    assert.equal(clampPulseWidth(Number.NaN), 100);
+    assert.equal(positionStep(1, 500).periodMs, 10);
+    assert.equal(positionStep(1, 1).periodMs, 100);
 });
 
 test(`${TAG} periods above 100 ms are compressed into the 101–240 byte range`, () => {

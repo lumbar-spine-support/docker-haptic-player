@@ -2,23 +2,26 @@ import { clamp01 } from '../backend';
 import { FRAME_DURATION_MS, STEPS_PER_FRAME, STEP_DURATION_MS, encodeFrame, positionStep } from './waveform';
 
 /**
- * How long a strength task stays alive. Longer than the refresh interval so output
- * never gaps, short enough to act as a dead-man's switch when the tab or the
- * network dies.
+ * How long a strength task stays alive: the dead-man's switch when the tab or the
+ * network dies. Each refresh replaces the running task, so refresh sparingly.
  */
-export const STRENGTH_DURATION_MS = 300;
+export const STRENGTH_DURATION_MS = 1000;
 
-/**
- * Strength resend interval. `FunscriptSync` ticks far faster than this, but the
- * device only consumes one tick per ~100 ms, so sending more often just floods
- * the relay.
- */
+/** Strength resend interval while the value changes; one app tick is ~100 ms. */
 export const STRENGTH_INTERVAL_MS = 100;
 
-/** Frames per look-ahead batch and how often a batch replaces the queue; the overlap absorbs relay jitter. */
-export const LOOKAHEAD_FRAME_COUNT = 5;
-export const LOOKAHEAD_INTERVAL_MS = 200;
-export const LOOKAHEAD_MS = LOOKAHEAD_FRAME_COUNT * FRAME_DURATION_MS;
+/**
+ * Frames are appended in batches of `BATCH_FRAMES` whenever less than `BUFFER_MS`
+ * is queued; each batch is one app task, and task hand-overs are where playback can
+ * hiccup, so batches are long. Replacing the queue instead would restart playback
+ * at a jitter-dependent point.
+ */
+export const BUFFER_MS = 500;
+export const BATCH_FRAMES = 10;
+/** Behind this far, the queue has run dry (e.g. a throttled tab) and is primed again. */
+export const UNDERRUN_MS = FRAME_DURATION_MS;
+/** The window checked for script points when deciding whether a channel is active. */
+export const LOOKAHEAD_MS = 500;
 
 /** Position 0–1 at `offsetMs` from now; null where the script has no points. */
 export type PositionSampler = (offsetMs: number) => number | null;
@@ -26,8 +29,6 @@ export type PositionSampler = (offsetMs: number) => number | null;
 export interface PulseSettings {
     /** Pulse rate in Hz. */
     frequency: number;
-    /** Relative pulse width, 0–100. */
-    width: number;
 }
 
 export interface StrengthCommand {
@@ -40,6 +41,8 @@ export interface PulseCommand {
     kind: 'pulse';
     frames: string[];
     durationMs: number;
+    /** `im: true`: drop whatever the app has queued and start with these frames. */
+    replace: boolean;
 }
 
 /** What one channel should send to the relay: `SetTempIntensity` or `AppendPulseData`. */
@@ -54,11 +57,11 @@ export function mapIntensity(position: number, strength: number, ceiling: number
     return Math.round(clamp01(position) * clamp01(strength) * Math.max(0, ceiling));
 }
 
-/** Pulse frames for the next `LOOKAHEAD_MS`: each 25 ms step's width follows the position at that time. */
-export function lookaheadFrames(sample: PositionSampler, pulse: PulseSettings): string[] {
-    return Array.from({ length: LOOKAHEAD_FRAME_COUNT }, (_, f) => encodeFrame(
+/** `count` frames starting `startMs` from now: each 25 ms step's width follows the position at that time. */
+export function lookaheadFrames(sample: PositionSampler, pulse: PulseSettings, startMs: number, count: number): string[] {
+    return Array.from({ length: count }, (_, f) => encodeFrame(
         Array.from({ length: STEPS_PER_FRAME }, (_, s) =>
-            positionStep(sample((f * STEPS_PER_FRAME + s) * STEP_DURATION_MS) ?? 0, pulse.frequency, pulse.width)),
+            positionStep(sample(startMs + (f * STEPS_PER_FRAME + s) * STEP_DURATION_MS) ?? 0, pulse.frequency)),
     ));
 }
 
@@ -72,26 +75,30 @@ export function lookaheadFrames(sample: PositionSampler, pulse: PulseSettings): 
 export class CoyoteChannelScheduler {
     private lastValue: number | null = null;
     private lastStrengthAt = -Infinity;
-    private lastBatchAt = -Infinity;
+    /** Wall time the frames sent so far run out; null while not streaming. */
+    private queuedUntil: number | null = null;
 
-    /** Strength follows the script and is refreshed before its dead-man's timer runs out. */
+    /** Strength is refreshed before its dead-man's timer runs out; switching on or off is never throttled. */
     strength(now: number, value: number): StrengthCommand | null {
         const elapsed = now - this.lastStrengthAt;
         const unchanged = this.lastValue === value;
+        const toggled = (this.lastValue ?? 0) === 0 || value === 0;
         if (unchanged && elapsed < STRENGTH_DURATION_MS / 2) return null;
-        if (!unchanged && elapsed < STRENGTH_INTERVAL_MS) return null;
+        if (!unchanged && !toggled && elapsed < STRENGTH_INTERVAL_MS) return null;
 
         this.lastValue = value;
         this.lastStrengthAt = now;
         return { kind: 'strength', value, durationMs: STRENGTH_DURATION_MS };
     }
 
-    /** A look-ahead batch; sent with `im: true`, so it replaces the queued frames. */
+    /** Appends a batch once the queue runs low, continuing exactly where the last frame ended. */
     pulses(now: number, sample: PositionSampler, pulse: PulseSettings): PulseCommand | null {
-        if (now - this.lastBatchAt < LOOKAHEAD_INTERVAL_MS) return null;
-        this.lastBatchAt = now;
-        const frames = lookaheadFrames(sample, pulse);
-        return { kind: 'pulse', frames, durationMs: frames.length * FRAME_DURATION_MS };
+        const replace = this.queuedUntil === null || this.queuedUntil < now - UNDERRUN_MS;
+        const start = replace ? now : this.queuedUntil!;
+        if (start - now >= BUFFER_MS) return null;
+        const frames = lookaheadFrames(sample, pulse, start - now, BATCH_FRAMES);
+        this.queuedUntil = start + BATCH_FRAMES * FRAME_DURATION_MS;
+        return { kind: 'pulse', frames, durationMs: BATCH_FRAMES * FRAME_DURATION_MS, replace };
     }
 
     /**
@@ -104,7 +111,7 @@ export class CoyoteChannelScheduler {
         const strength = this.strength(now, active ? level : 0);
         if (strength) commands.push(strength);
         if (!active) {
-            this.lastBatchAt = -Infinity;
+            this.queuedUntil = null;
             return commands;
         }
         const batch = this.pulses(now, sample, pulse);

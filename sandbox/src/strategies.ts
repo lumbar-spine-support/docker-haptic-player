@@ -31,7 +31,7 @@ const widthModulation: EstimStrategy = {
     id: 'width',
     label: 'Width modulation with look-ahead (HAPPY)',
     description: 'The production path: strength is held at slider × ceiling with a dead-man timeout; the script drives the pulse width '
-        + 'of every 25 ms step through CoyoteChannelScheduler, in look-ahead batches that replace the queue.',
+        + 'of every 25 ms step through CoyoteChannelScheduler, streamed as contiguous frames appended to the queue.',
     create(ctx) {
         const scheduler = new CoyoteChannelScheduler();
         const level = mapIntensity(1, ctx.strength, ctx.ceiling);
