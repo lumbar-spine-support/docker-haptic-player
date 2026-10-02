@@ -125,5 +125,5 @@ The idle timeout is sent as an `idle_timeout` frame, but the client does not han
 | Deep link, QR payload | [haptic/dglab/v4/pairing.ts](../../../src/client/components/haptic/dglab/v4/pairing.ts) |
 | Carrier waveform | [haptic/dglab/waveform.ts](../../../src/client/components/haptic/dglab/waveform.ts) |
 | Relay | [src/server/services/dglabRelay.ts](../../../src/server/services/dglabRelay.ts) |
-| Upgrade wiring | `attachUpgradeHandlers` in [src/server/index.ts](../../../src/server/index.ts) |
+| Upgrade wiring and auth | `attachWebSocketUpgradeHandlers` in [src/server/index.ts](../../../src/server/index.ts) |
 | User docs | [docs/dg-lab.md](../../dg-lab.md) |

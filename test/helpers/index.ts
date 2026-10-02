@@ -80,7 +80,7 @@ export async function startTestServer(
         ...clientOverrides,
     } as Config.ClientConfig;
 
-    const { createApp, attachUpgradeHandlers } = await import('../../src/server/index');
+    const { createApp, attachWebSocketUpgradeHandlers } = await import('../../src/server/index');
     const app = createAppFn ? createAppFn(config) : createApp(config, clientConfig);
 
     const { createTokenStore } = await import('../../src/server/services/tokenStore');
@@ -103,7 +103,7 @@ export async function startTestServer(
         throw new Error('Invalid server address');
     }
 
-    attachUpgradeHandlers(server, app);
+    attachWebSocketUpgradeHandlers(server, app);
 
     return {
         port: addr.port,

@@ -2,33 +2,9 @@ import crypto from 'crypto';
 import type { IncomingMessage } from 'http';
 import type { Duplex } from 'stream';
 import { WebSocketServer, WebSocket } from 'ws';
-import { parseCookies } from '../utils/cookies';
-import { COOKIE_NAME } from '../middleware/auth';
 import { createLogger } from '../utils/logger';
-import type { TokenStore } from './tokenStore';
 
 const log = createLogger('dglab:relay');
-
-/** Path the relay listens on; anything else is refused at the upgrade handshake. */
-export const DGLAB_WS_PATH = '/ws/dglab';
-
-/** Interval at which the relay sends heartbeat messages to connected peers. */
-const HEARTBEAT_INTERVAL_MS = 30_000;
-
-/** A controller nobody ever paired with is a forgotten browser tab; reclaim it. */
-export const IDLE_TIMEOUT_MS = 5 * 60_000;
-
-/**
- * How long paired apps outlive the controller's socket.
- *
- * Switching to the DG-Lab app backgrounds the browser, and mobile Chrome may
- * close the WebSocket while it is hidden. The `tid` the user is about to paste
- * must keep working, and the reconnecting tab picks up whatever attached meanwhile.
- */
-export const DETACH_GRACE_MS = 5 * 60_000;
-
-/** Guards against a peer streaming junk; real frames are a few hundred bytes. */
-const MAX_FRAME_BYTES = 64 * 1024;
 
 /** Close codes used by the relay to indicate why a connection was closed. */
 export const DGLAB_CLOSE_CODE = {
@@ -37,20 +13,42 @@ export const DGLAB_CLOSE_CODE = {
   IDLE_TIMEOUT: 4002,
 };
 
-interface Frame {
+/** Interval at which the relay sends heartbeat messages to connected peers.
+ * Value taken from: https://github.com/dungeonlab-open/dglab-websocket-server/blob/main/v4-server.ts
+ */
+const HEARTBEAT_INTERVAL_MS = 30_000;
+
+/** A controller nobody ever paired with is a forgotten browser tab; reclaim it.
+ * Value taken from: https://github.com/dungeonlab-open/dglab-websocket-server/blob/main/v4-server.ts
+ */
+const IDLE_TIMEOUT_MS = 5 * 60_000;
+
+/**
+ * How long paired apps outlive the controller's socket.
+ *
+ * Switching to the DG-Lab app backgrounds the browser, and mobile Chrome may
+ * close the WebSocket while it is hidden. The `tid` the user is about to paste
+ * must keep working, and the reconnecting tab picks up whatever attached meanwhile.
+ *
+ * Note that the grace feature does not exist in reference implementation:
+ * https://github.com/dungeonlab-open/dglab-websocket-server/blob/main/v4-server.ts
+ */
+const DETACH_GRACE_MS = 5 * 60_000;
+
+/** Guards against a peer streaming junk; real frames are a few hundred bytes. */
+const MAX_FRAME_BYTES = 64 * 1024;
+
+interface MessageFrame {
   type?: string;
   clientId?: unknown;
   data?: unknown;
 }
 
 function send(socket: WebSocket | null, frame: unknown): void {
-  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    return;
+  }
   socket.send(JSON.stringify(frame));
-}
-
-function refuseUpgrade(socket: Duplex, status: number, reason: string): void {
-  socket.write(`HTTP/1.1 ${status} ${reason}\r\nConnection: close\r\n\r\n`);
-  socket.destroy();
 }
 
 function clearTimer(timer: NodeJS.Timeout | null): null {
@@ -59,9 +57,9 @@ function clearTimer(timer: NodeJS.Timeout | null): null {
 }
 
 /** Parses frames, answers `ping` and malformed input, and hands `message` frames to `onMessage`. */
-function listen(socket: WebSocket, onMessage: (frame: Frame) => void): void {
+function listen(socket: WebSocket, onMessage: (frame: MessageFrame) => void): void {
   socket.on('message', (raw) => {
-    let frame: Frame;
+    let frame: MessageFrame;
     try {
       frame = JSON.parse(String(raw));
     } catch {
@@ -97,7 +95,6 @@ export class DglabRelay {
   // Random per process: unguessable because it is the app's only credential.
   private readonly controllerId = crypto.randomUUID();
   private readonly heartbeat: NodeJS.Timeout;
-  private readonly tokenStore: TokenStore | null;
   private readonly graceMs: number;
 
   /** Null while the tab is away; the app is kept until the grace period runs out. */
@@ -106,39 +103,23 @@ export class DglabRelay {
   private idleTimer: NodeJS.Timeout | null = null;
   private graceTimer: NodeJS.Timeout | null = null;
 
-  /** `tokenStore` is null when authentication is disabled; controllers then need no cookie. */
-  constructor(tokenStore: TokenStore | null, graceMs = DETACH_GRACE_MS) {
-    this.tokenStore = tokenStore;
+  /** Expects upgrades already authenticated by the dispatcher; requests with `tid` are apps. */
+  constructor(graceMs = DETACH_GRACE_MS) {
     this.graceMs = graceMs;
-    this.heartbeat = setInterval(() => {
-      send(this.controller, { type: 'heartbeat' });
-      send(this.app?.socket ?? null, { type: 'heartbeat' });
-    }, HEARTBEAT_INTERVAL_MS);
-    // The relay must not hold the process open on its own.
-    this.heartbeat.unref?.();
+    this.heartbeat = this.startHeartbeat();
   }
 
   /** Handles an incoming WebSocket upgrade request after the initial HTTP handshake. */
   handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void {
     const url = new URL(req.url ?? '/', 'http://localhost');
-    if (url.pathname !== DGLAB_WS_PATH) {
-      refuseUpgrade(socket, 404, 'Not Found');
-      return;
-    }
-
     const tid = url.searchParams.get('tid');
-
-    // Express middleware never runs on an upgrade, so the token check is hand-rolled here.
-    // Apps cannot present a cookie; possession of the unguessable `tid` is their credential.
-    if (!tid && this.tokenStore && !this.tokenStore.verify(parseCookies(req.headers.cookie)[COOKIE_NAME])) {
-      log.debug('Rejected unauthenticated controller upgrade');
-      refuseUpgrade(socket, 401, 'Unauthorized');
-      return;
-    }
-
     this.wss.handleUpgrade(req, socket, head, (ws) => {
-      if (tid) this.attachApp(ws, tid);
-      else this.attachController(ws);
+      if (tid) {
+        this.attachApp(ws, tid);
+      }
+      else {
+        this.attachController(ws);
+      }
     });
   }
 
@@ -150,6 +131,17 @@ export class DglabRelay {
     this.controller = null;
     this.dropApp();
     this.wss.close();
+  }
+
+  /** Start the heartbeat interval. */
+  private startHeartbeat(): NodeJS.Timeout {
+    const broadcast = () => {
+      send(this.controller, { type: 'heartbeat' });
+      send(this.app?.socket ?? null, { type: 'heartbeat' });
+    }
+    const heartbeat = setInterval(broadcast, HEARTBEAT_INTERVAL_MS);
+    heartbeat.unref?.(); // The heartbeat must not hold the process open on its own.
+    return heartbeat;
   }
 
   /** Attaches a controller, replacing any previous one. */
@@ -243,8 +235,4 @@ export class DglabRelay {
     }
     send(this.app?.socket ?? null, { type: 'message', clientId: this.controllerId, data });
   }
-}
-
-export function createDglabRelay(tokenStore: TokenStore | null, graceMs = DETACH_GRACE_MS): DglabRelay {
-  return new DglabRelay(tokenStore, graceMs);
 }
