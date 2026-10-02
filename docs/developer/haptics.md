@@ -268,7 +268,7 @@ The V4 protocol carries Coyote 3.0 pulse frames unchanged (`ver: 3`), so the [Co
 
 #### DG-Lab client
 
-The wire protocol, device cache and patch merging come from [dglab-kit](https://github.com/dungeonlab-open/dglab-kit) (`DglabSocket`). `DglabV4Socket` wraps it and adds what the kit leaves to the caller:
+The wire protocol, device cache and patch merging come from [dglab-kit](https://github.com/dungeonlab-open/dglab-kit) (`DglabSocket`). Protocol types (`V4Channel`, `V4ActionType`, `V4DeviceInfo`, …) are imported from the kit directly; `Device` is `V4DeviceInfo` plus the app's untyped slot `id`. `DglabV4Socket` wraps it and adds what the kit leaves to the caller:
 
 - Reconnects with backoff (1 s doubling to 15 s), except after the relay closes with `replaced` (another tab took over).
 - Requests devices when an app attaches and every 30 s, since battery level only arrives with a full snapshot.
