@@ -160,9 +160,24 @@ body.blur-content media-container {
       grid-template-rows var(--app-transition-collapse-duration) var(--app-transition-collapse-easing),
       opacity var(--app-transition-collapse-duration) var(--app-transition-collapse-easing);
 
+    position: relative;
+
     >canvas {
       min-height: 0;
     }
+  }
+
+  // Composited overlay so the playhead moves at sub-pixel precision without canvas antialiasing.
+  .viz-cursor {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 3px;
+    margin-left: -1.5px;
+    background-color: var(--bs-primary);
+    pointer-events: none;
+    will-change: transform;
   }
 
   &.viz-collapsed .viz-canvas-wrap {
