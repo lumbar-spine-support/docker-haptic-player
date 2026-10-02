@@ -9,7 +9,11 @@ import {
     carrierFrames,
     clampFrequency,
     clampPulseWidth,
+    decodeFrame,
+    encodeFrame,
     flatFrame,
+    periodByte,
+    periodFromByte,
     pulsePeriodMs,
 } from '../../src/client/components/haptic/dglab/waveform';
 
@@ -219,4 +223,28 @@ test(`${TAG} the carrier repeats one identical frame`, () => {
     const frames = carrierFrames(100, 100, 3);
     assert.equal(frames.length, 3);
     assert.deepEqual(new Set(frames), new Set(['0A0A0A0A64646464']));
+});
+
+test(`${TAG} periods above 100 ms are compressed into the 101–240 byte range`, () => {
+    assert.equal(periodByte(100), 100);
+    assert.equal(periodByte(600), 200);
+    assert.equal(periodByte(1000), 240);
+    assert.equal(periodByte(5), 10);
+    for (const ms of [10, 55, 100, 350, 600, 800, 1000]) assert.equal(periodFromByte(periodByte(ms)), ms);
+    assert.equal(periodFromByte(9), null);
+    assert.equal(periodFromByte(241), null);
+});
+
+test(`${TAG} a frame decodes back into its four steps`, () => {
+    const steps = [
+        { periodMs: 10, width: 0 },
+        { periodMs: 20, width: 33 },
+        { periodMs: 50, width: 66 },
+        { periodMs: 100, width: 100 },
+    ];
+    const frame = encodeFrame(steps);
+    assert.equal(frame, '0A14326400214264');
+    assert.deepEqual(decodeFrame(frame), steps);
+    assert.throws(() => encodeFrame(steps.slice(1)), RangeError);
+    assert.throws(() => decodeFrame('0A0A'), RangeError);
 });

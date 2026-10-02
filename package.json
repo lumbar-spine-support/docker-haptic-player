@@ -17,6 +17,7 @@
     "test:coverage": "mkdir -p coverage && NODE_ENV=test node --import tsx --test --experimental-test-coverage --test-coverage-include='src/**' --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info $(find test/server test/client -name '*.test.ts')",
     "test:watch": "NODE_ENV=test node --import tsx --test --watch $(find test/server test/client -name '*.test.ts')",
     "screenshot": "node scripts/screenshot-app.js",
+    "sandbox": "node sandbox/serve.js",
     "docs:env": "node --import tsx scripts/update-env-docs.js"
   },
   "dependencies": {

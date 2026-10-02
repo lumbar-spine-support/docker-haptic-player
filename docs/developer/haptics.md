@@ -247,7 +247,7 @@ flowchart LR
   Res --> Usable{"channel status OK?<br/>not no-circuit, damaged, masked"}
   Usable -- no --> Zero["value = 0"]
   Usable -- yes --> Map["value = round(pos × strength × intensityMax)<br/>mapIntensity()"]
-  Zero & Map --> Str{"pushStrength<br/>changed and ≥100 ms since last,<br/>or unchanged and ≥150 ms"}
+  Zero & Map --> Str{"CoyoteChannelScheduler.strength<br/>changed and ≥100 ms since last,<br/>or unchanged and ≥150 ms"}
   Str -- send --> ST["SetTempIntensity(value, 300 ms)<br/>expires by itself: dead-man switch"]
   Map --> Pos{"value > 0?"}
   Pos -- yes --> Car{"≥800 ms since last carrier?"}
@@ -256,14 +256,25 @@ flowchart LR
 
 #### Pulse frames
 
-The V4 protocol carries Coyote 3.0 pulse frames unchanged (`ver: 3`), so the [Coyote V3 Bluetooth protocol](https://github.com/dungeonlab-open/dglab-bluetooth-protocol/blob/main/coyote/v3/README.md) and its [waveform explanation](https://github.com/dungeonlab-open/dglab-bluetooth-protocol/blob/main/coyote/README.md) define the format. A frame is 16 hex characters covering 100 ms: four 25 ms steps, each with a period byte and a pulse width byte.
+The V4 protocol carries Coyote 3.0 pulse frames unchanged (`ver: 3`), so the [Coyote V3 Bluetooth protocol](https://github.com/dungeonlab-open/dglab-bluetooth-protocol/blob/main/coyote/v3/README.md) and its [waveform explanation](https://github.com/dungeonlab-open/dglab-bluetooth-protocol/blob/main/coyote/README.md) define the format. A frame is 16 hex characters covering 100 ms: four 25 ms steps, each with a period byte and a pulse width byte. See also the [V4 Protocol Reference](https://github.com/dungeonlab-open/dglab-kit#v4-%E5%8D%8F%E8%AE%AE%E5%8F%82%E8%80%83)
 
 | Byte | Range | Meaning | HAPPY setting |
 | --- | --- | --- | --- |
 | Period ("waveform frequency") | 10–240 | Pulse period in ms. 10–100 is literal; 101–1000 ms is compressed into 101–240. Out of range drops all four steps. | Pulse Frequency, 10–100 Hz (default 50), sent as `round(1000 / Hz)` |
 | Waveform intensity | 0–100 | Relative pulse width. The pulse voltage comes from the channel strength. | Pulse Width, 10–100 % (default 100) |
 
-`waveform.ts` keeps both values constant across the frame. The funscript only drives channel strength.
+`waveform.ts` keeps both values constant across the frame. The funscript only drives channel strength. `encodeFrame()` / `decodeFrame()` convert between frames and per-step `{ periodMs, width }`.
+
+The timing decisions (when to send strength, when to refresh the carrier) live in `CoyoteChannelScheduler` in `channelScheduler.ts`, together with `mapIntensity()`. It has no socket dependency: `CoyoteBackend` keeps one scheduler per channel and sends the commands it returns, and the e-stim sandbox replays the same scheduler.
+
+#### E-stim sandbox
+
+`sandbox/` is a standalone debugging page that plots how a funscript becomes Coyote output: interpolated position, the commands sent, the decoded frame steps and the modelled output against an ideal curve. It imports `interpolation.ts`, `waveform.ts` and `channelScheduler.ts` directly; nothing from it ships with the app.
+
+- Run `npm run sandbox` (esbuild serve with live reload on port 8100, `PORT` overrides), or the **E-stim Sandbox** launch config, which also opens a Chrome debug session.
+- Bootstrap and Plotly come from a CDN.
+- `strategies.ts` holds the translation approaches to compare. *Strength envelope* is the production path; *Width modulation* is an experiment that holds strength and drives the pulse width per 25 ms step with look-ahead. To add one, append an `EstimStrategy` to `STRATEGIES`.
+- `appModel.ts` is an **assumption** about the DG-Lab app, not its code: it plays one queued frame and forwards the current strength every 100 ms, after a fixed latency. `SetTempIntensity` expires after its duration, and `im: true` replaces the queue from the next tick.
 
 `stopAll()` sends `device.op.clear` and resets both channel intensities to 0. See [Pair a DG-Lab Coyote](use-cases/coyote-pairing.md) for the connection side.
 
@@ -311,6 +322,7 @@ Ideas for Coyote playback, taken from the [Restim stim theory wiki](https://gith
 | Sync loop | [components/funscriptSync.ts](../../src/client/components/funscriptSync.ts) |
 | Interface and registry | [haptic/backend.ts](../../src/client/components/haptic/backend.ts), [haptic/backendRegistry.ts](../../src/client/components/haptic/backendRegistry.ts) |
 | Intiface | [haptic/buttplugClient.ts](../../src/client/components/haptic/buttplugClient.ts) |
-| DG-Lab | [dglab/index.ts](../../src/client/components/haptic/dglab/index.ts) (debug tracing), [dglab/coyoteBackend.ts](../../src/client/components/haptic/dglab/coyoteBackend.ts), [dglab/waveform.ts](../../src/client/components/haptic/dglab/waveform.ts), [dglab/v4/pairing.ts](../../src/client/components/haptic/dglab/v4/pairing.ts), [dglab/v4/socket.ts](../../src/client/components/haptic/dglab/v4/socket.ts) |
+| DG-Lab | [dglab/index.ts](../../src/client/components/haptic/dglab/index.ts) (debug tracing), [dglab/coyoteBackend.ts](../../src/client/components/haptic/dglab/coyoteBackend.ts), [dglab/channelScheduler.ts](../../src/client/components/haptic/dglab/channelScheduler.ts), [dglab/waveform.ts](../../src/client/components/haptic/dglab/waveform.ts), [dglab/v4/pairing.ts](../../src/client/components/haptic/dglab/v4/pairing.ts), [dglab/v4/socket.ts](../../src/client/components/haptic/dglab/v4/socket.ts) |
+| E-stim sandbox | [sandbox/src/main.ts](../../sandbox/src/main.ts), [sandbox/src/strategies.ts](../../sandbox/src/strategies.ts), [sandbox/src/appModel.ts](../../sandbox/src/appModel.ts), [sandbox/src/simulate.ts](../../sandbox/src/simulate.ts), [sandbox/src/plot.ts](../../sandbox/src/plot.ts) |
 | Device UI | [haptic/deviceAssignment.ts](../../src/client/components/haptic/deviceAssignment.ts), [haptic/deviceStatus.ts](../../src/client/components/haptic/deviceStatus.ts), [haptic/templates.ts](../../src/client/components/haptic/templates.ts) |
 | Timelines | [haptic/visualization/index.ts](../../src/client/components/haptic/visualization/index.ts), [haptic/visualization/geometry.ts](../../src/client/components/haptic/visualization/geometry.ts) |

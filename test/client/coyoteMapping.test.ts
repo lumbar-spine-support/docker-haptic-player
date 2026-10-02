@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 
 import { DglabSocketDeviceType, V4Channel } from 'dglab-kit';
 import type { Device } from '../../src/client/components/haptic/dglab/v4/socket';
-import { channelAlerts, channelCeiling, isChannelMuted, isLoopbackHost, mapIntensity, normalizeHost } from '../../src/client/components/haptic/dglab/coyoteBackend';
+import { channelAlerts, channelCeiling, isChannelMuted, isLoopbackHost, normalizeHost } from '../../src/client/components/haptic/dglab/coyoteBackend';
+import { CoyoteChannelScheduler, mapIntensity } from '../../src/client/components/haptic/dglab/channelScheduler';
 
 const TAG = '[client:dglab:mapping]';
 
@@ -104,4 +105,26 @@ test(`${TAG} loopback hosts are recognised so the UI can warn about them`, () =>
     for (const host of ['192.168.1.10:3000', 'happy.lan']) {
         assert.equal(isLoopbackHost(host), false, host);
     }
+});
+
+const PULSE = { frequency: 50, width: 100 };
+
+test(`${TAG} changed strength is sent at most every 100 ms, unchanged strength refreshed every 150 ms`, () => {
+    const s = new CoyoteChannelScheduler();
+    const kinds = (t: number, v: number) => s.update(t, v, PULSE).map((c) => c.kind);
+    assert.deepEqual(kinds(0, 5), ['strength', 'pulse']);
+    assert.deepEqual(kinds(50, 6), []);
+    assert.deepEqual(kinds(100, 6), ['strength']);
+    assert.deepEqual(kinds(200, 6), []);
+    assert.deepEqual(kinds(250, 6), ['strength']);
+});
+
+test(`${TAG} the carrier is only refreshed while there is output`, () => {
+    const s = new CoyoteChannelScheduler();
+    assert.deepEqual(s.update(0, 0, PULSE).map((c) => c.kind), ['strength']);
+    const commands = s.update(1000, 3, PULSE);
+    assert.deepEqual(commands.map((c) => c.kind), ['strength', 'pulse']);
+    assert.equal(commands[1]?.durationMs, 1000);
+    assert.equal(s.carrier(1500, PULSE), null);
+    assert.notEqual(s.carrier(1800, PULSE), null);
 });

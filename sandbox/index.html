@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HAPPY e-stim sandbox</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+
+<body>
+    <main class="container-fluid py-3">
+        <h1 class="h4">E-stim sandbox <small class="text-body-secondary">funscript &rarr; interpolation &rarr; Coyote
+                frames</small></h1>
+
+        <form id="controls" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label small" for="file">Funscript</label>
+                <input class="form-control form-control-sm" type="file" id="file" accept=".funscript,.json">
+            </div>
+            <div class="col-auto">
+                <label class="form-label small" for="strategy">Strategy</label>
+                <select class="form-select form-select-sm" id="strategy"></select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small" for="method">Interpolation</label>
+                <select class="form-select form-select-sm" id="method"></select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small" for="tickHz">Update Hz</label>
+                <input class="form-control form-control-sm" type="number" id="tickHz" min="10" max="240" value="30">
+            </div>
+            <div class="col-auto">
+                <label class="form-label small" for="strength">Strength %</label>
+                <input class="form-control form-control-sm" type="number" id="strength" min="0" max="100" value="100">
+            </div>
+            <div class="col-auto">
+                <label class="form-label small" for="ceiling">Ceiling</label>
+                <input class="form-control form-control-sm" type="number" id="ceiling" min="1" max="200" value="40">
+            </div>
+            <div class="col-auto">
+                <label class="form-label small" for="frequency">Pulse Hz</label>
+                <input class="form-control form-control-sm" type="number" id="frequency" step="5">
+            </div>
+            <div class="col-auto">
+                <label class="form-label small" for="width">Pulse width %</label>
+                <input class="form-control form-control-sm" type="number" id="width" step="5">
+            </div>
+            <div class="col-auto">
+                <label class="form-label small" for="latency">Latency ms</label>
+                <input class="form-control form-control-sm" type="number" id="latency" min="0" max="1000" value="40">
+            </div>
+            <div class="col-auto">
+                <label class="form-label small" for="t0">From s</label>
+                <input class="form-control form-control-sm" type="number" id="t0" min="0" step="1">
+            </div>
+            <div class="col-auto">
+                <label class="form-label small" for="t1">To s</label>
+                <input class="form-control form-control-sm" type="number" id="t1" min="0" step="1">
+            </div>
+        </form>
+
+        <div id="error" class="alert alert-danger d-none mt-2 mb-0"></div>
+        <p class="small mt-2 mb-1"><span id="source" class="fw-semibold"></span> &middot; <span id="description"
+                class="text-body-secondary"></span></p>
+        <p id="stats" class="small font-monospace mb-0"></p>
+        <div id="plot"></div>
+
+        <h2 class="h6 mt-3">Commands in view <small id="table-note" class="text-body-secondary"></small></h2>
+        <div class="table-responsive" style="max-height: 40vh">
+            <table class="table table-sm table-striped small font-monospace">
+                <thead>
+                    <tr>
+                        <th>ms</th>
+                        <th>op</th>
+                        <th>payload</th>
+                    </tr>
+                </thead>
+                <tbody id="commands"></tbody>
+            </table>
+        </div>
+    </main>
+    <script src="dist/main.js"></script>
+    <script>new EventSource('/esbuild').addEventListener('change', () => location.reload());</script>
+</body>
+
+</html>
