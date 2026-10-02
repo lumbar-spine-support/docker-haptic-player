@@ -48,6 +48,23 @@
         "MEDIA_DIR": "${workspaceFolder}/test/fixtures/media/",
         "LOG_LEVEL": "debug"
       }
+    },
+    {
+      "name": "E-stim Sandbox",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/sandbox/serve.js",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "serverReadyAction": {
+        "action": "debugWithChrome",
+        "pattern": "Sandbox at (https?://\\S+)",
+        "uriFormat": "%s",
+        "webRoot": "${workspaceFolder}/sandbox"
+      }
     }
   ],
   "compounds": [

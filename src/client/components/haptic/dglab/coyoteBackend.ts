@@ -19,11 +19,10 @@ import { FeatureSettings, readJsonRecord, writeJsonRecord } from '../featureSett
 import {
   DEFAULT_PULSE_FREQUENCY,
   DEFAULT_PULSE_WIDTH,
-  FRAME_DURATION_MS,
-  carrierFrames,
   clampFrequency,
   clampPulseWidth,
 } from './waveform';
+import { CoyoteChannelScheduler, mapIntensity } from './channelScheduler';
 import { DglabSocketDeviceType, V4Channel } from 'dglab-kit';
 import { DglabV4Socket, type Device } from './v4/socket';
 import { log } from '.';
@@ -40,24 +39,6 @@ const PAIRING_HOST_KEY = 'happy-dglab-pairing-host';
 
 /** Feature ids are namespaced so they never collide with Buttplug ids. */
 const FEATURE_PREFIX = 'dglab';
-
-/**
- * How long a strength task stays alive. Longer than the refresh interval so output
- * never gaps, short enough to act as a dead-man's switch when the tab or the
- * network dies.
- */
-const STRENGTH_DURATION_MS = 300;
-
-/**
- * Strength resend interval. `FunscriptSync` ticks far faster than this, but the
- * device only consumes one tick per ~100 ms, so sending more often just floods
- * the relay.
- */
-const STRENGTH_INTERVAL_MS = 100;
-
-/** Carrier batch size and how often it is refreshed. */
-const CARRIER_FRAME_COUNT = 10;
-const CARRIER_INTERVAL_MS = 800;
 
 /** Channel status values that mean "do not drive this channel". */
 const STATUS_NO_CIRCUIT = 1;
@@ -173,15 +154,6 @@ export function channelAlerts(device: Device, channel: V4Channel): DeviceAlert[]
   return alerts;
 }
 
-/**
- * Map a funscript position to an absolute channel strength.
- *
- * Exported as a free function so the mapping can be tested without a socket.
- */
-export function mapIntensity(position: number, strength: number, ceiling: number): number {
-  return Math.round(clamp01(position) * clamp01(strength) * Math.max(0, ceiling));
-}
-
 /** Hosts that are meaningless to a second device on the network. */
 export function isLoopbackHost(host: string): boolean {
   let hostname: string;
@@ -210,10 +182,8 @@ export function normalizeHost(raw: string): string {
 export class CoyoteBackend implements HapticBackend {
   private readonly socket = new DglabV4Socket();
   private readonly settings = new FeatureSettings(ASSIGNMENTS_KEY, STRENGTHS_KEY);
-  /** Feature id -> last integer value sent, for change suppression. */
-  private readonly lastSent = new Map<string, number>();
-  private readonly lastSentAt = new Map<string, number>();
-  private readonly lastWaveformAt = new Map<string, number>();
+  /** Feature id -> output timing for that channel. */
+  private readonly schedulers = new Map<string, CoyoteChannelScheduler>();
   /** Channels already reported as having no usable ceiling; keeps the warning to one line. */
   private readonly ceilingWarned = new Set<string>();
   private readonly mutedWarned = new Set<string>();
@@ -431,45 +401,25 @@ export class CoyoteBackend implements HapticBackend {
       this.warnAboutChannel(device, ch, id);
 
       const usable = channelFault(device, ch) === null;
-      const strength = this.getDeviceStrength(deviceName(device));
+      const name = deviceName(device);
+      const strength = this.getDeviceStrength(name);
       const value = usable ? mapIntensity(intensity, strength, channelCeiling(device, ch)) : 0;
+      const pulse = {
+        frequency: this.frequencies.get(name) ?? DEFAULT_PULSE_FREQUENCY,
+        width: this.pulseWidths.get(name) ?? DEFAULT_PULSE_WIDTH,
+      };
 
-      this.pushStrength(device, ch, id, value, now);
-      if (value > 0) this.pushCarrier(device, ch, id, now);
+      let scheduler = this.schedulers.get(id);
+      if (!scheduler) this.schedulers.set(id, scheduler = new CoyoteChannelScheduler());
+      for (const command of scheduler.update(now, value, pulse)) {
+        if (command.kind === 'strength') {
+          this.socket.setTempIntensity(device.slotId, ch, command.value, command.durationMs);
+        } else {
+          this.waveformSeq += 1;
+          this.socket.appendPulse(device.slotId, ch, command.frames, command.durationMs, this.waveformSeq);
+        }
+      }
     }
-  }
-
-  /** Strength follows the script, refreshed before its dead-man's timer runs out. */
-  private pushStrength(device: Device, ch: V4Channel, id: string, value: number, now: number): void {
-    const elapsed = now - (this.lastSentAt.get(id) ?? 0);
-    const unchanged = this.lastSent.get(id) === value;
-    if (unchanged && elapsed < STRENGTH_DURATION_MS / 2) return;
-    if (!unchanged && elapsed < STRENGTH_INTERVAL_MS) return;
-
-    this.lastSent.set(id, value);
-    this.lastSentAt.set(id, now);
-    this.socket.setTempIntensity(device.slotId, ch, value, STRENGTH_DURATION_MS);
-  }
-
-  /**
-   * Keep a flat carrier queued.
-   *
-   * Strength only scales pulses the device is already emitting, so without a
-   * carrier a non-zero strength produces nothing. Sent with `im: true` so batches
-   * replace rather than stack; restarting a constant carrier is inaudible.
-   */
-  private pushCarrier(device: Device, ch: V4Channel, id: string, now: number): void {
-    if (now - (this.lastWaveformAt.get(id) ?? 0) < CARRIER_INTERVAL_MS) return;
-    this.lastWaveformAt.set(id, now);
-
-    const name = deviceName(device);
-    const frames = carrierFrames(
-      this.frequencies.get(name) ?? DEFAULT_PULSE_FREQUENCY,
-      this.pulseWidths.get(name) ?? DEFAULT_PULSE_WIDTH,
-      CARRIER_FRAME_COUNT,
-    );
-    this.waveformSeq += 1;
-    this.socket.appendPulse(device.slotId, ch, frames, frames.length * FRAME_DURATION_MS, this.waveformSeq);
   }
 
   private warnAboutChannel(device: Device, ch: V4Channel, id: string): void {
@@ -495,9 +445,7 @@ export class CoyoteBackend implements HapticBackend {
 
   async stopAll(): Promise<void> {
     if (this.socket.connectionState !== 'connected') return;
-    this.lastSent.clear();
-    this.lastSentAt.clear();
-    this.lastWaveformAt.clear();
+    this.schedulers.clear();
     for (const device of this.coyotes()) {
       this.socket.clear(device.slotId);
       for (const ch of [V4Channel.A, V4Channel.B]) {
