@@ -132,8 +132,8 @@ classDiagram
 | Badge | Condition |
 | --- | --- |
 | Disconnected (grey) | `total === 0` |
-| No device (red) | `usable === 0` |
-| Check device (yellow) | any alert |
+| Error (red) | `usable === 0` |
+| Warning (yellow) | any alert |
 | Connected (green) | otherwise |
 
 `describeChannel()` maps health to label and popover text. The popover is Bootstrap's, taken from the globally loaded bundle (`window.bootstrap`, typed in `src/client/types/bootstrap.d.ts`) with `trigger: 'focus'`, so it closes on the next click. Its text is plain (`html: false`); popovers of badges removed by a track change are disposed on the next refresh.
