@@ -188,7 +188,7 @@ test(`${TAG} a user disconnect forgets apps and devices`, () => {
 
 test(`${TAG} the pairing deep link url-encodes the relay address`, () => {
     const link = pairingDeepLink('ws://192.168.1.5:3000/ws/dglab?tid=abc');
-    assert.equal(link, 'https://dungeon-lab.com/s/?v=1&action=socket&url=ws%3A%2F%2F192.168.1.5%3A3000%2Fws%2Fdglab%3Ftid%3Dabc');
+    assert.equal(link, 'https://dungeon-lab.cn/s/?v=1&action=socket&url=ws%3A%2F%2F192.168.1.5%3A3000%2Fws%2Fdglab%3Ftid%3Dabc');
 });
 
 test(`${TAG} a script position becomes a step whose width follows the position`, () => {
