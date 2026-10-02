@@ -5,7 +5,7 @@ export const INTERPOLATION_METHODS = ['none', 'linear', 'pchip'] as const;
 
 export type InterpolationMethod = typeof INTERPOLATION_METHODS[number];
 
-export const DEFAULT_INTERPOLATION_METHOD: InterpolationMethod = 'linear';
+export const DEFAULT_INTERPOLATION_METHOD: InterpolationMethod = 'pchip';
 
 export function isInterpolationMethod(value: unknown): value is InterpolationMethod {
     return typeof value === 'string' && (INTERPOLATION_METHODS as readonly string[]).includes(value);
