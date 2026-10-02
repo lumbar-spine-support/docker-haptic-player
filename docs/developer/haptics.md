@@ -214,7 +214,7 @@ flowchart TD
 
 Continuous output is sent **every tick**, even if the value did not change. The backends deduplicate, and resending makes the output self-correcting: if one Bluetooth write is lost, the next tick fixes it. The update rate slider (10–240 Hz, default from `HAPTIC_FREQUENCY`) sets the tick interval for all engines.
 
-The store's `currentTime` only moves on `timeupdate` (about every 250 ms), so the loop extrapolates it with the wall clock (`MediaClock`, shared with the visualization). Without this, consecutive Coyote look-ahead batches were sampled from a stale time and joined up to ~200 ms apart in script time. On each update the clock only nudges its estimate 10% towards the reported time (snapping on pause, rate change, or drift over 0.5 s), so the visualization cursor moves smoothly instead of jumping back and forth with `timeupdate` jitter.
+The store's `currentTime` only moves on `timeupdate` (about every 250 ms), so the loop extrapolates it with the wall clock (`MediaClock`, shared with the visualization). Without this, consecutive Coyote look-ahead batches were sampled from a stale time and joined up to ~200 ms apart in script time.
 
 ## Backend output paths
 
