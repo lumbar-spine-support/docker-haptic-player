@@ -65,6 +65,8 @@ body.blur-content media-container {
 }
 
 #track-table thead th {
+  white-space: nowrap;
+  vertical-align: middle;
   border-top: var(--bs-border-width) solid var(--bs-secondary);
   border-bottom: var(--bs-border-width) solid var(--bs-secondary);
 }
