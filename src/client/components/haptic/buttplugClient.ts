@@ -188,8 +188,8 @@ export class ButtplugClientManager implements HapticBackend {
         return this.resolve(channel).some(({ feature }) => feature.kind === 'linear');
     }
 
-    /** Connect to the Intiface WebSocket server at the given address. */
-    async connect(address: string): Promise<void> {
+    /** Connect to the Intiface WebSocket server at the given address. `silent` reports failure as 'disconnected' instead of 'error'. */
+    async connect(address: string, silent = false): Promise<void> {
         if (this.state === 'connecting' || this.state === 'connected') return;
         this.setState('connecting');
 
@@ -207,7 +207,7 @@ export class ButtplugClientManager implements HapticBackend {
         } catch (err) {
             // Expected when no Intiface server is running at the given address; avoid noisy console errors.
             console.debug('[buttplug] Connection failed:', err);
-            this.setState('error');
+            this.setState(silent ? 'disconnected' : 'error');
         }
     }
 
