@@ -19,7 +19,7 @@ does not exist and the settings section is not rendered at all.
 2. Follow the app instructions to pair your Coyote. Note that you are not going to pair the Coyote with HAPPY over Bluetooth. HAPPY clients and DG-Lab will both connect to a Websocket relay hosted by the HAPPY server that serves as the middleman for DG-Lab's v4.0 protocol.
 3. Now you should have access to the Coyote settings. HAPPY does not have write access to those settings, so you need to adjust them as you see fit. The most important settings to consider:
     - **Channel Mute**: The button with the sinusoidal icon enables/disables the output of channels A and B separately. You can mute a channel first to test if the funscript values arrive at the DG-Lab app. You will still see the values HAPPY sends over the WebSocket.
-    - **Intensity Limit**: Click the cog on the right side and a few options will show. Among them you should see *Intensity Limit*. For Coyote 3.0 it should be a value you can choose between 0 and 200. It depends on the body-region what value is appropriate. Note that HAPPY treats funscript commands as a percentage of this maximum value. So if your funscript has `{"at": 1000, "pos": 100}` HAPPY will send `pos/100*intensityLimit` as the setpoint to the Coyote at 1000ms.
+    - **Intensity Limit**: Click the cog on the right side and a few options will show. Among them you should see *Intensity Limit*. For Coyote 3.0 it should be a value you can choose between 0 and 200. It depends on the body-region what value is appropriate. HAPPY holds the channel at this limit (times the device strength slider) while a funscript plays, and plays the funscript through the pulse width instead: a position of 100 means full Pulse Width, 0 means no pulses. Pulse width can change every 25 ms, strength only every 100 ms, so this follows fast scripts more closely.
     - **Soft Start**: This is a protection mechanism by Dungeon Lab that limits the gradient of sudden spikes in the output. This will most likely interfere with precise execution of funscripts if the funscripts in their nature have sudden spikes rather than continuous oscillations. In this case you can disable *Protection Mode*  and adjust the maximum gradient yourself. I personally deactivated the *decay* completely and drastically lowered the soft start rise-rate (maximum gradient).
 
 Make sure that you applied the settings to both channel A and B in case you are using both outputs of the Coyote.
@@ -41,6 +41,12 @@ restart you have to pair again.
 With `AUTO_RECONNECT_DGLAB=true`, a page reload reconnects to the relay automatically if DG-Lab was
 connected before and the relay was last heard from less than 5 minutes ago (the time the server keeps
 the paired app). After that the section stays *Disconnected* and you pair again by hand.
+
+## Sandbox
+
+The **Sandbox** button below the DG-Lab device cards opens a test page. Pick a channel and a pattern (constant, wave, on/off, ramp, strokes, heartbeat, steps) and press **Start**. The chart shows the pattern and the pulses it produces with the current strength, Pulse Frequency and Pulse Width from the device card. Use it to find comfortable settings or check the setup without funscript media. Starting pauses any playing media; **Stop** or leaving the page (e.g. through the navbar) silences the Coyote.
+
+The page is available while DG-Lab is enabled; turn it off with `DGLAB_SANDBOX_ENABLED=false`.
 
 ## Debugging
 

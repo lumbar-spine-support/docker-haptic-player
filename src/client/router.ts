@@ -26,6 +26,8 @@ export interface RouteHandlers {
     playlist(playlistId: string): Promise<void>;
     album(albumId: string): Promise<void>;
     library(): void;
+    /** Absent when the sandbox is disabled; the route then falls back to the library. */
+    dglabSandbox?(): void;
 }
 
 /** Maps the `?view=…&id=…&tag=…` query onto the app's views and follows history navigation. */
@@ -58,6 +60,7 @@ export class Router {
         if (view === 'player' && id) return this.handlers.player(id);
         if (view === 'playlist' && id) return this.handlers.playlist(id);
         if (view === 'album' && id) return this.handlers.album(id);
+        if (view === 'dglab-sandbox' && this.handlers.dglabSandbox) return this.handlers.dglabSandbox();
         this.handlers.library();
     }
 }

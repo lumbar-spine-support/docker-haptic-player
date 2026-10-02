@@ -88,7 +88,8 @@ export interface HapticBackend {
   hasFeaturesFor(channel: HapticChannel): boolean;
   hasLinearFor(channel: HapticChannel): boolean;
 
-  sendContinuous(channel: HapticChannel, intensity: number): void;
+  /** `lookahead(offsetMs)` is the position 0–1 that far ahead; backends that plan ahead (DG-Lab) use it. */
+  sendContinuous(channel: HapticChannel, intensity: number, lookahead?: (offsetMs: number) => number | null): void;
   sendLinear(channel: HapticChannel, position: number, durationMs: number): void;
 
   getBatteryLevel(device: HapticDevice): Promise<number | null>;

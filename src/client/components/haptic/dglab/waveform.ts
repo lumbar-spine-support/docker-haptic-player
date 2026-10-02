@@ -90,19 +90,8 @@ export function decodeFrame(frame: string): DecodedStep[] {
   }));
 }
 
-/**
- * A flat carrier frame.
- *
- * Every waveform DG-Lab ships uses one amplitude for the whole frame, so the
- * per-sub-step modulation the format nominally allows is left alone: the script
- * drives channel strength instead.
- */
-export function flatFrame(frequency: number, width = DEFAULT_PULSE_WIDTH): string {
-  const step = { periodMs: pulsePeriodMs(frequency), width: clampPulseWidth(width) };
-  return encodeFrame(new Array<PulseStep>(STEPS_PER_FRAME).fill(step));
-}
-
-/** `count` identical carrier frames, covering `count * FRAME_DURATION_MS`. */
-export function carrierFrames(frequency: number, width: number, count: number): string[] {
-  return new Array(Math.max(1, count)).fill(flatFrame(frequency, width));
+/** A script position (0–1) as a sub-step: the pulse width setting is the width at full position. */
+export function positionStep(position: number, frequency: number, width: number): PulseStep {
+  const clamped = Number.isFinite(position) ? Math.max(0, Math.min(1, position)) : 0;
+  return { periodMs: pulsePeriodMs(frequency), width: Math.round(clamped * clampPulseWidth(width)) };
 }

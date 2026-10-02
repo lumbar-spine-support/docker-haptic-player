@@ -193,7 +193,10 @@ export class FunscriptSync {
     // Outside the scripted range this resolves to 0, actively forcing the device off
     // instead of holding onto whatever was last (possibly only partially) sent.
     const pos = positionAt(script.prepared, nowMs);
-    this.buttplug.sendContinuous(script.channel, pos === null ? 0 : pos / 100);
+    this.buttplug.sendContinuous(script.channel, pos === null ? 0 : pos / 100, (offsetMs) => {
+      const ahead = positionAt(script.prepared, nowMs + offsetMs);
+      return ahead === null ? null : ahead / 100;
+    });
 
     if (this.buttplug.hasLinearFor(script.channel)) {
       this.updateStroker(script, nowMs, now, force);

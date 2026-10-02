@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import { DglabSocketDeviceType, V4Channel } from 'dglab-kit';
 import type { Device } from '../../src/client/components/haptic/dglab/v4/socket';
 import { channelAlerts, channelCeiling, isChannelMuted, isLoopbackHost, normalizeHost } from '../../src/client/components/haptic/dglab/coyoteBackend';
-import { CoyoteChannelScheduler, mapIntensity } from '../../src/client/components/haptic/dglab/channelScheduler';
+import { CoyoteChannelScheduler, LOOKAHEAD_FRAME_COUNT, lookaheadFrames, mapIntensity } from '../../src/client/components/haptic/dglab/channelScheduler';
+import { decodeFrame } from '../../src/client/components/haptic/dglab/waveform';
+import { WAVEFORM_PATTERNS, patternCycleMs, patternSampler } from '../../src/client/components/haptic/dglab/patterns';
 
 const TAG = '[client:dglab:mapping]';
 
@@ -108,23 +110,42 @@ test(`${TAG} loopback hosts are recognised so the UI can warn about them`, () =>
 });
 
 const PULSE = { frequency: 50, width: 100 };
+const FULL = () => 1;
 
 test(`${TAG} changed strength is sent at most every 100 ms, unchanged strength refreshed every 150 ms`, () => {
     const s = new CoyoteChannelScheduler();
-    const kinds = (t: number, v: number) => s.update(t, v, PULSE).map((c) => c.kind);
+    const kinds = (t: number, v: number) => s.update(t, v, FULL, PULSE).map((c) => c.kind);
     assert.deepEqual(kinds(0, 5), ['strength', 'pulse']);
     assert.deepEqual(kinds(50, 6), []);
     assert.deepEqual(kinds(100, 6), ['strength']);
-    assert.deepEqual(kinds(200, 6), []);
+    assert.deepEqual(kinds(200, 6), ['pulse']);
     assert.deepEqual(kinds(250, 6), ['strength']);
 });
 
-test(`${TAG} the carrier is only refreshed while there is output`, () => {
+test(`${TAG} strength is held and pulse frames stop when the script has nothing ahead`, () => {
     const s = new CoyoteChannelScheduler();
-    assert.deepEqual(s.update(0, 0, PULSE).map((c) => c.kind), ['strength']);
-    const commands = s.update(1000, 3, PULSE);
-    assert.deepEqual(commands.map((c) => c.kind), ['strength', 'pulse']);
-    assert.equal(commands[1]?.durationMs, 1000);
-    assert.equal(s.carrier(1500, PULSE), null);
-    assert.notEqual(s.carrier(1800, PULSE), null);
+    const commands = s.update(0, 20, FULL, PULSE);
+    assert.deepEqual(commands[0], { kind: 'strength', value: 20, durationMs: 300 });
+    assert.equal(commands[1]?.durationMs, LOOKAHEAD_FRAME_COUNT * 100);
+    assert.deepEqual(s.update(1000, 20, () => null, PULSE), [{ kind: 'strength', value: 0, durationMs: 300 }]);
+});
+
+test(`${TAG} each 25 ms step's width follows the position at that step`, () => {
+    const frames = lookaheadFrames((ms) => ms / 500, { frequency: 50, width: 80 });
+    assert.equal(frames.length, LOOKAHEAD_FRAME_COUNT);
+    assert.deepEqual(decodeFrame(frames[0]!), [0, 4, 8, 12].map((width) => ({ periodMs: 20, width })));
+    assert.deepEqual(decodeFrame(frames[4]!).map((s) => s.width), [64, 68, 72, 76]);
+});
+
+test(`${TAG} sandbox patterns loop seamlessly and stay in range`, () => {
+    for (const pattern of WAVEFORM_PATTERNS) {
+        const sample = patternSampler(pattern);
+        const cycle = patternCycleMs(pattern);
+        assert.equal(sample(cycle), sample(0), pattern.id);
+        assert.equal(sample(cycle * 3 + 37), sample(37), pattern.id);
+        for (let t = 0; t < cycle; t += 10) {
+            const pos = sample(t);
+            assert.ok(pos >= 0 && pos <= 1, `${pattern.id} at ${t}: ${pos}`);
+        }
+    }
 });

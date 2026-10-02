@@ -156,9 +156,9 @@ export class HapticBackendRegistry implements HapticBackend {
     return total;
   }
 
-  sendContinuous(channel: HapticChannel, intensity: number): void {
+  sendContinuous(channel: HapticChannel, intensity: number, lookahead?: (offsetMs: number) => number | null): void {
     for (const backend of this.backends) {
-      if (backend.hasFeaturesFor(channel)) backend.sendContinuous(channel, intensity);
+      if (backend.hasFeaturesFor(channel)) backend.sendContinuous(channel, intensity, lookahead);
     }
   }
 

@@ -22,7 +22,7 @@ import {
   clampFrequency,
   clampPulseWidth,
 } from './waveform';
-import { CoyoteChannelScheduler, mapIntensity } from './channelScheduler';
+import { CoyoteChannelScheduler, mapIntensity, type PositionSampler, type PulseSettings } from './channelScheduler';
 import { DglabSocketDeviceType, V4Channel } from 'dglab-kit';
 import { DglabV4Socket, type Device } from './v4/socket';
 import { log } from '.';
@@ -66,6 +66,16 @@ const MARK_LIGHT_COLORS: Record<string, string> = {
 interface CoyoteChannelRef {
   device: Device;
   channel: V4Channel;
+}
+
+/** What the sandbox needs to show and drive one Coyote channel. */
+export interface CoyoteOutputChannel {
+  featureId: string;
+  label: string;
+  /** Held strength: device strength × the app's ceiling, 0 when the channel cannot play. */
+  level: number;
+  ceiling: number;
+  pulse: PulseSettings;
 }
 
 /** Device type string reported by a Coyote 3.0. */
@@ -384,42 +394,66 @@ export class CoyoteBackend implements HapticBackend {
   hasLinearFor(): boolean { return false; }
 
   /**
-   * Drive the channel's strength from the script.
+   * Hold the channel strength and play the script through the pulse width.
    *
-   * The pulse frame format nominally allows four amplitude sub-steps per frame,
-   * but every waveform DG-Lab ships holds amplitude constant across a frame, and
-   * modulating the sub-steps produced no output on real hardware. So the carrier
-   * stays flat and the funscript drives channel strength, which is what the
-   * device is built for.
+   * Strength can only change once per 100 ms frame, while each frame carries four
+   * 25 ms width steps, so the look-ahead window is encoded into width frames.
    */
-  sendContinuous(channel: HapticChannel, intensity: number): void {
+  sendContinuous(channel: HapticChannel, intensity: number, lookahead?: PositionSampler): void {
     if (this.socket.connectionState !== 'connected') return;
+    const sample = lookahead ?? (() => intensity);
     const now = Date.now();
+    for (const { device, channel: ch } of this.resolve(channel)) this.drive(device, ch, sample, now);
+  }
 
-    for (const { device, channel: ch } of this.resolve(channel)) {
-      const id = featureId(device, ch);
-      this.warnAboutChannel(device, ch, id);
+  /** Coyote channels that can be driven directly, regardless of assignment. */
+  getOutputChannels(): CoyoteOutputChannel[] {
+    return this.coyotes().flatMap((device) => [V4Channel.A, V4Channel.B].map((ch) => ({
+      featureId: featureId(device, ch),
+      label: `${deviceName(device)} · Ch. ${ch === V4Channel.A ? 'A' : 'B'}`,
+      level: this.levelFor(device, ch),
+      ceiling: channelCeiling(device, ch),
+      pulse: this.pulseFor(deviceName(device)),
+    })));
+  }
 
-      const usable = channelFault(device, ch) === null;
-      const name = deviceName(device);
-      const strength = this.getDeviceStrength(name);
-      const value = usable ? mapIntensity(intensity, strength, channelCeiling(device, ch)) : 0;
-      const pulse = {
-        frequency: this.frequencies.get(name) ?? DEFAULT_PULSE_FREQUENCY,
-        width: this.pulseWidths.get(name) ?? DEFAULT_PULSE_WIDTH,
-      };
-
-      let scheduler = this.schedulers.get(id);
-      if (!scheduler) this.schedulers.set(id, scheduler = new CoyoteChannelScheduler());
-      for (const command of scheduler.update(now, value, pulse)) {
-        if (command.kind === 'strength') {
-          this.socket.setTempIntensity(device.slotId, ch, command.value, command.durationMs);
-        } else {
-          this.waveformSeq += 1;
-          this.socket.appendPulse(device.slotId, ch, command.frames, command.durationMs, this.waveformSeq);
-        }
+  /** Drive one channel outside the sync loop; call it repeatedly, as the sync loop would. */
+  sendToFeature(id: string, sample: PositionSampler): void {
+    if (this.socket.connectionState !== 'connected') return;
+    for (const device of this.coyotes()) {
+      for (const ch of [V4Channel.A, V4Channel.B]) {
+        if (featureId(device, ch) === id) this.drive(device, ch, sample, Date.now());
       }
     }
+  }
+
+  private drive(device: Device, ch: V4Channel, sample: PositionSampler, now: number): void {
+    const id = featureId(device, ch);
+    this.warnAboutChannel(device, ch, id);
+
+    let scheduler = this.schedulers.get(id);
+    if (!scheduler) this.schedulers.set(id, scheduler = new CoyoteChannelScheduler());
+    const commands = scheduler.update(now, this.levelFor(device, ch), sample, this.pulseFor(deviceName(device)));
+    for (const command of commands) {
+      if (command.kind === 'strength') {
+        this.socket.setTempIntensity(device.slotId, ch, command.value, command.durationMs);
+      } else {
+        this.waveformSeq += 1;
+        this.socket.appendPulse(device.slotId, ch, command.frames, command.durationMs, this.waveformSeq);
+      }
+    }
+  }
+
+  private levelFor(device: Device, ch: V4Channel): number {
+    if (channelFault(device, ch) !== null) return 0;
+    return mapIntensity(1, this.getDeviceStrength(deviceName(device)), channelCeiling(device, ch));
+  }
+
+  private pulseFor(name: string): PulseSettings {
+    return {
+      frequency: this.frequencies.get(name) ?? DEFAULT_PULSE_FREQUENCY,
+      width: this.pulseWidths.get(name) ?? DEFAULT_PULSE_WIDTH,
+    };
   }
 
   private warnAboutChannel(device: Device, ch: V4Channel, id: string): void {
