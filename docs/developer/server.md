@@ -197,7 +197,7 @@ classDiagram
 
 - HAPPY is single-user, so there is one controller slot. Any authenticated tab takes it over (the old socket is closed as `replaced`), so reloads and switching devices keep the paired app. The id changes on server restart.
 - An app connects with `?tid=<controllerId>`. Because the id is unguessable, it acts as the app's credential. Cookie checks for the controller happen in the upgrade dispatcher, not in the relay.
-- Timers: a heartbeat every 30 s, a 5 min grace period after the controller disconnects, and a 5 min idle timeout while no app is attached.
+- Timers: a heartbeat every 30 s, a 5 min grace period after the controller disconnects (`Config.DGLAB_DETACH_GRACE_MS`, defined in `src/shared/dglab.ts` so the client's auto-reconnect uses the same window), and a 5 min idle timeout while no app is attached.
 
 The full sequence is in [Pair a DG-Lab Coyote](use-cases/coyote-pairing.md).
 

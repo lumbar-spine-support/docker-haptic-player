@@ -150,6 +150,7 @@ export function attachWebSocketUpgradeHandlers(server: http.Server, app: HappyAp
 function main() {
   const config = Config.load();
   log.info(`Log level is "${config.server.logLevel}"`);
+  log.debug(`config: ${JSON.stringify(config, null, 2)}`);
   void isFfprobeAvailable().then((ok) => {
     if (!ok) log.error('ffprobe not found on PATH: media metadata, artwork and chapters are unavailable. Install ffmpeg.');
   });

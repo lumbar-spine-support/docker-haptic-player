@@ -10,6 +10,7 @@ import { HapticBackendRegistry } from './components/haptic/backendRegistry';
 import { CoyoteBackend } from './components/haptic/dglab/coyoteBackend';
 import { pairingDeepLink, pairingQR } from './components/haptic/dglab/v4/pairing';
 import { setLogLevel } from './utils/logger';
+import { DGLAB_DETACH_GRACE_MS } from '../shared/dglab';
 import { FunscriptSync } from './components/funscriptSync';
 import { DeviceStatus } from './components/haptic/deviceStatus';
 import { DeviceAssignment } from './components/haptic/deviceAssignment';
@@ -38,6 +39,9 @@ const HAPTIC_UPDATE_RATE_KEY = 'happy-haptic-update-rate-hz';
 const AUTOPLAY_KEY = 'happy-autoplay';
 const BLUR_CONTENT_KEY = 'happy-blur-content';
 const COLOR_GRADIENT_KEY = 'happy-color-gradient';
+const INTIFACE_LAST_STATE_KEY = 'happy-intiface-last-state';
+const DGLAB_LAST_STATE_KEY = 'happy-dglab-last-state';
+const DGLAB_LAST_SEEN_KEY = 'happy-dglab-last-seen';
 
 /** Used when the server config cannot be reached. */
 const FALLBACK_SETTINGS: ClientSettings = {
@@ -47,6 +51,8 @@ const FALLBACK_SETTINGS: ClientSettings = {
   hapticDelay: 0,
   hapticDelayLimit: 500,
   dglabEnabled: false,
+  autoReconnectIntiface: false,
+  autoReconnectDglab: false,
   debugLogging: false,
   funscriptInterpolationMethod: 'pchip',
   funscriptColorGradient: false,
@@ -356,6 +362,7 @@ class App {
     });
     this.connectBtn?.addEventListener('click', () => {
       if (this.buttplug.connectionState === 'connected') {
+        localStorage.setItem(INTIFACE_LAST_STATE_KEY, 'disconnected');
         void this.buttplug.disconnect();
         return;
       }
@@ -376,10 +383,18 @@ class App {
       }
       container.innerHTML = alerts.map(deviceAlertHtml).join('');
     };
-    this.buttplug.onStateChange(() => { syncConnectionButton(); syncAlerts(); });
+    this.buttplug.onStateChange((state) => {
+      if (state === 'connected') localStorage.setItem(INTIFACE_LAST_STATE_KEY, 'connected');
+      syncConnectionButton();
+      syncAlerts();
+    });
     this.buttplug.onDevicesChange(() => syncAlerts());
     syncConnectionButton();
     syncAlerts();
+
+    if (this.settings.autoReconnectIntiface && localStorage.getItem(INTIFACE_LAST_STATE_KEY) === 'connected') {
+      void this.buttplug.connect(normalizeIntifaceAddress(savedAddress ?? 'localhost:12345'));
+    }
   }
 
   private bindZoomControls(): void {
@@ -559,8 +574,18 @@ class App {
       if (hostEl && document.activeElement !== hostEl) hostEl.value = coyote.pairingHost;
     };
 
-    coyote.onStateChange(() => sync());
+    coyote.onStateChange((state) => {
+      if (state === 'connected') {
+        localStorage.setItem(DGLAB_LAST_STATE_KEY, 'connected');
+        localStorage.setItem(DGLAB_LAST_SEEN_KEY, String(Date.now()));
+      }
+      sync();
+    });
     coyote.onDevicesChange(() => sync());
+    coyote.onActivity((at) => localStorage.setItem(DGLAB_LAST_SEEN_KEY, String(at)));
+    window.addEventListener('pagehide', () => {
+      if (coyote.connectionState === 'connected') localStorage.setItem(DGLAB_LAST_SEEN_KEY, String(Date.now()));
+    });
 
     connectBtn?.addEventListener('click', () => {
       coyote.connect();
@@ -568,6 +593,7 @@ class App {
     });
 
     disconnectBtn?.addEventListener('click', () => {
+      localStorage.setItem(DGLAB_LAST_STATE_KEY, 'disconnected');
       coyote.disconnect();
       sync();
     });
@@ -589,6 +615,14 @@ class App {
     });
 
     sync();
+
+    // Past the grace period the relay has dropped the app, so pairing must start over by hand.
+    const lastSeen = Number(localStorage.getItem(DGLAB_LAST_SEEN_KEY));
+    const withinGrace = Number.isFinite(lastSeen) && Date.now() - lastSeen < DGLAB_DETACH_GRACE_MS;
+    if (this.settings.autoReconnectDglab && localStorage.getItem(DGLAB_LAST_STATE_KEY) === 'connected' && withinGrace) {
+      coyote.connect();
+      sync();
+    }
   }
 
   private initBlurContent(): void {

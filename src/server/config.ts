@@ -4,6 +4,7 @@ import yaml from 'js-yaml';
 import { createLogger, DEFAULT_LOG_LEVEL, isLogLevel, LOG_LEVELS, setLogLevel } from './utils/logger';
 import { DEFAULT_INTERPOLATION_METHOD, INTERPOLATION_METHODS, isInterpolationMethod } from '../shared/interpolation';
 import { CHAPTER_SOURCES } from '../shared/types';
+import { DGLAB_DETACH_GRACE_MS as SHARED_DGLAB_DETACH_GRACE_MS, DGLAB_WS_PATH as SHARED_DGLAB_WS_PATH } from '../shared/dglab';
 
 export namespace Config {
 
@@ -15,7 +16,10 @@ export namespace Config {
   export const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'wav', 'flac'];
 
   /** Dungeon Lab WebSocket route for relay enabling communication between App and Controller. */
-  export const DGLAB_WS_PATH = '/ws/dglab';
+  export const DGLAB_WS_PATH = SHARED_DGLAB_WS_PATH;
+
+  /** How long the relay holds a paired app after the controller detaches; shared with the client. */
+  export const DGLAB_DETACH_GRACE_MS = SHARED_DGLAB_DETACH_GRACE_MS;
 
   export type ConfigEntry = number | string | boolean | string[];
 
@@ -47,6 +51,8 @@ export namespace Config {
     hapticDelay: number;
     hapticDelayLimit: number;
     dglabEnabled: boolean;
+    autoReconnectIntiface: boolean;
+    autoReconnectDglab: boolean;
     funscriptInterpolationMethod: string;
     funscriptColorGradient: boolean;
   }
@@ -117,6 +123,8 @@ export namespace Config {
     hapticDelay: 0,
     hapticDelayLimit: 500,
     dglabEnabled: false,
+    autoReconnectIntiface: true,
+    autoReconnectDglab: true,
     funscriptInterpolationMethod: DEFAULT_INTERPOLATION_METHOD,
     funscriptColorGradient: false,
   };
@@ -136,6 +144,8 @@ export namespace Config {
     hapticDelay: 'Default haptic delay in milliseconds to sync video and haptics. Can be changed in web interface.',
     hapticDelayLimit: 'Maximum absolute haptic delay in milliseconds selectable in the web interface (range is -limit to +limit).',
     dglabEnabled: '(EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control.',
+    autoReconnectIntiface: 'Reconnect to Intiface on page load if it was connected when the page was last used.',
+    autoReconnectDglab: `Reconnect to the DG-Lab relay on page load if it was connected and last seen less than ${SHARED_DGLAB_DETACH_GRACE_MS / 60_000} minutes ago.`,
     funscriptInterpolationMethod: `How positions between funscript points are computed for haptics and the timeline: ${INTERPOLATION_METHODS.join(', ')}. none holds each position until the next point; strokers follow pchip as linear`,
     funscriptColorGradient: 'Colour the timeline graph on a heat scale by movement speed (blue = slow, red = fast). Can be toggled in web interface.',
     funscriptSuffixSeparator: 'Single character that separates filename from funscript suffix',
@@ -160,6 +170,8 @@ export namespace Config {
     hapticDelay: 'DEFAULT_HAPTIC_DELAY',
     hapticDelayLimit: 'HAPTIC_DELAY_LIMIT',
     dglabEnabled: 'DGLAB_ENABLED',
+    autoReconnectIntiface: 'AUTO_RECONNECT_INTIFACE',
+    autoReconnectDglab: 'AUTO_RECONNECT_DGLAB',
     funscriptInterpolationMethod: 'FUNSCRIPT_INTERPOLATION_METHOD',
     funscriptColorGradient: 'FUNSCRIPT_COLOR_GRADIENT',
     funscriptSuffixSeparator: 'FUNSCRIPT_SUFFIX_SEPARATOR',

@@ -1,4 +1,5 @@
 import { channelKey, type HapticChannel } from '../../../../shared/haptics';
+import { DGLAB_WS_PATH } from '../../../../shared/dglab';
 import {
   clamp01,
   type AssignmentListener,
@@ -277,14 +278,16 @@ export class CoyoteBackend implements HapticBackend {
     const tid = this.socket.targetId;
     if (!tid || !this.pairingHost) return null;
     const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    return `${scheme}://${this.pairingHost}/ws/dglab?tid=${encodeURIComponent(tid)}`;
+    return `${scheme}://${this.pairingHost}${DGLAB_WS_PATH}?tid=${encodeURIComponent(tid)}`;
   }
 
   get appCount(): number { return this.socket.appCount; }
 
+  onActivity(listener: (at: number) => void): void { this.socket.onActivity(listener); }
+
   connect(): void {
     const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    this.socket.connect(`${scheme}://${window.location.host}/ws/dglab`);
+    this.socket.connect(`${scheme}://${window.location.host}${DGLAB_WS_PATH}`);
   }
 
   disconnect(): void {
