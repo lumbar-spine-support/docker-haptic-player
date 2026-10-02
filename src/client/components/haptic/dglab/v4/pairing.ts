@@ -3,7 +3,7 @@ import { log } from '..';
 
 /** Build the deep link that hands a relay URL to the DG-Lab 4 app. */
 export function pairingDeepLink(wsUrl: string): string {
-    return `https://dungeon-lab.com/s/?v=1&action=socket&url=${encodeURIComponent(wsUrl)}`;
+    return `https://dungeon-lab.cn/s/?v=1&action=socket&url=${encodeURIComponent(wsUrl)}`; // must be .cn not .com!
 }
 
 /** Build QR-Code for pairing DG-Lab app with a WebSocket URL*/
