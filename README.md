@@ -24,7 +24,7 @@
 ❌ What it tries not to be:
 
 - A funscript editor. There are plenty of good tools already ([HapticsEditor-v2](https://github.com/ilor1/HapticsEditor-v2)).
-- A media file metadata editor. Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Puddletag](https://docs.puddletag.net/) (Linux) instead.
+- A media file metadata editor. Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Kid3](https://kid3.kde.org/) (Linux) instead.
 
 🚀 Planned:
 
