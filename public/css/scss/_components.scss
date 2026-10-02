@@ -212,6 +212,22 @@
   line-height: 1;
 }
 
+.device-status-badge {
+  cursor: pointer;
+}
+
+// Doubled class: Bootstrap's `.popover` variables are emitted after this file.
+.popover.device-status-popover {
+  --bs-popover-bg: #000;
+  --bs-popover-header-bg: #000;
+  --bs-popover-border-color: #fff;
+
+  // Content is plain text; keep the line breaks between alert messages.
+  .popover-body {
+    white-space: pre-line;
+  }
+}
+
 // Fixed width keeps every channel's dropdown aligned regardless of label length.
 // The themed `.btn` forces `justify-content: center !important` and is emitted after
 // this file, so overriding it needs both higher specificity and `!important`.

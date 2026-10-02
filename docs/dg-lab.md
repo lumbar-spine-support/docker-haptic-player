@@ -31,6 +31,7 @@ Make sure that you applied the settings to both channel A and B in case you are 
    browser instead, either copy the URL enter the server URL in DG-Lab app or scan the QR code shown from the DG-Lab app.
 3. Return to HAPPY web interface. You should now see a green badge indicating successful pairing. The Coyote's two channels should appear in Device Assignment and can be
    assigned to any funscript like a toy connected through Intiface.
+   The status badge above each funscript turns yellow or red when the Coyote is unplugged, muted or limited in the app; click it for details.
 4. Have fun and **stay safe**!
 
 There is a single pairing per server. Opening HAPPY in another browser or on another device takes

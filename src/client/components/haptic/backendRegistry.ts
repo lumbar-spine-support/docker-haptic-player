@@ -1,6 +1,7 @@
 import type { HapticChannel } from '../../../shared/haptics';
 import type {
   AssignmentListener,
+  ChannelHealth,
   ConnectionState,
   DeviceAlert,
   DeviceBadge,
@@ -145,6 +146,20 @@ export class HapticBackendRegistry implements HapticBackend {
 
   hasLinearFor(channel: HapticChannel): boolean {
     return this.backends.some((b) => b.hasLinearFor(channel));
+  }
+
+  getChannelHealth(channel: HapticChannel): ChannelHealth {
+    const total: ChannelHealth = { total: 0, usable: 0, alerts: [] };
+    for (const backend of this.backends) {
+      if (backend.connectionState !== 'connected') continue;
+      const health = backend.getChannelHealth?.(channel)
+        ?? (backend.hasFeaturesFor(channel) ? { total: 1, usable: 1, alerts: [] } : null);
+      if (!health) continue;
+      total.total += health.total;
+      total.usable += health.usable;
+      total.alerts.push(...health.alerts);
+    }
+    return total;
   }
 
   sendContinuous(channel: HapticChannel, intensity: number): void {

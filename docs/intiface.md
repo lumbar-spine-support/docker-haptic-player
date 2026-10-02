@@ -22,6 +22,8 @@ Each device exposes features like "linear", "vibrate" or "rotate". Strokers are 
 
 See [docs/library.md#funscripts](library.md#funscripts) for how funscripts must be stored in your library for HAPPY to connect them with your audio or video file.
 
+The status badge above each funscript shows whether a device will play it; click it for details.
+
 ## Unsupported Features
 
 Some toys report features that should not follow a funscript. HAPPY lists them on the device card but they cannot be assigned:

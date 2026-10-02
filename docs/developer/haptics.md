@@ -75,6 +75,7 @@ classDiagram
     +getDeviceBadge(name) optional
     +getDeviceAlerts(name) optional
     +getFeatureDetails(featureId) optional
+    +getChannelHealth(channel) optional
     +onDeviceStateChange(listener) optional
   }
 
@@ -123,6 +124,19 @@ classDiagram
 ```
 
 `HapticBackendRegistry` makes all backends look like one: devices are concatenated, the connection state is the "best" of all (`connected` > `connecting` > `error` > `disconnected`), per-device calls go to the owning backend, and per-channel calls fan out. Today only `DeviceStatus` and `stopAll()` on `pagehide` go through it. The sync engines and the device lists talk to their own backend directly.
+
+### Channel status badges
+
+`DeviceStatus` asks the registry for `getChannelHealth(channel)`: `total` assigned actuators, how many are `usable`, and the `DeviceAlert`s for them. The registry sums connected backends only; a backend without the method (Intiface) counts `hasFeaturesFor()` as 1/1 with no alerts. `CoyoteBackend` reports a `danger` alert (not usable) when the slot has no hardware (`hasDevice: false`) or the channel status is no circuit / damaged / masked, and a `warning` when the channel is muted or has no `intensityMax`.
+
+| Badge | Condition |
+| --- | --- |
+| Disconnected (grey) | `total === 0` |
+| No device (red) | `usable === 0` |
+| Check device (yellow) | any alert |
+| Connected (green) | otherwise |
+
+`describeChannel()` maps health to label and popover text. The popover is Bootstrap's, taken from the globally loaded bundle (`window.bootstrap`, typed in `src/client/types/bootstrap.d.ts`) with `trigger: 'focus'`, so it closes on the next click. Its text is plain (`html: false`); popovers of badges removed by a track change are disposed on the next refresh.
 
 ## Funscript pipeline
 

@@ -3,6 +3,7 @@ import { DGLAB_WS_PATH } from '../../../../shared/dglab';
 import {
   clamp01,
   type AssignmentListener,
+  type ChannelHealth,
   type ConnectionState,
   type DeviceAlert,
   type DeviceBadge,
@@ -143,6 +144,30 @@ export function channelMode(device: Device, channel: ChannelId): string {
 /** False while the slot exists in the app but no hardware is attached to it. */
 export function isSlotConnected(device: Device): boolean {
   return device.slotState?.hasDevice !== false;
+}
+
+/** Why the device reports this channel as unable to drive, or null when it can. */
+export function channelFault(device: Device, channel: ChannelId): string | null {
+  switch (channelStatus(device, channel)) {
+    case STATUS_NO_CIRCUIT: return 'no electrode circuit';
+    case STATUS_DAMAGED: return 'damaged';
+    case STATUS_MASKED: return 'masked';
+    default: return null;
+  }
+}
+
+/** Problems with one assigned channel; any `danger` means it cannot play at all. */
+export function channelAlerts(device: Device, channel: ChannelId): DeviceAlert[] {
+  const name = channel === Channel.A ? 'A' : 'B';
+  if (!isSlotConnected(device)) return [{ level: 'danger', message: 'Device not connected to DG-Lab' }];
+  const fault = channelFault(device, channel);
+  if (fault) return [{ level: 'danger', message: `Channel ${name}: ${fault}` }];
+  const alerts: DeviceAlert[] = [];
+  if (isChannelMuted(device, channel)) alerts.push({ level: 'warning', message: `Channel ${name} muted in DG-Lab` });
+  if (channelCeiling(device, channel) === 0) {
+    alerts.push({ level: 'warning', message: `Channel ${name} has no strength limit set in DG-Lab` });
+  }
+  return alerts;
 }
 
 /**
@@ -387,6 +412,17 @@ export class CoyoteBackend implements HapticBackend {
     return this.resolve(channel).length > 0;
   }
 
+  getChannelHealth(channel: HapticChannel): ChannelHealth {
+    const health: ChannelHealth = { total: 0, usable: 0, alerts: [] };
+    for (const { device, channel: ch } of this.resolve(channel)) {
+      const alerts = channelAlerts(device, ch);
+      health.total += 1;
+      if (!alerts.some((a) => a.level === 'danger')) health.usable += 1;
+      health.alerts.push(...alerts);
+    }
+    return health;
+  }
+
   hasLinearFor(): boolean { return false; }
 
   /**
@@ -406,8 +442,7 @@ export class CoyoteBackend implements HapticBackend {
       const id = featureId(device, ch);
       this.warnAboutChannel(device, ch, id);
 
-      const status = channelStatus(device, ch);
-      const usable = status !== STATUS_NO_CIRCUIT && status !== STATUS_DAMAGED && status !== STATUS_MASKED;
+      const usable = channelFault(device, ch) === null;
       const strength = this.getDeviceStrength(deviceName(device));
       const value = usable ? mapIntensity(intensity, strength, channelCeiling(device, ch)) : 0;
 
@@ -528,6 +563,7 @@ export class CoyoteBackend implements HapticBackend {
         isChannelMuted(device, ch),
         channelCeiling(device, ch),
         channelMode(device, ch),
+        channelStatus(device, ch),
       ]),
     ].join(':')).join('|');
 
