@@ -2,7 +2,7 @@
 
 import fs from 'fs';
 import { HttpError } from './errorHandler';
-import { idToFilename } from '../services/libraryService';
+import { idToFilename } from './ids';
 import { resolveMediaPath } from './paths';
 
 // Decode a base64url track ID to a filename; throws 400 if invalid.

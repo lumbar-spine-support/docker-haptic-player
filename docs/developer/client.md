@@ -78,25 +78,27 @@ sequenceDiagram
   A->>S: GET /api/config
   S-->>A: ClientSettings + mediaAccessToken
   A->>A: setMediaAccessToken, interpolation method, seek step
-  A->>A: bind library, detail, Intiface sidebar, toggles, zoom
+  A->>A: bind library, Intiface settings, toggles, zoom
   A->>A: mount Intiface DeviceAssignment, initHapticControls
   opt dglabEnabled
-    A->>A: initDglab: new CoyoteBackend, sync engine,<br/>DeviceAssignment, pairing UI
+    A->>A: initDglab: new CoyoteBackend, sync engine,<br/>DeviceAssignment, bindPairingPanel
   end
   A->>A: playback.onActiveTrack(onActiveTrackChanged)
   A->>S: GET /api/library
   S-->>A: LibraryResponse
-  A->>A: handleRouteChange()
+  A->>A: router.start()
   Note over A: listeners: popstate → route,<br/>pagehide → haptics.stopAll()
 ```
 
-User settings live in `localStorage` (all keys start with `happy-`). Server values from `/api/config` are only **defaults** for keys that have no stored value.
+User settings live in `localStorage` (all keys start with `happy-`). Server values from `/api/config` are only **defaults** for keys that have no stored value. Simple values go through `storedSetting(key, fallback)` in `utils/storedSetting.ts`, which parses to the fallback's type.
+
+The settings panel is wired by small modules instead of `App`: `components/settings/intiface.ts` (address, scheme, Connect), `components/settings/haptics.ts` (delay and update-rate sliders), `components/settings/toggle.ts` (blur and color-gradient switches) and `components/haptic/dglab/pairingPanel.ts` (DG-Lab relay and QR code).
 
 Auto-reconnect: `happy-intiface-last-state` / `happy-dglab-last-state` become `connected` on a successful connection and `disconnected` only on an explicit Disconnect click. `happy-dglab-last-seen` is refreshed on every relay frame (heartbeats every 30 s) and on `pagehide`; DG-Lab reconnects only while it is younger than `DGLAB_DETACH_GRACE_MS` (`src/shared/dglab.ts`), otherwise the section stays *Disconnected*.
 
 ## Routing
 
-All state that should survive a reload is in the query string. `navigateTo(url)` pushes history and calls `handleRouteChange()`, and so does the browser back button.
+All state that should survive a reload is in the query string. The `Router` in `router.ts` maps it onto handlers that `App` supplies. `router.navigateTo(url)` pushes history and calls `handleRouteChange()`, and so does the browser back button. Playlist and album pages are rendered by `DetailView` (`components/library/detail.ts`).
 
 ```mermaid
 flowchart TD
@@ -193,9 +195,10 @@ The `@/components/videojs/` folder holds the ejected Video.js skin and small fea
 
 | Topic | Files |
 | --- | --- |
-| App, routing, views | [src/client/index.ts](../../src/client/index.ts), [utils/routes.ts](../../src/client/utils/routes.ts) |
+| App, routing, views | [src/client/index.ts](../../src/client/index.ts), [router.ts](../../src/client/router.ts), [components/library/detail.ts](../../src/client/components/library/detail.ts) |
+| Settings panel | [components/settings/](../../src/client/components/settings/), [haptic/dglab/pairingPanel.ts](../../src/client/components/haptic/dglab/pairingPanel.ts), [utils/storedSetting.ts](../../src/client/utils/storedSetting.ts) |
 | Playback | [player/session.ts](../../src/client/components/player/session.ts), [player/controller.ts](../../src/client/components/player/controller.ts), [player/queue.ts](../../src/client/components/player/queue.ts), [player/footer.ts](../../src/client/components/player/footer.ts) |
 | Library UI | [components/library/index.ts](../../src/client/components/library/index.ts), [shared/libraryFiltering.ts](../../src/shared/libraryFiltering.ts) |
-| Server API calls | [utils/api.ts](../../src/client/utils/api.ts) |
+| Server API calls | [api.ts](../../src/client/api.ts) |
 | Timelines | [haptic/visualization/index.ts](../../src/client/components/haptic/visualization/index.ts) |
 | Video.js | [@/components/videojs/player.ts](../../@/components/videojs/player.ts), `@/components/videojs/features/` |

@@ -9,6 +9,7 @@ const PRIORITY: NonNullable<V4OperateOptions['priority']> = 1;
 /** `device.op` replies only arrive once a task ends; neither of these is a real failure. */
 const IGNORED_ERRORS = new Set(['DGLAB-socket-response-timeout', 'DGLAB-socket-disconnected']);
 
+import { Emitter } from '../../emitter';
 import {
     DGLAB_SOCKET_STATE,
     DglabSocket,
@@ -56,15 +57,15 @@ export class DglabV4Socket {
     private refreshTimer: ReturnType<typeof setInterval> | null = null;
     private closedByUser = false;
     private readonly loggedOnce = new Set<string>();
-    private readonly stateListeners: Array<Listener<ConnectionState>> = [];
-    private readonly deviceListeners: Array<Listener<Device[]>> = [];
-    private readonly activityListeners: Array<Listener<number>> = [];
+    private readonly stateChanged = new Emitter<ConnectionState>();
+    private readonly devicesChanged = new Emitter<Device[]>();
+    private readonly activity = new Emitter<number>();
 
     constructor(private readonly createSocket: SocketFactory = (url) => new DglabSocket({ url })) { }
 
-    onStateChange(l: Listener<ConnectionState>): void { this.stateListeners.push(l); }
-    onDevicesChange(l: Listener<Device[]>): void { this.deviceListeners.push(l); }
-    onActivity(l: Listener<number>): void { this.activityListeners.push(l); }
+    onStateChange(l: Listener<ConnectionState>): void { this.stateChanged.on(l); }
+    onDevicesChange(l: Listener<Device[]>): void { this.devicesChanged.on(l); }
+    onActivity(l: Listener<number>): void { this.activity.on(l); }
 
     get connectionState(): ConnectionState { return this.state; }
     /** Value the DG-Lab app must pass as `?tid=`; null until the relay says hello. */
@@ -172,8 +173,7 @@ export class DglabV4Socket {
         });
         kit.on('close', (event) => this.handleClose(event));
         kit.on('frame', (frame) => {
-            const now = Date.now();
-            for (const l of this.activityListeners) l(now);
+            this.activity.emit(Date.now());
             const { type } = frame as V4ServerFrame;
             if (type !== 'heartbeat' && type !== 'pong' && type !== 'message') trace('<-', frame);
         });
@@ -255,11 +255,10 @@ export class DglabV4Socket {
     private setState(next: ConnectionState): void {
         if (this.state === next) return;
         this.state = next;
-        for (const l of this.stateListeners) l(next);
+        this.stateChanged.emit(next);
     }
 
     private emitDevices(): void {
-        const snapshot = this.devices;
-        for (const l of this.deviceListeners) l(snapshot);
+        this.devicesChanged.emit(this.devices);
     }
 }

@@ -41,7 +41,7 @@ erDiagram
 
 | Backend | Feature id format | Kinds | Stored in `localStorage` |
 | --- | --- | --- | --- |
-| Intiface (`ButtplugClientManager`) | device name, kind, feature index joined by `#` | `scalar`, `rotate`, `linear` | `happy-feature-assignments`, `happy-device-strengths`, `happy-stroker-range` |
+| Intiface (`ButtplugClientManager`) | device name, kind, feature index joined by `#` | `scalar`, `rotate`, `linear` | `happy-feature-assignments`, `happy-device-strengths`, `happy-stroker-ranges` |
 | DG-Lab (`CoyoteBackend`) | `dglab`, slot id, channel 0/1 joined by `#` | `estim` | `happy-dglab-assignments`, `happy-dglab-strengths`, `happy-dglab-pulse-rate`, `happy-dglab-pulse-width`, `happy-dglab-pairing-host` |
 
 ## Backend interface
@@ -69,7 +69,8 @@ classDiagram
     +sendLinear(channel, position, durationMs)
     +getBatteryLevel(device)
     +stopAll()
-    +setLinearRange(min, max)
+    +getStrokerRange(name) optional
+    +setStrokerRange(name, range) optional
     +getCarrierFrequency(name) optional
     +getPulseWidth(name) optional
     +getDeviceBadge(name) optional
@@ -172,7 +173,7 @@ flowchart LR
 | `linear` (default) | straight line between points | moves to the next point, duration = time until it |
 | `pchip` | smooth, overshoot-free curve | same as `linear` (the device interpolates the move itself) |
 
-The method comes from `FUNSCRIPT_INTERPOLATION_METHOD` (server config). Changing it calls `setInterpolation()`, which re-prepares all loaded scripts.
+The method comes from `FUNSCRIPT_INTERPOLATION_METHOD` (server config). The app prepares each funscript once with `prepareScript()` when it is fetched and caches the result per track as `LoadedScript { channel, prepared }`; the sync engines and the timeline view share these prepared scripts.
 
 ## The sync loop
 
@@ -231,7 +232,7 @@ flowchart LR
   Dedup -- yes --> Drop
   Dedup -- no --> Run["feature.runOutput(<br/>DeviceOutputCommand.createPercent)"]
 
-  SL["sendLinear(channel, pos, ms)"] --> Scale["rescale pos into<br/>stroker min/max range"]
+  SL["sendLinear(channel, pos, ms)"] --> Scale["rescale pos into the device's<br/>stroker min/max range"]
   Scale --> Clamp["clamp duration to the<br/>device's durationRange"]
   Clamp --> RunL["runOutput(HwPositionWithDuration)"]
 ```

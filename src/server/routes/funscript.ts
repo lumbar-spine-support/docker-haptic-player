@@ -2,7 +2,7 @@ import { Router } from 'express';
 import fs from 'fs';
 import { Config } from '../config';
 import { HttpError } from '../utils/errorHandler';
-import { buildFunscriptPatterns, parseFunscriptName } from '../services/libraryService';
+import { buildFunscriptPatterns, parseFunscriptName } from '../services/funscripts';
 import { decodeTrackId, requireMediaFile } from '../utils/mediaFiles';
 import { normalizeRelativePath } from '../utils/paths';
 

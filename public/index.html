@@ -311,7 +311,12 @@
           <span id="intiface-status" class="badge bg-secondary">Disconnected</span>
         </h6>
         <div class="input-group input-group-sm mb-3">
-          <span class="input-group-text bg-dark text-light border-secondary">ws://</span>
+          <select id="intiface-scheme"
+            class="form-select form-select-sm bg-dark text-light border-secondary flex-grow-0 w-auto"
+            aria-label="Intiface websocket scheme">
+            <option value="ws://" selected>ws://</option>
+            <option value="wss://">wss://</option>
+          </select>
           <input id="intiface-address" type="text" class="form-control form-control-sm border-secondary"
             value="localhost:12345" placeholder="localhost:12345" aria-label="Intiface websocket host and port" />
           <button id="btn-reset" class="btn btn-sm btn-outline-primary" type="button">

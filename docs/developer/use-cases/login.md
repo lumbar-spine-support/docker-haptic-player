@@ -55,7 +55,7 @@ flowchart TD
 | Situation | Behaviour |
 | --- | --- |
 | Already signed in and opens `/auth/` | `skipIfSignedIn()` sees `authenticated: true` and redirects to `returnTo` |
-| An API call returns 401 later (token revoked) | `handleUnauthorized()` in `utils/api.ts` redirects to `/auth/?returnTo=…` once |
+| An API call returns 401 later (token revoked) | `handleUnauthorized()` in `api.ts` redirects to `/auth/?returnTo=…` once |
 | Logout | `POST /api/auth/logout` → `tokenStore.revoke(token)` + clear cookie → login page |
 | Admin revokes a device | Delete its line from `tokens.txt`. The store re-reads the file when its mtime changes |
 | Chromecast / AirPlay | No cookie. `/api/config` hands out a per-process `mediaAccessToken`, which `mediaUrl()` appends as `?mediaToken=`. It only unlocks `GET`/`HEAD` on `/api/media/*` |
@@ -69,4 +69,4 @@ flowchart TD
 | Login, logout, status | [routes/auth.ts](../../../src/server/routes/auth.ts), [middleware/loginThrottle.ts](../../../src/server/middleware/loginThrottle.ts) |
 | Token persistence | [services/tokenStore.ts](../../../src/server/services/tokenStore.ts) |
 | Login page | [src/client/login.ts](../../../src/client/login.ts), [public/auth/index.html](../../../public/auth/index.html) |
-| 401 handling in the app | [src/client/utils/api.ts](../../../src/client/utils/api.ts) |
+| 401 handling in the app | [src/client/api.ts](../../../src/client/api.ts) |

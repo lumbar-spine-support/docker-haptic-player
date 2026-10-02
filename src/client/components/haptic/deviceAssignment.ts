@@ -5,9 +5,9 @@ import {
   parseChannelKey,
   type HapticChannel,
 } from '../../../shared/haptics';
-import { bindDragOnlyRange, bindDualRangeDragOnly, syncDualRangeFill, syncRangeFill } from '../../utils/rangeSlider';
+import { bindDragOnlyRange, bindDualRangeDragOnly, syncDualRangeFill, syncRangeFill } from '../ui/rangeSlider';
 import { deviceAlertHtml, deviceBadgeHtml, deviceCardHtml, deviceDetailHtml, deviceFeatureHtml } from './templates';
-import type { DeviceFeature, FeatureKind, HapticBackend, HapticDevice } from './backend';
+import type { DeviceFeature, FeatureKind, HapticBackend, HapticDevice, StrokerRange } from './backend';
 
 /**
  * Icon per actuator kind.
@@ -152,8 +152,9 @@ export class DeviceAssignment {
     }
 
     // Position travel limits only make sense for a toy that reports a linear actuator.
-    if (features.some((feature) => feature.kind === 'linear')) {
-      controls.appendChild(this.buildStrokerRangeRow(device));
+    const strokerRange = this.buttplug.getStrokerRange?.(device.name);
+    if (strokerRange && features.some((feature) => feature.kind === 'linear')) {
+      controls.appendChild(this.buildStrokerRangeRow(device, strokerRange));
     }
 
     if (features.length === 0) {
@@ -245,9 +246,9 @@ export class DeviceAssignment {
   }
 
   /** Dual-handle travel limits for linear toys, rescaling stroker positions. */
-  private buildStrokerRangeRow(device: HapticDevice): HTMLElement {
-    const initialMin = snap(this.buttplug.linearRangeMin * 100);
-    const initialMax = snap(this.buttplug.linearRangeMax * 100);
+  private buildStrokerRangeRow(device: HapticDevice, initial: StrokerRange): HTMLElement {
+    const initialMin = snap(initial.min * 100);
+    const initialMax = snap(initial.max * 100);
     const { row, value } = buildControl('Position Limits', `${initialMin}% – ${initialMax}%`);
 
     const container = document.createElement('div');
@@ -266,7 +267,7 @@ export class DeviceAssignment {
       minEl.value = String(min);
       maxEl.value = String(max);
       value.textContent = `${min}% – ${max}%`;
-      this.buttplug.setLinearRange(min / 100, max / 100);
+      this.buttplug.setStrokerRange?.(device.name, { min: min / 100, max: max / 100 });
       syncDualRangeFill(container, minEl, maxEl);
     };
 

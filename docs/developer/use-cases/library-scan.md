@@ -94,5 +94,6 @@ Deleting `/config/cache/` also forces a full rebuild on the next request.
 | Cache, fingerprint | [services/libraryIndex.ts](../../../src/server/services/libraryIndex.ts) |
 | Scan pipeline | [services/libraryService.ts](../../../src/server/services/libraryService.ts) |
 | Metadata | [services/mediaProbe.ts](../../../src/server/services/mediaProbe.ts) |
-| Chapters | [services/chapterService.ts](../../../src/server/services/chapterService.ts), [shared/chapters.ts](../../../src/shared/chapters.ts) |
+| Albums, playlists | [services/albums.ts](../../../src/server/services/albums.ts), [services/playlists.ts](../../../src/server/services/playlists.ts) |
+| Funscript names, chapters | [services/funscripts.ts](../../../src/server/services/funscripts.ts), [services/chapterService.ts](../../../src/server/services/chapterService.ts), [shared/chapters.ts](../../../src/shared/chapters.ts) |
 | Covers | [services/artworkCache.ts](../../../src/server/services/artworkCache.ts) |

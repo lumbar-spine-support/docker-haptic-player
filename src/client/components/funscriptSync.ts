@@ -1,16 +1,18 @@
-import type { Funscript, FunscriptAction } from '../../shared/types';
 import type { HapticChannel } from '../../shared/haptics';
-import { bracketIndex, DEFAULT_INTERPOLATION_METHOD, positionAt, prepareScript, type InterpolationMethod, type PreparedScript } from '../../shared/interpolation';
+import { bracketIndex, positionAt, type PreparedScript } from '../../shared/interpolation';
 import type { HapticBackend } from './haptic/backend';
 import type { PlaybackSession } from './player';
 
 /** Travel time for a stroker jump without interpolation; as fast as devices reliably accept. */
 const STEP_MOVE_MS = 50;
 
-interface LoadedScript {
+/** A track's funscript, prepared once with the server-configured interpolation method. */
+export interface LoadedScript {
   channel: HapticChannel;
-  source: readonly FunscriptAction[];
   prepared: PreparedScript;
+}
+
+interface ScriptState extends LoadedScript {
   /** performance.now() timestamp before which no new linear move should be issued. */
   moveLockedUntil: number;
   /** Last position (0–1) sent for a linear (stroker) role; avoids redundant re-sends. */
@@ -41,13 +43,12 @@ interface LoadedScript {
  *  - synchronization offset (delay ms)
  */
 export class FunscriptSync {
-  private scripts: LoadedScript[] = [];
+  private scripts: ScriptState[] = [];
   private rafHandle = 0;
   private timerHandle: number | null = null;
   private isPlaying = false;
   private delayMs = 0;
   private updateIntervalMs = 1000 / 30;
-  private interpolation: InterpolationMethod = DEFAULT_INTERPOLATION_METHOD;
   private readonly session: PlaybackSession;
   private readonly buttplug: HapticBackend;
 
@@ -66,11 +67,10 @@ export class FunscriptSync {
   }
 
   /** Replace all loaded Funscripts for the current track. */
-  loadScripts(scripts: Array<{ channel: HapticChannel; funscript: Funscript }>): void {
-    this.scripts = scripts.map(({ channel, funscript }) => ({
+  loadScripts(scripts: readonly LoadedScript[]): void {
+    this.scripts = scripts.map(({ channel, prepared }) => ({
       channel,
-      source: funscript.actions,
-      prepared: prepareScript(funscript.actions, this.interpolation),
+      prepared,
       moveLockedUntil: 0,
       lastSentPos: null,
     }));
@@ -85,13 +85,6 @@ export class FunscriptSync {
   /** Applies a playback-time offset in milliseconds, then resynchronizes output. */
   setDelayMs(delayMs: number): void {
     this.delayMs = delayMs;
-    this.resyncNow();
-  }
-
-  /** Sets how positions between script points are derived, then resynchronizes output. */
-  setInterpolation(method: InterpolationMethod): void {
-    this.interpolation = method;
-    for (const script of this.scripts) script.prepared = prepareScript(script.source, method);
     this.resyncNow();
   }
 
@@ -194,7 +187,7 @@ export class FunscriptSync {
   }
 
   /** Drive every actuator assigned to this script's channel, in its native style. */
-  private updateScript(script: LoadedScript, nowMs: number, now: number, force: boolean): void {
+  private updateScript(script: ScriptState, nowMs: number, now: number, force: boolean): void {
     if (!this.buttplug.hasFeaturesFor(script.channel)) return;
 
     // Outside the scripted range this resolves to 0, actively forcing the device off
@@ -208,7 +201,7 @@ export class FunscriptSync {
   }
 
   /** Edge-triggered linear (stroker) moves, rate-limited to the toy's actual travel time. */
-  private updateStroker(script: LoadedScript, nowMs: number, now: number, force: boolean): void {
+  private updateStroker(script: ScriptState, nowMs: number, now: number, force: boolean): void {
     if (!force && now < script.moveLockedUntil) return;
 
     const target = this.nextStrokerWaypoint(script.prepared, nowMs);

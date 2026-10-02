@@ -124,10 +124,14 @@ export interface HapticBackend {
    */
   onDeviceStateChange?(listener: () => void): void;
 
-  /** Min/max output range (0–1) that linear (stroker) positions are rescaled into. */
-  readonly linearRangeMin: number;
-  readonly linearRangeMax: number;
-  setLinearRange(min: number, max: number): void;
+  /** Optional: travel limits (0–1) stroker positions are rescaled into; null hides the control. */
+  getStrokerRange?(deviceName: string): StrokerRange | null;
+  setStrokerRange?(deviceName: string, range: StrokerRange): void;
+}
+
+export interface StrokerRange {
+  min: number;
+  max: number;
 }
 
 export function clamp01(value: number): number {

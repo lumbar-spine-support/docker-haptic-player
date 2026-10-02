@@ -12,7 +12,7 @@ HAPPY does not pair Bluetooth devices itself. Intiface Central does that, and th
 sequenceDiagram
   autonumber
   actor U as User
-  participant UI as Settings panel<br/>App.bindSidebarControls
+  participant UI as Settings panel<br/>bindIntifaceSettings
   participant BM as ButtplugClientManager
   participant BC as ButtplugClient<br/>buttplug npm
   participant IC as Intiface Central
@@ -20,8 +20,8 @@ sequenceDiagram
 
   U->>IC: start server, put toy in pairing mode
   IC->>T: BLE scan and connect
-  U->>UI: enter host:port, press Connect
-  UI->>UI: normalizeIntifaceAddress() → ws://host:port<br/>save happy-intiface-address
+  U->>UI: pick ws:// or wss://, enter host:port, press Connect
+  UI->>UI: parseIntifaceAddress() → scheme + host<br/>save happy-intiface-address
   UI->>BM: connect(address)
   BM->>BM: state = connecting
   BM->>BC: new ButtplugClient('AudioHapticPlayer')<br/>listen: deviceadded, deviceremoved, disconnect
@@ -81,14 +81,14 @@ flowchart LR
 ## Things to know
 
 - The address must be reachable **from the browser**. `localhost` works only if Intiface runs on the same machine as the browser.
-- `normalizeIntifaceAddress()` always builds a `ws://` URL. Browsers accept `ws://localhost` from an `https://` page, but block other `ws://` hosts as mixed content. `wss://` addresses are not supported at the moment.
+- `parseIntifaceAddress()` takes the scheme from the dropdown (default `ws://`) unless the host field itself starts with `ws://` or `wss://`. Browsers accept `ws://localhost` from an `https://` page, but block other `ws://` hosts as mixed content; use `wss://` (e.g. Intiface behind a TLS proxy) in that case.
 - Assignments are keyed by device name, so the same toy keeps its assignments across reconnects and page reloads. Two toys with the same name share them.
 
 ## Code map
 
 | Step | Files |
 | --- | --- |
-| Address input, Connect button, alerts | `bindSidebarControls` in [src/client/index.ts](../../../src/client/index.ts) |
+| Address input, Connect button, alerts | [settings/intiface.ts](../../../src/client/components/settings/intiface.ts), [utils/intifaceAddress.ts](../../../src/client/utils/intifaceAddress.ts) |
 | Connection, features, output | [haptic/buttplugClient.ts](../../../src/client/components/haptic/buttplugClient.ts) |
 | Device cards | [haptic/deviceAssignment.ts](../../../src/client/components/haptic/deviceAssignment.ts), [haptic/templates.ts](../../../src/client/components/haptic/templates.ts) |
 | User docs | [docs/intiface.md](../../intiface.md) |

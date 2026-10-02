@@ -148,7 +148,7 @@ with `PlaybackSession`, `PlaybackQueue` and `PlaybackController`.
 
 ### Sync flow
 
-1. Client fetches library/config from API utilities in `src/client/utils/api.ts`
+1. Client fetches library/config from API utilities in `src/client/api.ts`
 2. Router state determines whether library/detail/player view is shown
 3. Opening a file:
    - updates `currentTrackId`
@@ -444,8 +444,11 @@ dist/                   Compiled server output
 - `src/client/components/funscriptSync.ts` isolates playback-time → device-command logic
 - `src/client/components/haptic/buttplugClient.ts` isolates Intiface connection and command routing
 - `src/client/index.ts` coordinates navigation, player ownership, footer state, and UI wiring
+- `src/client/router.ts` maps the query string onto views; `components/library/detail.ts` renders playlist/album pages
+- `src/client/components/settings/` and `components/haptic/dglab/pairingPanel.ts` wire the settings panel
+- `src/client/components/haptic/featureSettings.ts` and `emitter.ts` hold the per-backend assignment/strength storage and listener lists shared by both backends
 - `src/server/routes/` keeps each API concern separate
-- `src/server/services/libraryService.ts` performs the raw filesystem scan; it holds no state
+- `src/server/services/libraryService.ts` performs the raw filesystem scan; it holds no state. `albums.ts`, `playlists.ts` and `funscripts.ts` build the albums, playlists and funscript/chapter data it assembles
 - `src/server/services/libraryIndex.ts` owns caching and staleness detection around that scan
 - `src/server/services/artworkCache.ts` owns the on-disk cover cache, including negative entries
 - `src/server/utils/logger.ts` owns the log level; every server module logs through `createLogger('[tag]')` instead of `console`

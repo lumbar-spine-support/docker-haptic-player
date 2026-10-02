@@ -54,7 +54,7 @@ Strength, pulse settings and position limits skip the event: the backend stores 
 | --- | --- | --- |
 | Intiface feature → channel | per feature id `deviceName#kind#index` | `happy-feature-assignments` |
 | Intiface strength | per device name | `happy-device-strengths` |
-| Intiface position limits | **one value for all strokers**, although it is shown on each card | `happy-stroker-range` |
+| Intiface position limits | per device name (defaults to 0–100 %) | `happy-stroker-ranges` |
 | Coyote channel → funscript channel | per feature id (Ch. A / Ch. B of one Coyote) | `happy-dglab-assignments` |
 | Coyote strength | per Coyote (both channels) | `happy-dglab-strengths` |
 | Coyote pulse frequency (Hz) | per Coyote (both channels) | `happy-dglab-pulse-rate` |

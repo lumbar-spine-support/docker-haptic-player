@@ -1,7 +1,7 @@
-import type { Funscript } from '../../../../shared/types';
 import { channelKey, channelLabel, type HapticChannel } from '../../../../shared/haptics';
-import { DEFAULT_INTERPOLATION_METHOD, prepareScript, type InterpolationMethod, type PreparedScript } from '../../../../shared/interpolation';
-import { ROLE_ICON_CLASSES } from '../../../utils/hapticIcons';
+import type { PreparedScript } from '../../../../shared/interpolation';
+import type { LoadedScript } from '../../funscriptSync';
+import { ROLE_ICON_CLASSES } from '../icons';
 import type { PlaybackSession } from '../../player';
 import { emptyStateHtml, scriptRowHtml } from './templates';
 import { curvePoints, heatColor, MediaClock } from './geometry';
@@ -10,7 +10,6 @@ interface ScriptRenderer {
   channel: HapticChannel;
   canvas: HTMLCanvasElement;
   wrapper: HTMLDivElement;
-  funscript: Funscript;
   prepared: PreparedScript;
   /** CSS pixel size; the backing buffer is this times devicePixelRatio. */
   width: number;
@@ -36,7 +35,6 @@ export class Visualization {
   private readonly mediaClock = new MediaClock();
   private readonly resizeObserver = new ResizeObserver(() => this.resizeCanvases());
   private colors = { line: '#6c757d', cursor: '#0d6efd' };
-  private interpolation: InterpolationMethod = DEFAULT_INTERPOLATION_METHOD;
   private colorGradient = false;
 
   /** Horizontal zoom factor (1 = full view, 2 = 2× zoom, etc.) */
@@ -81,7 +79,7 @@ export class Visualization {
    */
   mount(
     container: HTMLElement,
-    scripts: Array<{ channel: HapticChannel; funscript: Funscript }>,
+    scripts: readonly LoadedScript[],
   ): void {
     container.innerHTML = '';
     this.resizeObserver.disconnect();
@@ -93,7 +91,7 @@ export class Visualization {
       return;
     }
 
-    for (const { channel, funscript } of scripts) {
+    for (const { channel, prepared } of scripts) {
       const template = document.createElement('template');
       template.innerHTML = scriptRowHtml({
         iconClass: ROLE_ICON_CLASSES[channel.type],
@@ -109,8 +107,7 @@ export class Visualization {
         channel,
         canvas,
         wrapper,
-        funscript,
-        prepared: prepareScript(funscript.actions, this.interpolation),
+        prepared,
         width: 0,
         height: 0,
       });
@@ -129,12 +126,6 @@ export class Visualization {
 
   onSeek(handler: (time: number) => void): void {
     this.seekHandler = handler;
-  }
-
-  setInterpolation(method: InterpolationMethod): void {
-    this.interpolation = method;
-    for (const r of this.renderers) r.prepared = prepareScript(r.funscript.actions, method);
-    this.redraw();
   }
 
   /** Colour the graph by movement speed instead of a single theme colour. */

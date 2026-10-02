@@ -77,7 +77,7 @@ A request is allowed if **one** of these is true (see `createAuthMiddleware`):
 | `/api/auth` | `routes/auth.ts` | `GET /status`, `POST /login` (throttled), `POST /logout` |
 | `/api/config` | `routes/config.ts` | Client defaults (`ClientSettings`) plus the media access token |
 | `/api/library` | `routes/library.ts` | `GET /` the whole `LibraryResponse`, `POST /refresh` forces a rescan |
-| `/api/media/:id` | `routes/media.ts` | File stream with range support. `/:id/description` returns the markdown without frontmatter |
+| `/api/media/:id` | `routes/media.ts` | File stream with range support. `/:id/description` looks up the track's `descriptionFilename` in the cached library index (404 if none) and returns the markdown without frontmatter |
 | `/api/artwork/:id` | `routes/artwork.ts` | Embedded cover, cached on disk, with ETag and `immutable` when `?v=` is given |
 | `/api/funscript/:trackId/:file` | `routes/funscript.ts` | Raw funscript JSON. Rejects names that don't match the configured suffixes (403) |
 | `/api/version` | `routes/version.ts` | Version and commit |
@@ -121,8 +121,8 @@ flowchart LR
   end
   Idx --> Split["split into audio and video<br/>by extension, minus IGNORE_EXT"]
   Split --> Entries["buildMediaEntries<br/>per file: probeMedia (ffprobe),<br/>tags, artworkVersion = mtime,<br/>resolveChapters, readDescriptionTags"]
-  Entries --> Albums["buildAlbums"]
-  Entries --> Playlists["buildPlaylists"]
+  Entries --> Albums["buildAlbums<br/>albums.ts"]
+  Entries --> Playlists["buildPlaylists<br/>playlists.ts"]
   Albums & Playlists --> Resp[("LibraryResponse<br/>tracks, videos, albums, playlists")]
 ```
 
@@ -208,7 +208,7 @@ The full sequence is in [Pair a DG-Lab Coyote](use-cases/coyote-pairing.md).
 | Startup, pipeline | [src/server/index.ts](../../src/server/index.ts) |
 | Config | [src/server/config.ts](../../src/server/config.ts), [scripts/update-env-docs.js](../../scripts/update-env-docs.js) |
 | Auth | [middleware/auth.ts](../../src/server/middleware/auth.ts), [middleware/loginThrottle.ts](../../src/server/middleware/loginThrottle.ts), [routes/auth.ts](../../src/server/routes/auth.ts), [services/tokenStore.ts](../../src/server/services/tokenStore.ts) |
-| Library | [services/libraryIndex.ts](../../src/server/services/libraryIndex.ts), [services/libraryService.ts](../../src/server/services/libraryService.ts), [services/mediaProbe.ts](../../src/server/services/mediaProbe.ts), [services/chapterService.ts](../../src/server/services/chapterService.ts), [shared/chapters.ts](../../src/shared/chapters.ts) |
+| Library | [services/libraryIndex.ts](../../src/server/services/libraryIndex.ts), [services/libraryService.ts](../../src/server/services/libraryService.ts), [services/mediaProbe.ts](../../src/server/services/mediaProbe.ts), [services/albums.ts](../../src/server/services/albums.ts), [services/playlists.ts](../../src/server/services/playlists.ts), [services/funscripts.ts](../../src/server/services/funscripts.ts), [services/chapterService.ts](../../src/server/services/chapterService.ts), [shared/chapters.ts](../../src/shared/chapters.ts) |
 | Media, funscripts | [routes/media.ts](../../src/server/routes/media.ts), [routes/funscript.ts](../../src/server/routes/funscript.ts), [utils/mediaFiles.ts](../../src/server/utils/mediaFiles.ts), [utils/paths.ts](../../src/server/utils/paths.ts) |
 | Artwork | [routes/artwork.ts](../../src/server/routes/artwork.ts), [services/artworkCache.ts](../../src/server/services/artworkCache.ts) |
 | Relay | [services/dglabRelay.ts](../../src/server/services/dglabRelay.ts) |
