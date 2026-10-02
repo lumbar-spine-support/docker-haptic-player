@@ -19,6 +19,10 @@ media/
     └── favorites.m3u        --> playlists are only supported as .m3u files
 ```
 
+## Video codecs
+
+Videos are streamed as-is and decoded by your browser. If the browser cannot decode the video track (for example HEVC/H.265 on many Linux desktops), HAPPY shows a warning under the player and a browser notification, and only the audio plays.
+
 ## Funscripts
 
 Funscripts must at least contain an `actions` field with an array of `at/pos` structures.
