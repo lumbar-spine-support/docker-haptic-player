@@ -32,9 +32,7 @@ export const DEFAULT_PULSE_FREQUENCY = 50;
 export const MIN_PULSE_FREQUENCY = 10;
 export const MAX_PULSE_FREQUENCY = 100;
 
-/** Relative pulse width, 0–100 on the wire; 0 would emit nothing, so it is not offered. */
-export const DEFAULT_PULSE_WIDTH = 100;
-export const MIN_PULSE_WIDTH = 10;
+/** Pulse width byte maximum; the script position maps 0–1 onto 0–this. */
 export const MAX_PULSE_WIDTH = 100;
 
 function byte(value: number): string {
@@ -45,11 +43,6 @@ function byte(value: number): string {
 export function clampFrequency(frequency: number): number {
   if (!Number.isFinite(frequency)) return DEFAULT_PULSE_FREQUENCY;
   return Math.max(MIN_PULSE_FREQUENCY, Math.min(MAX_PULSE_FREQUENCY, Math.round(frequency)));
-}
-
-export function clampPulseWidth(width: number): number {
-  if (!Number.isFinite(width)) return DEFAULT_PULSE_WIDTH;
-  return Math.max(MIN_PULSE_WIDTH, Math.min(MAX_PULSE_WIDTH, Math.round(width)));
 }
 
 /** Wire value for a pulse rate: the period in ms. */
@@ -90,8 +83,8 @@ export function decodeFrame(frame: string): DecodedStep[] {
   }));
 }
 
-/** A script position (0–1) as a sub-step: the pulse width setting is the width at full position. */
-export function positionStep(position: number, frequency: number, width: number): PulseStep {
+/** A script position (0–1) as a sub-step whose pulse width follows the position. */
+export function positionStep(position: number, frequency: number): PulseStep {
   const clamped = Number.isFinite(position) ? Math.max(0, Math.min(1, position)) : 0;
-  return { periodMs: pulsePeriodMs(frequency), width: Math.round(clamped * clampPulseWidth(width)) };
+  return { periodMs: pulsePeriodMs(frequency), width: Math.round(clamped * MAX_PULSE_WIDTH) };
 }

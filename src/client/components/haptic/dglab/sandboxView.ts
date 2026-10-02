@@ -45,7 +45,7 @@ export class DglabSandbox {
         coyote.onDevicesChange(refresh);
         coyote.onDeviceStateChange(refresh);
         coyote.onStateChange(refresh);
-        // Strength, rate and width sliders live in the settings panel.
+        // Strength and rate sliders live in the settings panel.
         document.getElementById('settings-panel')?.addEventListener('hidden.bs.offcanvas', refresh);
         window.addEventListener('resize', refresh);
     }
@@ -120,7 +120,7 @@ export class DglabSandbox {
         if (this.info) {
             this.info.textContent = !connected ? 'Connect the DG-Lab app in the settings first.'
                 : !channel ? 'No Coyote reported by the DG-Lab app.'
-                    : `Strength ${channel.level} / ${channel.ceiling} · pulse rate ${channel.pulse.frequency} Hz · max width ${channel.pulse.width} %`;
+                    : `Strength ${channel.level} / ${channel.ceiling} · pulse rate ${channel.pulse.frequency} Hz`;
         }
         this.draw(channel);
     }
@@ -147,7 +147,7 @@ export class DglabSandbox {
         const y = (fraction: number) => height - pad - fraction * (height - 2 * pad);
         const ceiling = Math.max(1, channel?.ceiling ?? 1);
         const level = channel?.level ?? 0;
-        const pulse = channel?.pulse ?? { frequency: 50, width: 100 };
+        const pulse = channel?.pulse ?? { frequency: 50 };
 
         ctx.strokeStyle = 'rgba(220, 53, 69, 0.8)';
         ctx.setLineDash([4, 4]);
@@ -163,7 +163,7 @@ export class DglabSandbox {
         const period = pulsePeriodMs(pulse.frequency);
         for (let at = 0; at < windowMs; at += period) {
             const stepStart = Math.floor(at / STEP_DURATION_MS) * STEP_DURATION_MS;
-            const stepWidth = positionStep(this.sample(stepStart), pulse.frequency, pulse.width).width;
+            const stepWidth = positionStep(this.sample(stepStart), pulse.frequency).width;
             const amplitude = (level / ceiling) * (stepWidth / 100);
             if (amplitude <= 0) continue;
             ctx.moveTo(x(at), y(0));

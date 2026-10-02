@@ -46,7 +46,8 @@ export type SocketFactory = (url: string) => DglabSocketV4Client;
  * Controller side of the DG-Lab V4 relay, on top of dglab-kit.
  *
  * Adds what the kit leaves to the caller: reconnecting, device refresh,
- * routing each slot to its app, and fire-and-forget operations.
+ * routing each slot to its app, and operations that never throw; `clear` and
+ * `resetIntensity` settle once the app has replied.
  */
 export class DglabV4Socket {
     private kit: DglabSocketV4Client | null = null;
@@ -111,22 +112,22 @@ export class DglabV4Socket {
             kit.setTempIntensity(cid, slotId, channel, v, d, { priority: PRIORITY, immediate: true }));
     }
 
-    /** `immediate` replaces the queue; appending would build an ever-growing backlog. */
-    appendPulse(slotId: string, channel: V4Channel, frames: string[], durationMs: number, seq: number): void {
+    /** The app loops the frames for `d` ms (`d: 0` loops forever), so `d` must equal the frames' play time. */
+    appendPulse(slotId: string, channel: V4Channel, frames: string[], durationMs: number, seq: number, replace = true): void {
         const d = Math.max(1, Math.round(durationMs));
-        this.op(slotId, V4ActionType.AppendPulseData, { c: channel, d, seq }, (kit, cid) =>
-            kit.sendPulse(cid, slotId, channel, d, frames, { priority: PRIORITY, immediate: true, version: PULSE_VERSION, seq }));
+        this.op(slotId, V4ActionType.AppendPulseData, { c: channel, d, seq, im: replace }, (kit, cid) =>
+            kit.sendPulse(cid, slotId, channel, d, frames, { priority: PRIORITY, immediate: replace, version: PULSE_VERSION, seq }));
     }
 
-    /** `SetIntensity` accepts no value other than 0. */
-    resetIntensity(slotId: string, channel: V4Channel): void {
-        this.op(slotId, V4ActionType.SetIntensity, { c: channel }, (kit, cid) =>
+    /** `SetIntensity` accepts no value other than 0. Settles once the app has replied. */
+    resetIntensity(slotId: string, channel: V4Channel): Promise<void> {
+        return this.op(slotId, V4ActionType.SetIntensity, { c: channel }, (kit, cid) =>
             kit.resetIntensity(cid, slotId, channel, { priority: PRIORITY }));
     }
 
-    /** Cancel every running task on a slot. */
-    clear(slotId: string): void {
-        this.op(slotId, 'device.op.clear', undefined, (kit, cid) => kit.clearOperate(cid, { slotId }));
+    /** Cancel every running task on a slot. Settles once the app has replied. */
+    clear(slotId: string): Promise<void> {
+        return this.op(slotId, 'device.op.clear', undefined, (kit, cid) => kit.clearOperate(cid, { slotId }));
     }
 
     /** Re-read the device list from every attached app. */
@@ -149,14 +150,14 @@ export class DglabV4Socket {
         kind: OpKind,
         args: Record<string, unknown> | undefined,
         send: (kit: DglabSocketV4Client, clientId: string) => Promise<unknown>,
-    ): void {
+    ): Promise<void> {
         const kit = this.kit;
         const clientId = kit?.clients.find((c) => c.devices.some((d) => d.slotId === slotId))?.clientId;
-        if (!kit || !clientId || this.state !== 'connected') return;
+        if (!kit || !clientId || this.state !== 'connected') return Promise.resolve();
         const what = opName(kind);
         if (args) trace('->', clientId, slotId, what, args);
         else trace('->', clientId, slotId, what);
-        send(kit, clientId).catch((err: Error) => {
+        return send(kit, clientId).then((result) => trace('<-', slotId, what, result), (err: Error) => {
             if (IGNORED_ERRORS.has(err.name)) return;
             this.logOnce(`${err.message}:${what}`, `${what} on ${slotId} rejected:`, err.message, ...(args ? [args] : []));
         });

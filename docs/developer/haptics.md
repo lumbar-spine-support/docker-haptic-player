@@ -42,7 +42,7 @@ erDiagram
 | Backend | Feature id format | Kinds | Stored in `localStorage` |
 | --- | --- | --- | --- |
 | Intiface (`ButtplugClientManager`) | device name, kind, feature index joined by `#` | `scalar`, `rotate`, `linear` | `happy-feature-assignments`, `happy-device-strengths`, `happy-stroker-ranges` |
-| DG-Lab (`CoyoteBackend`) | `dglab`, slot id, channel 0/1 joined by `#` | `estim` | `happy-dglab-assignments`, `happy-dglab-strengths`, `happy-dglab-pulse-rate`, `happy-dglab-pulse-width`, `happy-dglab-pairing-host` |
+| DG-Lab (`CoyoteBackend`) | `dglab`, slot id, channel 0/1 joined by `#` | `estim` | `happy-dglab-assignments`, `happy-dglab-strengths`, `happy-dglab-pulse-rate`, `happy-dglab-pairing-host` |
 
 ## Backend interface
 
@@ -72,7 +72,6 @@ classDiagram
     +getStrokerRange(name) optional
     +setStrokerRange(name, range) optional
     +getCarrierFrequency(name) optional
-    +getPulseWidth(name) optional
     +getDeviceBadge(name) optional
     +getDeviceAlerts(name) optional
     +getFeatureDetails(featureId) optional
@@ -194,7 +193,7 @@ What one tick does:
 
 ```mermaid
 flowchart TD
-  T(["tick()"]) --> Time["t = activeStore.currentTime × 1000 + delayMs<br/>clamped to [0, duration]"]
+  T(["tick()"]) --> Time["t = MediaClock(activeStore.currentTime) × 1000 + delayMs<br/>clamped to [0, duration]"]
   Time --> Loop{{"for each loaded script"}}
   Loop --> Has{"backend.hasFeaturesFor(channel)?"}
   Has -- no --> Next["next script"]
@@ -214,6 +213,8 @@ flowchart TD
 ```
 
 Continuous output is sent **every tick**, even if the value did not change. The backends deduplicate, and resending makes the output self-correcting: if one Bluetooth write is lost, the next tick fixes it. The update rate slider (10–240 Hz, default from `HAPTIC_FREQUENCY`) sets the tick interval for all engines.
+
+The store's `currentTime` only moves on `timeupdate` (about every 250 ms), so the loop extrapolates it with the wall clock (`MediaClock`, shared with the visualization). Without this, consecutive Coyote look-ahead batches were sampled from a stale time and joined up to ~200 ms apart in script time.
 
 ## Backend output paths
 
@@ -247,13 +248,13 @@ flowchart LR
   Res --> Usable{"channel status OK<br/>and script has points<br/>now or 500 ms ahead?"}
   Usable -- no --> Zero["level = 0, no frames"]
   Usable -- yes --> Map["level = round(strength × intensityMax)<br/>mapIntensity(1, …)"]
-  Zero & Map --> Str{"CoyoteChannelScheduler.strength<br/>changed and ≥100 ms since last,<br/>or unchanged and ≥150 ms"}
-  Str -- send --> ST["SetTempIntensity(level, 300 ms)<br/>expires by itself: dead-man switch"]
-  Map --> Batch{"≥200 ms since last batch?"}
-  Batch -- yes --> AP["AppendPulseData<br/>5 frames = 20 steps of 25 ms,<br/>width = lookahead(t) × Pulse Width,<br/>im: true replaces the queue"]
+  Zero & Map --> Str{"CoyoteChannelScheduler.strength<br/>changed and ≥100 ms since last,<br/>or unchanged and ≥500 ms"}
+  Str -- send --> ST["SetTempIntensity(level, 1 s)<br/>expires by itself: dead-man switch"]
+  Map --> Batch{"less than 500 ms queued?"}
+  Batch -- yes --> AP["AppendPulseData, d = 1 s<br/>10 frames of 4 × 25 ms steps,<br/>width = lookahead(t) × 100,<br/>im: true only to prime, then appended"]
 ```
 
-The sync loop passes `lookahead(offsetMs)`, the interpolated position that far ahead; Intiface ignores it. Batches overlap (500 ms of frames every 200 ms), so relay jitter never empties the queue, and each new batch replaces the old one with fresher positions.
+The sync loop passes `lookahead(offsetMs)`, the interpolated position that far ahead; Intiface ignores it. Frames are a continuous stream: the first batch primes the queue with `im: true`, then a 1 s batch (`BATCH_FRAMES`) is appended whenever less than 500 ms is queued (`BUFFER_MS`), sampled from where the previous frame ended. Each batch is one app task; long batches keep task hand-overs rare. The app loops a task's frames for `d` ms (`d: 0` loops forever), so `d` is exactly the batch's play time. Replacing the queue on every batch would restart playback at a jitter-dependent point and stutter. If the queue runs dry (for example a throttled tab), the next batch primes it again. Strength is refreshed only every 500 ms, because each refresh replaces the running `SetTempIntensity` task. Switching strength between 0 and active is never throttled, so `SetTempIntensity` always goes out before the first pulse frames. Every `device.op` reply (`completed`, `replaced`, `cleared`, …) is logged at debug level under `dglab:socket`.
 
 #### Pulse frames
 
@@ -262,7 +263,7 @@ The V4 protocol carries Coyote 3.0 pulse frames unchanged (`ver: 3`), so the [Co
 | Byte | Range | Meaning | HAPPY setting |
 | --- | --- | --- | --- |
 | Period ("waveform frequency") | 10–240 | Pulse period in ms. 10–100 is literal; 101–1000 ms is compressed into 101–240. Out of range drops all four steps. | Pulse Frequency, 10–100 Hz (default 50), sent as `round(1000 / Hz)` |
-| Waveform intensity | 0–100 | Relative pulse width. The pulse voltage comes from the channel strength. | Pulse Width, 10–100 % (default 100): the width at script position 100 |
+| Waveform intensity | 0–100 | Relative pulse width. The pulse voltage comes from the channel strength. | Script position × 100; no setting, since a lower maximum width only scales the output like the strength slider |
 
 `positionStep()` turns a position into one step; the period stays constant. `encodeFrame()` / `decodeFrame()` convert between frames and per-step `{ periodMs, width }`.
 
@@ -279,9 +280,9 @@ The timing decisions and frame building live in `CoyoteChannelScheduler` and `lo
 - Run `npm run sandbox` (esbuild serve with live reload on port 8100, `PORT` overrides), or the **E-stim Sandbox** launch config, which also opens a Chrome debug session.
 - Bootstrap and Plotly come from a CDN.
 - `strategies.ts` wraps the production scheduler. To compare an alternative, append an `EstimStrategy` to `STRATEGIES`.
-- `appModel.ts` is an **assumption** about the DG-Lab app, not its code: it plays one queued frame and forwards the current strength every 100 ms, after a fixed latency. `SetTempIntensity` expires after its duration, and `im: true` replaces the queue from the next tick.
+- `appModel.ts` is an **assumption** about the DG-Lab app, not its code: it plays one queued frame and forwards the current strength every 100 ms, after a fixed latency. `SetTempIntensity` expires after its duration, and `im: true` replaces the queue from the next tick; other batches are appended.
 
-`stopAll()` sends `device.op.clear` and resets both channel intensities to 0. See [Pair a DG-Lab Coyote](use-cases/coyote-pairing.md) for the connection side.
+`stopAll()` sends `device.op.clear` and resets both channel intensities to 0. The backend then holds all output until the app has replied to every reset, for at least 200 ms and at most 1 s. A `SetTempIntensity` sent right after the reset can land in the same 100 ms app tick and lose to it. Identical refreshes do not restore the strength afterwards, so the channel would stay at 0. See [Pair a DG-Lab Coyote](use-cases/coyote-pairing.md) for the connection side.
 
 #### DG-Lab client
 
@@ -290,7 +291,7 @@ The wire protocol, device cache and patch merging come from [dglab-kit](https://
 - Reconnects with backoff (1 s doubling to 15 s), except after the relay closes with `replaced` (another tab took over).
 - Requests devices when an app attaches and every 30 s, since battery level only arrives with a full snapshot.
 - Sends each operation only to the app that owns the slot.
-- Sets `p: 1`, `im: true` and `ver: 3` explicitly; the kit leaves them out by default.
+- Sets `p: 1` and `ver: 3` explicitly, plus `im: true` on strength and on the first pulse batch; the kit leaves them out by default.
 - Fire-and-forget: every operation's promise is caught. Timeouts and disconnects are ignored, and other errors are logged once per kind.
 - Tracing via `localStorage['happy-log'] = 'dglab=debug'` or `LOG_LEVEL=debug` on the server, including `custom.action` events. Client code logs through `createLogger(namespace)` in `src/client/utils/logger.ts`; levels are set per namespace with `setLogLevel()` or the `happy-log` override.
 
@@ -302,7 +303,7 @@ The wire protocol, device cache and patch merging come from [dglab-kit](https://
 | Track changes | `clearScripts()` → `stop()` → `stopAll()` |
 | Devices or assignments change | `resyncNow()` → `stopAll()` and immediately resend the current values |
 | Tab closed or navigated away | `pagehide` → `HapticBackendRegistry.stopAll()` |
-| Tab crashes or network drops (Coyote) | every strength command expires after 300 ms |
+| Tab crashes or network drops (Coyote) | every strength command expires after 1 s |
 | Script has no point at the current time | `positionAt()` returns null → 0 is sent |
 
 ## Possible e-stim improvements
@@ -315,7 +316,7 @@ Ideas for Coyote playback, taken from the [Restim stim theory wiki](https://gith
 | Onset ramp | A sudden jump in strength causes an onset spike that can hurt ([volume ramp](https://github.com/diglet48/restim/wiki/volume-ramp)). | Limit how fast strength can rise per update, and ramp up over a few seconds after play or seek. Decreases stay immediate. | The DG-Lab app has its own soft-start. Both together must not make fast scripts feel mushy. |
 | Random pulse spacing | Randomising the gap between pulses (5–10 ms) slows numbing and softens sudden changes ([pulse rate](https://github.com/diglet48/restim/wiki/pulse-rate)). | Vary the period byte by about ±20 % per 25 ms step in `positionStep()`. Opt-in. | DG-Lab says periods longer than 25 ms, or periods that change between steps, are processed in an undocumented way. Only predictable at 40 Hz and above. |
 | A/B position mode | Moving the sensation between electrodes; the Coyote can do the two simplest three-phase patterns ([three-phase effects](https://github.com/diglet48/restim/wiki/threephase-effects)). | Drive channel A with $f(pos)$ and channel B with $f(1 - pos)$ from one `estim` script. | Needs a new assignment option. It only makes sense when both channels share an electrode area. |
-| Narrow pulses by default | Narrow pulses at higher voltage reach the same nerve activation with less charge and less heating ([nerve activation](https://github.com/diglet48/restim/wiki/nerve-activation), [safety](https://github.com/diglet48/restim/wiki/estim-safety)). | Once the Pulse Width setting has been tested, consider a lower default. | A narrower pulse needs a higher strength, which the app caps. Users would have to raise their comfort limit. |
+| Narrow pulses by default | Narrow pulses at higher voltage reach the same nerve activation with less charge and less heating ([nerve activation](https://github.com/diglet48/restim/wiki/nerve-activation), [safety](https://github.com/diglet48/restim/wiki/estim-safety)). | Consider a configurable maximum width again, tested on hardware (an earlier Pulse Width slider was removed because it behaved like strength). | A narrower pulse needs a higher strength, which the app caps. Users would have to raise their comfort limit. |
 | Safety docs | One isolated channel per nipple. Keep electrodes below the waist otherwise ([safety](https://github.com/diglet48/restim/wiki/estim-safety)). | Add a note to the user docs for `estim:nipples`. | — |
 
 ## Code map

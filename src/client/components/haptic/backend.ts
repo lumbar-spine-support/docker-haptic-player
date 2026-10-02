@@ -104,10 +104,6 @@ export interface HapticBackend {
   getCarrierFrequency?(deviceName: string): number | null;
   setCarrierFrequency?(deviceName: string, frequency: number): void;
 
-  /** Optional: relative pulse width of a pulse-based device, in percent; null hides the control. */
-  getPulseWidth?(deviceName: string): number | null;
-  setPulseWidth?(deviceName: string, width: number): void;
-
   /** Optional presentation data; the settings UI renders these generically. */
   getDeviceBadge?(deviceName: string): DeviceBadge | null;
   getDeviceAlerts?(deviceName: string): DeviceAlert[];

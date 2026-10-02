@@ -70,7 +70,7 @@ sequenceDiagram
   PS-->>FS: next store update (timeupdate) → start()
   FS->>BE: stopAll(), then tick
   loop every 1000 / rate ms while playing
-    FS->>FS: t = currentTime + delay
+    FS->>FS: t = currentTime (extrapolated) + delay
     FS->>BE: sendContinuous / sendLinear
   end
 ```

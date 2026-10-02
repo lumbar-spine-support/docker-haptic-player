@@ -58,7 +58,7 @@ export function summarize(input: SimulationInput, sim: SimulationResult, app: Ap
     const count = (kind: CoyoteCommand['kind']) => sim.commands.filter((c) => c.command.kind === kind).length;
     let sum = 0;
     for (const step of app.steps) {
-        const error = effectiveLevel(step, input.pulse.width) - idealLevel(input, step.at);
+        const error = effectiveLevel(step) - idealLevel(input, step.at);
         sum += error * error;
     }
     return {

@@ -7,13 +7,9 @@ import {
 import type { FunscriptAction } from '../../src/shared/types';
 import {
     DEFAULT_PULSE_FREQUENCY,
-    DEFAULT_PULSE_WIDTH,
     MAX_PULSE_FREQUENCY,
-    MAX_PULSE_WIDTH,
     MIN_PULSE_FREQUENCY,
-    MIN_PULSE_WIDTH,
     clampFrequency,
-    clampPulseWidth,
 } from '../../src/client/components/haptic/dglab/waveform';
 import { playOnApp } from './appModel';
 import { renderPlot } from './plot';
@@ -82,7 +78,7 @@ function readInput(): SimulationInput {
         tickHz: Math.min(240, Math.max(10, num('tickHz', 30))),
         strength: num('strength', 100) / 100,
         ceiling: Math.min(200, Math.max(0, num('ceiling', 40))),
-        pulse: { frequency: clampFrequency(num('frequency', DEFAULT_PULSE_FREQUENCY)), width: clampPulseWidth(num('width', DEFAULT_PULSE_WIDTH)) },
+        pulse: { frequency: clampFrequency(num('frequency', DEFAULT_PULSE_FREQUENCY)) },
         latencyMs: Math.max(0, num('latency', 40)),
     };
 }
@@ -151,7 +147,6 @@ function init(): void {
     fillSelect('strategy', STRATEGIES.map((s) => ({ value: s.id, label: s.label })), STRATEGIES[0]!.id);
     fillSelect('method', INTERPOLATION_METHODS.map((m) => ({ value: m, label: m })), DEFAULT_INTERPOLATION_METHOD);
     setNumber('frequency', MIN_PULSE_FREQUENCY, MAX_PULSE_FREQUENCY, DEFAULT_PULSE_FREQUENCY);
-    setNumber('width', MIN_PULSE_WIDTH, MAX_PULSE_WIDTH, DEFAULT_PULSE_WIDTH);
     resetWindow();
 
     const form = $<HTMLFormElement>('controls');

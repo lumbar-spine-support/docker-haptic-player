@@ -1,6 +1,7 @@
 import type { CoyoteCommand } from '../../src/client/components/haptic/dglab/channelScheduler';
 import {
     FRAME_DURATION_MS,
+    MAX_PULSE_WIDTH,
     STEPS_PER_FRAME,
     STEP_DURATION_MS,
     decodeFrame,
@@ -10,7 +11,7 @@ import type { TimedCommand } from './simulate';
 
 /**
  * A model of the DG-Lab app, not its code: every 100 ms it forwards the current
- * strength and the next queued frame to the Coyote. `im: true` replaces both.
+ * strength and the next queued frame to the Coyote. `im: true` replaces the queue, otherwise frames are appended.
  */
 const APP_TICK_MS = FRAME_DURATION_MS;
 
@@ -48,7 +49,7 @@ export function playOnApp(commands: readonly TimedCommand[], t0: number, t1: num
     let si = 0;
     let bi = 0;
     let strength = { value: 0, until: -Infinity };
-    let batch: { firstTick: number; frames: string[]; until: number } | null = null;
+    let queue: string[] = [];
 
     for (let at = t0; at < t1; at += APP_TICK_MS) {
         while (si < strengths.length && strengths[si]!.at + latencyMs <= at) {
@@ -56,12 +57,11 @@ export function playOnApp(commands: readonly TimedCommand[], t0: number, t1: num
             strength = { value: command.value, until: sent + latencyMs + command.durationMs };
         }
         while (bi < batches.length && batches[bi]!.at + latencyMs <= at) {
-            const { at: sent, command } = batches[bi++]!;
-            batch = { firstTick: at, frames: command.frames, until: sent + latencyMs + command.durationMs };
+            const { command } = batches[bi++]!;
+            queue = command.replace ? [...command.frames] : [...queue, ...command.frames];
         }
         const value = at < strength.until ? strength.value : 0;
-        const index = batch ? Math.round((at - batch.firstTick) / APP_TICK_MS) : -1;
-        const frame = batch && at < batch.until ? batch.frames[index] ?? null : null;
+        const frame = queue.shift() ?? null;
         frames.push({ at, strength: value, frame });
 
         const decoded = frame ? decodeFrame(frame) : null;
@@ -94,8 +94,8 @@ function pulseTrain(steps: readonly StepSample[]): Pulse[] {
     return pulses;
 }
 
-/** Output in strength units, normalised so the configured pulse width counts as full. */
-export function effectiveLevel(step: StepSample, pulseWidth: number): number {
-    if (step.periodMs === null || pulseWidth <= 0) return 0;
-    return step.strength * step.width / pulseWidth;
+/** Output in strength units, with full pulse width counting as full. */
+export function effectiveLevel(step: StepSample): number {
+    if (step.periodMs === null) return 0;
+    return step.strength * step.width / MAX_PULSE_WIDTH;
 }

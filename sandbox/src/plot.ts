@@ -97,7 +97,7 @@ export function renderPlot(el: HTMLElement, input: PlotInput): Promise<PlotlyEle
         },
         {
             type: 'scatter', mode: 'lines', name: 'effective', legendgroup: 'output',
-            x: app.steps.map((s) => s.at), y: app.steps.map((s) => effectiveLevel(s, sim.pulse.width)),
+            x: app.steps.map((s) => s.at), y: app.steps.map((s) => effectiveLevel(s)),
             line: { shape: 'hv', color: '#198754' }, yaxis: 'y4',
         },
     ];
