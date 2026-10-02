@@ -95,6 +95,7 @@ export function bindIntifaceSettings(buttplug: ButtplugClientManager, autoReconn
     syncAlerts();
 
     if (autoReconnect && lastState.get() === 'connected') {
-        void buttplug.connect(formatIntifaceAddress(saved));
+        const failSilently = true; // Initial connection attempt should fail silently
+        void buttplug.connect(formatIntifaceAddress(saved), failSilently);
     }
 }
