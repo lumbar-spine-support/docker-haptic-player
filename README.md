@@ -3,7 +3,8 @@
 ![GitHub package.json version](https://img.shields.io/github/package-json/v/lumbar-spine-support/docker-haptic-player?label=stable)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/docker-haptic-player/.github%2Fworkflows%2Frelease.yml?branch=main&logo=docker&label=build)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/docker-haptic-player/.github%2Fworkflows%2Ftest.yml?branch=main&logo=github&label=Tests)
-
+[![npm audit](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/docker-haptic-player/npm-audit.yml?label=npm%20audit)](https://github.com/lumbar-spine-support/docker-haptic-player/actions/workflows/npm-audit.yml)
+![Codecov](https://img.shields.io/codecov/c/github/lumbar-spine-support/docker-haptic-player)
 
 **HAPPY** is a self-hosted **hap**tic **p**la**y**er for audio and video files.
 
@@ -29,7 +30,6 @@
 
 🚀 Planned:
 
-- [ ] Chapters shown in Video.JS player for navigation.
 - [ ] VR Video support once Video.JS v10 matures and VR plugins arrive.
 - [ ] Playlist/Queue editor and a seperate mount with write-access.
 
