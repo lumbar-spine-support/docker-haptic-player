@@ -96,6 +96,8 @@ The settings panel is wired by small modules instead of `App`: `components/setti
 
 Auto-reconnect: `happy-intiface-last-state` / `happy-dglab-last-state` become `connected` on a successful connection and `disconnected` only on an explicit Disconnect click. `happy-dglab-last-seen` is refreshed on every relay frame (heartbeats every 30 s) and on `pagehide`; DG-Lab reconnects only while it is younger than `DGLAB_DETACH_GRACE_MS` (`src/shared/dglab.ts`), otherwise the section stays *Disconnected*.
 
+Intiface drops are retried by `bindIntifaceSettings()` with backoff (1 s doubling to 15 s) and on `visibilitychange`, but only after a connection made in the same page session and while `happy-intiface-last-state` is `connected`. Intiface pings only after 10 s without traffic and drops the client after the next 10 s without a pong, which happens when Android Chrome freezes the tab with the screen off. `keepScreenOnWhilePlaying()` (`utils/wakeLock.ts`) therefore holds a screen wake lock while the active player is playing and the page is visible, unless the `happy-keep-screen-on` toggle is off.
+
 ## Routing
 
 All state that should survive a reload is in the query string. The `Router` in `router.ts` maps it onto handlers that `App` supplies. `router.navigateTo(url)` pushes history and calls `handleRouteChange()`, and so does the browser back button. Playlist and album pages are rendered by `DetailView` (`components/library/detail.ts`).

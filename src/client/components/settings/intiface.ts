@@ -7,6 +7,8 @@ import { DEFAULT_INTIFACE_ADDRESS, formatIntifaceAddress, parseIntifaceAddress, 
 
 const address = storedSetting('happy-intiface-address', formatIntifaceAddress(DEFAULT_INTIFACE_ADDRESS));
 const lastState = storedSetting('happy-intiface-last-state', 'disconnected');
+const RECONNECT_MIN_MS = 1000;
+const RECONNECT_MAX_MS = 15000;
 
 /** Intiface address field, connect button and status, plus the optional auto-reconnect. */
 export function bindIntifaceSettings(buttplug: ButtplugClientManager, autoReconnect: boolean): void {
@@ -93,6 +95,30 @@ export function bindIntifaceSettings(buttplug: ButtplugClientManager, autoReconn
     buttplug.onDevicesChange(() => syncAlerts());
     syncConnectionButton();
     syncAlerts();
+
+    // A connection the user did not close (e.g. dropped while the tab was frozen) is retried with backoff.
+    let retryDelay = RECONNECT_MIN_MS;
+    let retryTimer: number | null = null;
+    let wasConnected = false;
+    const retry = (): void => {
+        if (retryTimer !== null) window.clearTimeout(retryTimer);
+        retryTimer = null;
+        if (wasConnected && lastState.get() === 'connected' && buttplug.connectionState === 'disconnected') {
+            void buttplug.connect(address.get(), true);
+        }
+    };
+    buttplug.onStateChange((state) => {
+        if (state === 'connected') {
+            wasConnected = true;
+            retryDelay = RECONNECT_MIN_MS;
+        }
+        if (!wasConnected || state !== 'disconnected' || lastState.get() !== 'connected' || retryTimer !== null) return;
+        retryTimer = window.setTimeout(retry, retryDelay);
+        retryDelay = Math.min(retryDelay * 2, RECONNECT_MAX_MS);
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') retry();
+    });
 
     if (autoReconnect && lastState.get() === 'connected') {
         const failSilently = true; // Initial connection attempt should fail silently
