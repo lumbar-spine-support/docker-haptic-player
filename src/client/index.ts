@@ -2,6 +2,7 @@ import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVers
 import { formatVersion } from './utils/formatVersion';
 import { qs } from './utils/html';
 import { storedSetting } from './utils/storedSetting';
+import { keepScreenOnWhilePlaying } from './utils/wakeLock';
 import { Router, buildUrl, trackHref, detailHref } from './router';
 import { bindDragOnlyRange, syncRangeFill } from './components/ui/rangeSlider';
 import { resetScrollPosition } from './scroll';
@@ -107,6 +108,7 @@ class App {
   private savedLibraryScrollPosition = 0;
   /** Server-provided defaults, applied only where localStorage has no stored value. */
   private settings: ClientSettings = FALLBACK_SETTINGS;
+  private readonly setKeepScreenOn: (enabled: boolean) => void;
 
   /** Waits for the `<video-player>` elements to upgrade before wiring the app. */
   static async create(playerHosts: [HTMLElement, HTMLElement]): Promise<App> {
@@ -115,6 +117,7 @@ class App {
 
   private constructor(session: PlaybackSession) {
     this.session = session;
+    this.setKeepScreenOn = keepScreenOnWhilePlaying(session);
     this.queue.autoplay = storedSetting('happy-autoplay', true).get();
     this.haptics.add(this.buttplug);
     this.intifaceSync = this.createSyncEngine(this.buttplug);
@@ -183,6 +186,7 @@ class App {
       (enabled) => document.body.classList.toggle('blur-content', enabled));
     bindToggle('#color-gradient-toggle', 'happy-color-gradient', this.settings.funscriptColorGradient,
       (enabled) => this.viz.setColorGradient(enabled));
+    bindToggle('#keep-screen-on-toggle', 'happy-keep-screen-on', true, this.setKeepScreenOn);
     this.bindZoomControls();
     whenIdle(() => {
       void this.showVersion();

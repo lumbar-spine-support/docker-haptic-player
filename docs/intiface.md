@@ -16,6 +16,8 @@ Use the address of the machine running Intiface as seen from the device running 
 
 With `AUTO_RECONNECT_INTIFACE=true`, HAPPY reconnects on page load if Intiface was connected last time and you did not press **Disconnect**.
 
+If the connection drops on its own, HAPPY retries in the background (1 s, doubling up to 15 s) and right away when you return to the tab. On mobile, a turned-off screen freezes the browser tab, and Intiface closes connections that stop answering its pings. HAPPY therefore keeps the screen on while media plays (**Keep Screen On During Playback** under *Appearance* in the settings, on by default); this needs the page to be served over HTTPS or from `localhost`.
+
 ## Device Assignment
 
 Each device exposes features like "linear", "vibrate" or "rotate". Strokers are usually "linear" features but may also have "vibrate" features. A Nexus Revo Stealth exposes both a "rotate" and a "vibrate" feature through Intiface. You can assign each feature to the same or a different funscript!
