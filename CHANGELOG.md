@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.13.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.12.0...v0.13.0) (2026-10-03)
+
+
+### Features
+
+* add auto-reconnect options for Intiface and DG-Lab relay in configuration and client logic ([b717a2d](https://github.com/lumbar-spine-support/docker-haptic-player/commit/b717a2dc6aba5adde9ba41c7eb2a72a3fb8e196a))
+* add pulse width control for Coyote devices and update related documentation ([d068c90](https://github.com/lumbar-spine-support/docker-haptic-player/commit/d068c9046c6fb09afc31abf4a1da7e799387ab22))
+* css improvements ([bdda820](https://github.com/lumbar-spine-support/docker-haptic-player/commit/bdda820b125d55604f8dddec548807516d98bad7))
+* **dglab:** introduce sandbox for testing waveform patterns ([45bd9f5](https://github.com/lumbar-spine-support/docker-haptic-player/commit/45bd9f5f3b92e990986fbf494af713dac95e712a))
+* generate playlist cover icons from first 4 tracks (if less tracks then use the first track as cover) ([5577df3](https://github.com/lumbar-spine-support/docker-haptic-player/commit/5577df3c7f0bee6f5c64d54d6eaea87dcc839c3d))
+* improved tabular view for mobile; more metadata shown but still sortable ([379362d](https://github.com/lumbar-spine-support/docker-haptic-player/commit/379362d90cf446342ea5a1e818520357bccf0de0))
+* popovers for funscript badges to explain why we have warning or error ([ee6afe3](https://github.com/lumbar-spine-support/docker-haptic-player/commit/ee6afe3c277e1d9cd0b41296cd8cedf3be806344))
+* wake screen during playback to avoid intiface disconnects ([8cf4c84](https://github.com/lumbar-spine-support/docker-haptic-player/commit/8cf4c84c97c837a1582b8ea3b28cb76dd8c322c8))
+
+
+### Bug Fixes
+
+* &lt;br&gt; tags were escaped in markdown docs (or HTML in general) ([cf45095](https://github.com/lumbar-spine-support/docker-haptic-player/commit/cf45095b159d31a268d306cef41e6d01ba240256))
+* a connected websocket with dungeon lab does not directly yield "connected" badge for funscript; only when the coyote is also paired with dg lab ([ee6afe3](https://github.com/lumbar-spine-support/docker-haptic-player/commit/ee6afe3c277e1d9cd0b41296cd8cedf3be806344))
+* auth screen now more accessible on mobile (keyboard pushes the content up) ([d3d92b4](https://github.com/lumbar-spine-support/docker-haptic-player/commit/d3d92b48e706f340d398b330153e4292940b0e70))
+* carrier-frequency was transmitted has Hz but should have been a period in ms instead; this caused the shown frequency to not match actual e-stim frequency. ([d068c90](https://github.com/lumbar-spine-support/docker-haptic-player/commit/d068c9046c6fb09afc31abf4a1da7e799387ab22))
+* clear-all tags button missing in tags view ([bdda820](https://github.com/lumbar-spine-support/docker-haptic-player/commit/bdda820b125d55604f8dddec548807516d98bad7))
+* css of tabular view on i medium displays (ipad mini) ([a687379](https://github.com/lumbar-spine-support/docker-haptic-player/commit/a687379abbe3f89c737323d6e5873cf0419a5de4))
+* default interpolation method ([bb0bbca](https://github.com/lumbar-spine-support/docker-haptic-player/commit/bb0bbcabd76e1d051b2ccbcee7c9c12db4cea9ab))
+* dglab pairing App URL ([4ac70f9](https://github.com/lumbar-spine-support/docker-haptic-player/commit/4ac70f997b2536ee57b5c31a7c0332c2d5910a78))
+* improve MediaClock synchronization and drift correction logic ([2319ffb](https://github.com/lumbar-spine-support/docker-haptic-player/commit/2319ffbed7a87a1ba5b0ed64f2c8bfd9f0b059df))
+* jittering funscript timeline cursor on android; this time purely via CSS ([a5b5774](https://github.com/lumbar-spine-support/docker-haptic-player/commit/a5b5774eb5b6cfee33e95dbcc316e4d897e99c5f))
+* make initial reconnect attempt fail silently ([0d5a87c](https://github.com/lumbar-spine-support/docker-haptic-player/commit/0d5a87ca63a92a784750091de88900100c11f3d8))
+* missing ping/pong to detect dead dg-lab websockets ([799e098](https://github.com/lumbar-spine-support/docker-haptic-player/commit/799e098bba9083234e55e50f1db4ed15faab7480))
+* missing rate limit for media endpoint ([f6e83ce](https://github.com/lumbar-spine-support/docker-haptic-player/commit/f6e83ceaf6925348f0e1d1f34014b3ac8212b06c))
+
 ## [0.12.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.11.0...v0.12.0) (2026-09-28)
 
 
