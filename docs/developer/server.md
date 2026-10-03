@@ -77,7 +77,7 @@ A request is allowed if **one** of these is true (see `createAuthMiddleware`):
 | `/api/auth` | `routes/auth.ts` | `GET /status`, `POST /login` (throttled), `POST /logout` |
 | `/api/config` | `routes/config.ts` | Client defaults (`ClientSettings`) plus the media access token |
 | `/api/library` | `routes/library.ts` | `GET /` the whole `LibraryResponse`, `POST /refresh` forces a rescan |
-| `/api/media/:id` | `routes/media.ts` | File stream with range support. `/:id/description` looks up the track's `descriptionFilename` in the cached library index (404 if none) and returns the markdown without frontmatter |
+| `/api/media/:id` | `routes/media.ts` | File stream with range support. `/:id/description` looks up the track's `descriptionFilename` in the cached library index (404 if none) and returns the markdown without frontmatter. Rate-limited per IP (`express-rate-limit`, 1000 requests/min) |
 | `/api/artwork/:id` | `routes/artwork.ts` | Embedded cover, cached on disk, with ETag and `immutable` when `?v=` is given |
 | `/api/funscript/:trackId/:file` | `routes/funscript.ts` | Raw funscript JSON. Rejects names that don't match the configured suffixes (403) |
 | `/api/version` | `routes/version.ts` | Version and commit |
