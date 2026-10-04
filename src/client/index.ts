@@ -68,6 +68,7 @@ class App {
   private readonly docsContent = qs<HTMLElement>('#docs-content');
   private readonly docsButton = qs<HTMLAnchorElement>('#btn-docs');
   private readonly vizContainer = qs<HTMLElement>('#visualization');
+  private readonly funscriptsSection = qs<HTMLElement>('#funscripts-section');
   private readonly descriptionSection = qs<HTMLElement>('#track-description-section');
   private readonly descriptionEl = qs<HTMLElement>('#track-description');
   private readonly trackTagsSection = qs<HTMLElement>('#track-tags-section');
@@ -545,12 +546,18 @@ class App {
     this.descriptionSection.classList.toggle('d-none', html === '');
   }
 
+  private renderFunscripts(scripts: LoadedScript[]): void {
+    if (!this.funscriptsSection) return;
+    this.funscriptsSection.classList.toggle('d-none', scripts.length === 0);
+  }
+
   /** Renders the funscript timelines and description of the browsed track. */
   private async loadTrackAssets(track: TrackInfo): Promise<void> {
     this.renderTrackDescription('');
     const scripts = await this.fetchTrackScripts(track);
     if (this.currentTrackId !== track.id) return;
 
+    this.renderFunscripts(scripts);
     if (this.vizContainer) {
       this.viz.mount(this.vizContainer, scripts);
       this.viz.redraw();
