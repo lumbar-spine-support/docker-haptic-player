@@ -64,6 +64,11 @@ body.blur-content media-container {
   border-spacing: 0;
 }
 
+// Collapsed rows still size the columns, so the header keeps its list-view widths.
+#track-list.rows-collapsed>tr {
+  visibility: collapse;
+}
+
 #track-table thead th {
   white-space: nowrap;
   vertical-align: middle;

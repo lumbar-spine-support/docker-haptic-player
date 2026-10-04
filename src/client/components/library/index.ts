@@ -207,6 +207,7 @@ export class Library {
 
         let next = 0;
         const observer = new IntersectionObserver((entries) => {
+            if (isTable && this.currentViewMode !== 'list') return;
             if (entries.some((e) => e.isIntersecting)) appendBatch();
         }, { rootMargin: '800px' });
         const appendBatch = (): void => {
@@ -232,8 +233,11 @@ export class Library {
         const viewMode: LibraryViewMode = storedView === 'list' || storedView === 'tags' ? storedView : 'grid';
 
         const applyView = (mode: LibraryViewMode): void => {
+            // Row batching pauses outside list view; re-render to resume it.
+            const resumeRows = mode === 'list' && this.currentViewMode !== 'list' && this.loaded;
             this.currentViewMode = mode;
             localStorage.setItem(VIEW_KEY, mode);
+            if (resumeRows) this.render();
 
             this.applyViewModeVisibility();
             this.btnGrid?.classList.toggle('active', mode === 'grid');
@@ -477,7 +481,8 @@ export class Library {
         const mode = this.currentViewMode;
         const tags = mode === 'tags';
         this.grid?.classList.toggle('d-none', !this.loaded || mode !== 'grid');
-        this.table?.classList.toggle('d-none', !this.loaded || mode !== 'list');
+        this.table?.classList.toggle('d-none', !this.loaded || tags);
+        this.list?.classList.toggle('rows-collapsed', mode !== 'list');
         this.tagView?.classList.toggle('d-none', !this.loaded || !tags);
         this.tagViewCounts?.classList.toggle('d-none', !this.loaded || !tags);
         document.querySelectorAll<HTMLElement>('.library-filter-group').forEach((el) => el.classList.toggle('d-none', tags));

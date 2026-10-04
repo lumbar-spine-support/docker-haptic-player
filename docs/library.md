@@ -19,6 +19,10 @@ media/
     └── favorites.m3u        --> playlists are only supported as .m3u files
 ```
 
+## Sorting
+
+Both the grid view and the list view show the same column header (Title, Artist, Type, Year, Duration). Click a column to sort by it; click again to reverse the order.
+
 ## Cover art in the grid view
 
 In the grid view, cards with widescreen cover art (typical for videos) are twice as wide as other cards. Square and portrait covers are cropped to a square. Set `CARD_VIEW_FORCE_SQUARE_ARTWORK: true` (see [configuration](configuration.md)) to show all covers as squares.
