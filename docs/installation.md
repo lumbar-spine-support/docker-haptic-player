@@ -11,10 +11,9 @@ services:
   happy:
     image: ghcr.io/lumbar-spine-support/docker-haptic-player:stable
     ports:
-      - "8069:8069"
+      - "8069:3000" # host:container
     environment:
       PASSWORD: "happy"
-      PORT: 8069
     volumes:
       - ./media:/media:ro
       - ./config:/config # write-access required
@@ -34,7 +33,7 @@ volumes:
 Start the app with `docker compose up`. After a few seconds it is reachable at `http://<HOST>:8069`.
 To populate your library with actual media, see [docs/library.md](library.md)
 
-On first start a `settings.yaml` is created in the `/config` mount. You may also pass those settings as environment variables to the Docker container as shown in the example above using `PORT` and `PASSWORD`. See [Configuration](configuration.md) for details on each setting.
+On first start a `settings.yaml` is created in the `/config` mount. You may also pass those settings as environment variables to the Docker container as shown in the example above using `PASSWORD`. To change the port, change the host side of the port mapping; `PORT` is only needed when running with host networking. The image has a built-in health check, so `docker ps` shows the container as `healthy` once it answers requests. See [Configuration](configuration.md) for details on each setting.
 
 ## Running without Docker
 
