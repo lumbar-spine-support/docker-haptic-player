@@ -5,6 +5,7 @@ import { chromium, devices } from 'playwright';
 const SERVER_URL = 'http://localhost:3000';
 const LANDSCAPE_VIEWPORT = { width: 412, height: 915 };
 const SCREENSHOT_FULL_PAGE = false;
+const PLAYER_MEDIA = 'BigBuckBunny_320x180.mp4';
 
 async function capture(page, path) {
     // avoid focus/hover/selection styling leaking into the screenshot
@@ -91,24 +92,16 @@ async function applyMediaFilter(page, filterName) {
     });
 }
 
-async function clickLastLibraryResult(page) {
-    const playableGridResults = page.locator('#track-grid a.track-art-link[href*="view=player"]');
-    const playableListResults = page.locator('#track-list tr').filter({ hasNot: page.locator('th') });
-    const gridCount = await playableGridResults.count();
+async function clickPlayerMedia(page) {
+    // Library ids are the base64-encoded relative media path.
+    const id = Buffer.from(PLAYER_MEDIA).toString('base64');
+    const link = page.locator(`#track-grid a.track-art-link[href*="view=player"][href*="${encodeURIComponent(id)}"]`).first();
 
-    if (gridCount > 0) {
-        await playableGridResults.nth(gridCount - 1).click();
-        return;
+    if (!(await link.count())) {
+        throw new Error(`Could not find "${PLAYER_MEDIA}" in the library`);
     }
 
-    const listCount = await playableListResults.count();
-
-    if (listCount > 0) {
-        await playableListResults.nth(listCount - 1).click();
-        return;
-    }
-
-    throw new Error('Could not find a playable library result');
+    await link.click();
 }
 
 async function waitForJavaScriptToSettle(page) {
@@ -198,7 +191,18 @@ try {
     await page.setViewportSize(LANDSCAPE_VIEWPORT);
     await waitForJavaScriptToSettle(page);
 
-    await clickLastLibraryResult(page);
+    await capture(page, 'docs/screenshots/library-portrait.jpg');
+
+    await page.locator('#btn-view-list').click();
+    await page.locator('#track-list:not(.d-none)').waitFor();
+    await waitForJavaScriptToSettle(page);
+
+    await capture(page, 'docs/screenshots/library-tabular.jpg');
+
+    await page.locator('#btn-view-grid').click();
+    await waitForJavaScriptToSettle(page);
+
+    await clickPlayerMedia(page);
     await page.locator('#player-view:not(.d-none)').waitFor();
     // await page.locator('#viz-toggle').click();
     await waitForJavaScriptToSettle(page);
