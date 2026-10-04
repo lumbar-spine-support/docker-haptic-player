@@ -23,7 +23,7 @@ export function parseVrFormat(filename: string): VrFormat | null {
 
 export function vrFormatToAttribute(format: VrFormat): VrFormatAttribute {
     return `180-${format.layout}`;
-} g
+}
 
 export function vrFormatFromAttribute(value: string | null): VrFormat | null {
     if (value === '180-sbs') return { fov: 180, layout: 'sbs' };
