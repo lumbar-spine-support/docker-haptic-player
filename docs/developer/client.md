@@ -212,6 +212,30 @@ Rendering lives in [src/client/components/vr/](../../src/client/components/vr/) 
 
 `features/vr.ts` keeps one controller per media element: it observes `data-vr-format`, defaults VR tracks to `inline`, resets on `loadstart`, and exposes `setVrMode`, `toggleVrGyro` and `resetVrView` through `selectVr`. The gyro button only shows on coarse-pointer devices in a secure context.
 
+The test fixtures were generated with:
+
+```bash
+ffmpeg \
+  -f lavfi -i "color=c=0x402020:s=960x480:r=30:d=30,drawgrid=w=120:h=120:t=2:c=white@0.35,drawgrid=w=30:h=30:t=1:c=white@0.12,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='LEFT EYE':fontcolor=white:fontsize=64:x=(w-text_w)/2:y=(h-text_h)/2,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='VR180 SBS  •  960x480':fontcolor=white:fontsize=24:x=(w-text_w)/2:y=h-50" \
+  -f lavfi -i "color=c=0x202040:s=960x480:r=30:d=30,drawgrid=w=120:h=120:t=2:c=white@0.35,drawgrid=w=30:h=30:t=1:c=white@0.12,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='RIGHT EYE':fontcolor=white:fontsize=64:x=(w-text_w)/2:y=(h-text_h)/2,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='VR180 SBS  •  960x480':fontcolor=white:fontsize=24:x=(w-text_w)/2:y=h-50" \
+  -filter_complex "[0:v][1:v]hstack=inputs=2" \
+  -t 30 \
+  -c:v libvpx-vp9 -b:v 1M -crf 30 \
+  -pix_fmt yuv420p \
+  -metadata:s:v stereo_mode=left_right \
+  vr180-sbs-test-480p.webm
+
+ffmpeg \
+  -f lavfi -i "color=c=0x402020:s=960x480:r=30:d=30,drawgrid=w=120:h=120:t=2:c=white@0.35,drawgrid=w=30:h=30:t=1:c=white@0.12,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='TOP / LEFT EYE':fontcolor=white:fontsize=64:x=(w-text_w)/2:y=(h-text_h)/2,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='VR180 TB  •  960x480':fontcolor=white:fontsize=24:x=(w-text_w)/2:y=h-50" \
+  -f lavfi -i "color=c=0x202040:s=960x480:r=30:d=30,drawgrid=w=120:h=120:t=2:c=white@0.35,drawgrid=w=30:h=30:t=1:c=white@0.12,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='BOTTOM / RIGHT EYE':fontcolor=white:fontsize=64:x=(w-text_w)/2:y=(h-text_h)/2,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='VR180 TB  •  960x480':fontcolor=white:fontsize=24:x=(w-text_w)/2:y=h-50" \
+  -filter_complex "[0:v][1:v]vstack=inputs=2" \
+  -t 30 \
+  -c:v libvpx-vp9 -b:v 1M -crf 30 \
+  -pix_fmt yuv420p \
+  -metadata:s:v stereo_mode=top_bottom \
+  vr180-tb-test-480p.webm
+``` 
+
 ## Code map
 
 | Topic | Files |
