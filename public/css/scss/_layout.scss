@@ -430,15 +430,3 @@ body.blur-content media-container {
     overflow: hidden;
   }
 }
-
-// Very small phones: filters on one row, sort on its own row below.
-@media (max-width: 575.98px) {
-  div.library-filter-group {
-    flex-wrap: wrap;
-    height: auto;
-  }
-
-  .library-filter-group> :last-child {
-    flex-basis: 100%;
-  }
-}

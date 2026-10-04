@@ -58,7 +58,8 @@
                 type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
                 title="Media type">
                 <i class="bi bi-collection-play" aria-hidden="true"></i>
-                <span class="ms-1" data-filter-summary></span>
+                <span class="ms-1 d-none d-sm-inline" data-filter-summary></span>
+                <span class="ms-1 d-sm-none" data-filter-count></span>
               </button>
               <ul class="dropdown-menu dropdown-menu-dark library-filter-menu" data-filter-menu="media"></ul>
             </div>
@@ -67,7 +68,8 @@
                 class="btn btn-sm btn-outline-primary dropdown-toggle library-filter-btn" type="button"
                 data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="Haptics">
                 <i class="bi bi-activity" aria-hidden="true"></i>
-                <span class="ms-1" data-filter-summary></span>
+                <span class="ms-1 d-none d-sm-inline" data-filter-summary></span>
+                <span class="ms-1 d-sm-none" data-filter-count></span>
               </button>
               <ul class="dropdown-menu dropdown-menu-dark library-filter-menu" data-filter-menu="haptic"></ul>
             </div>
@@ -76,7 +78,7 @@
                 <button id="sort-field-toggle" class="btn btn-sm btn-outline-primary dropdown-toggle library-filter-btn"
                   type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Sort by">
                   <i class="bi bi-arrow-down-up" aria-hidden="true"></i>
-                  <span class="ms-1" id="sort-field-label"></span>
+                  <span class="ms-1 d-none d-sm-inline" id="sort-field-label"></span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" id="sort-field-menu"></ul>
               </div>

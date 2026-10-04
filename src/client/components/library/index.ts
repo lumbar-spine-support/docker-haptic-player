@@ -540,6 +540,7 @@ export class Library {
     ): void {
         const menu = document.querySelector<HTMLElement>(`[data-filter-menu="${name}"]`);
         const summary = menu?.parentElement?.querySelector<HTMLElement>('[data-filter-summary]');
+        const count = menu?.parentElement?.querySelector<HTMLElement>('[data-filter-count]');
         if (!menu) return;
         menu.innerHTML = '';
 
@@ -550,6 +551,7 @@ export class Library {
             if (chosen.length === 0) summary.textContent = allLabel;
             else if (chosen.length === 1) summary.textContent = chosen[0].label;
             else summary.textContent = `${chosen.length} selected`;
+            if (count) count.textContent = chosen.length > 0 ? String(chosen.length) : '';
             menu.parentElement?.querySelector('.dropdown-toggle')?.classList.toggle('active', chosen.length > 0);
         };
         const changed = (): void => {
@@ -640,6 +642,7 @@ export class Library {
     private updateSortControls(): void {
         const label = document.querySelector<HTMLElement>('#sort-field-label');
         if (label) label.textContent = SORT_LABELS[this.sortField];
+        document.querySelector('#sort-field-toggle')?.setAttribute('title', `Sort by ${SORT_LABELS[this.sortField]}`);
         document.querySelectorAll<HTMLElement>('[data-sort-option]').forEach((item) => {
             item.classList.toggle('active', item.dataset.sortOption === this.sortField);
         });
