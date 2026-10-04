@@ -182,7 +182,8 @@ export class PlaybackSession {
         const slot = this.slots[index];
         if (slot.request?.id !== request.id) {
             slot.el.store.pause();
-            slot.el.store.loadSource(request.src);
+            const media = slot.el.querySelector('video');
+            if (media) media.src = request.src;
         }
         const artist = request.artist.trim();
         const year = request.year.trim();

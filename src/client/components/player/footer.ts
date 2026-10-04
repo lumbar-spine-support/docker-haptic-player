@@ -50,11 +50,14 @@ export class PlayerFooterElement extends UIElement {
             if (trackId) this.#onOpenTrack?.(trackId);
         });
         this.#part('play-pause')?.addEventListener('click', () => {
-            void this.#playbackSlice?.togglePaused();
+            const playback = this.#playbackSlice;
+            if (!playback) return;
+            if (playback.paused || playback.ended) void playback.play();
+            else playback.pause();
         });
         this.#part('prev')?.addEventListener('click', () => { void this.#controller?.step(-1); });
         this.#part('next')?.addEventListener('click', () => { void this.#controller?.step(1); });
-        this.#part('mute')?.addEventListener('click', () => { this.#volumeSlice?.toggleMuted(); });
+        this.#part('mute')?.addEventListener('click', () => { this.#volumeSlice?.setMuted(!this.#volumeSlice.muted); });
         this.#part<HTMLInputElement>('volume')?.addEventListener('input', (event) => {
             const value = Number((event.currentTarget as HTMLInputElement).value);
             this.#volumeSlice?.setVolume(Math.max(0, Math.min(1, value / 100)));

@@ -21,7 +21,7 @@
     "docs:env": "node --import tsx scripts/update-env-docs.js"
   },
   "dependencies": {
-    "@videojs/html": "^10.0.0-rc.2",
+    "@videojs/html": "^10.0.1",
     "compression": "^1.8.2",
     "dglab-kit": "^1.0.5",
     "express": "^5.1.0",

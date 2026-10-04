@@ -68,7 +68,7 @@ import {
   captionsOnIcon as captionsOnIconMinimal,
   castEnterIcon as castEnterIconMinimal,
   castExitIcon as castExitIconMinimal,
-} from '@videojs/html/icons/minimal';
+} from '@videojs/html/icons/neutral';
 
 import arrowClockwiseIconSource from 'bootstrap-icons/icons/arrow-clockwise.svg';
 import chatDotsIconSource from 'bootstrap-icons/icons/chat-dots.svg';
