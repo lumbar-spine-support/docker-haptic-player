@@ -74,6 +74,8 @@ import {
 } from '@videojs/html/icons/compat';
 
 import arrowClockwiseIconSource from 'bootstrap-icons/icons/arrow-clockwise.svg';
+import badgeVrIconSource from 'bootstrap-icons/icons/badge-vr.svg';
+import badgeVrFillIconSource from 'bootstrap-icons/icons/badge-vr-fill.svg';
 import chatDotsIconSource from 'bootstrap-icons/icons/chat-dots.svg';
 import checkLgIconSource from 'bootstrap-icons/icons/check-lg.svg';
 import chevronDownIconSource from 'bootstrap-icons/icons/chevron-down.svg';
@@ -81,6 +83,7 @@ import fullscreenExitIconSource from 'bootstrap-icons/icons/fullscreen-exit.svg'
 import fullscreenIconSource from 'bootstrap-icons/icons/fullscreen.svg';
 import gearIconSource from 'bootstrap-icons/icons/gear.svg';
 import pauseFillIconSource from 'bootstrap-icons/icons/pause-fill.svg';
+import phoneIconSource from 'bootstrap-icons/icons/phone.svg';
 import pipIconSource from 'bootstrap-icons/icons/pip.svg';
 import playFillIconSource from 'bootstrap-icons/icons/play-fill.svg';
 import repeatIconSource from 'bootstrap-icons/icons/repeat.svg';
@@ -109,6 +112,7 @@ registerIcons('compat', {
   gear: stripBootstrapClassesFromSource(gearIconSource),
   loop: stripBootstrapClassesFromSource(repeatIconSource),
   pause: stripBootstrapClassesFromSource(pauseFillIconSource),
+  phone: stripBootstrapClassesFromSource(phoneIconSource),
   'pip-enter': stripBootstrapClassesFromSource(pipIconSource),
   'pip-exit': stripBootstrapClassesFromSource(pipIconSource),
   play: stripBootstrapClassesFromSource(playFillIconSource),
@@ -124,4 +128,6 @@ registerIcons('compat', {
   'volume-high': stripBootstrapClassesFromSource(volumeUpFillIconSource),
   'volume-low': stripBootstrapClassesFromSource(volumeDownFillIconSource),
   'volume-off': stripBootstrapClassesFromSource(volumeMuteFillIconSource),
+  'vr-off': stripBootstrapClassesFromSource(badgeVrIconSource),
+  'vr-on': stripBootstrapClassesFromSource(badgeVrFillIconSource),
 });

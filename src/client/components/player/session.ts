@@ -1,6 +1,7 @@
 import type { VideoPlayerStore } from '@videojs/html';
 import type { VideoPlayerElement } from '@videojs/html/video';
 import type { PlaybackRequest } from '../../../shared/types';
+import { vrFormatToAttribute } from '../../../shared/vrFormat';
 import { selectLoop } from '@/components/videojs/features/loop';
 import { setMediaChapters } from '@/components/videojs/features/chapters';
 
@@ -199,6 +200,8 @@ export class PlaybackSession {
         slot.el.setAttribute('poster', request.poster);
         // Audio has no frames, so the skin keeps the poster up as a pseudo-video surface.
         slot.el.classList.toggle('audio-only', request.type === 'audio');
+        if (request.vr) slot.el.setAttribute('data-vr-format', vrFormatToAttribute(request.vr));
+        else slot.el.removeAttribute('data-vr-format');
         const media = slot.host.querySelector('video');
         if (media) {
             media.disableRemotePlayback = request.type === 'audio';

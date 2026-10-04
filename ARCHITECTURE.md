@@ -197,6 +197,10 @@ The sync engine recalculates output when:
 - device assignments change
 - devices connect/disconnect
 
+## VR180 playback
+
+VR180 videos (detected from the filename by `src/shared/vrFormat.ts`) are tagged with `data-vr-format` on their `<video-player>`. The `vr` player feature then draws the `<video>` through a WebGL2 canvas as an inline panorama (mouse/touch drag, wheel/pinch zoom, optional gyroscope). Camera math, the shared projection shader and the inline view live in `src/client/components/vr/`; a capture-phase drag guard keeps panorama drags from firing the skin's tap gestures. Haptic sync is independent of the render loop. See [docs/developer/client.md](docs/developer/client.md#vr180-playback).
+
 ## Library indexing and caching
 
 Scanning the media directory is the single most expensive thing the server does: `buildLibrary()`

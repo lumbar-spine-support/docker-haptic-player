@@ -112,3 +112,21 @@ HAPPY reads chapters from two sources. `CHAPTER_SOURCE_PRIORITY` (`chapterSource
   ffmpeg -i input.mp4 -i chapters.txt -map 0 -map_metadata 0 -map_chapters 1 -codec copy output.mp4
   ```
 
+## VR180 videos
+
+Videos whose filename marks them as VR180 open as a panorama you can look around in, like 360° videos on YouTube. Tokens are matched case-insensitively between `_`, `.`, `-` or spaces:
+
+| Filename contains | Layout |
+| --- | --- |
+| `180` and `LR`, `SBS` or `3DH` (e.g. `Scene_180_LR.mp4`) | side by side |
+| `180` and `TB`, `OU` or `3DV` (e.g. `Scene_180_TB.mp4`) | top/bottom |
+| `VR180` alone | side by side |
+
+Navigation:
+
+- **Desktop**: drag with the mouse to look around, scroll to zoom. A click without dragging plays/pauses, a double-click toggles fullscreen.
+- **Phone/tablet**: drag with one finger, pinch to zoom; a tap toggles the controls.
+- **Motion control** (phone icon, phones/tablets only): look around by moving the device. It needs HTTPS; iOS asks for permission on first use.
+
+The VR button in the control bar switches between the panorama and the raw side-by-side/top-bottom frame. The view resets for each new track. Very high resolutions (8K) may play poorly on phones.
+
