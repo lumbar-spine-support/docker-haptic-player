@@ -5,46 +5,28 @@ export interface PlayerChapter {
     end: number;
 }
 
-/** Dispatched (bubbling) on the media element whenever its chapters are replaced. */
-export const CHAPTERS_CHANGE_EVENT = 'chapterschange';
+const vttTime = (seconds: number): string => new Date(seconds * 1000).toISOString().slice(11, 23);
 
-const tracks = new WeakMap<HTMLMediaElement, TextTrack>();
-const chaptersByMedia = new WeakMap<HTMLMediaElement, readonly PlayerChapter[]>();
-
-/**
- * Exposes `chapters` to the player as a native `kind="chapters"` text track, which the
- * time slider already renders as segments and names in its chapter title elements.
- */
+/** Replaces the media's default `kind="chapters"` track, which the time slider renders natively. */
 export function setMediaChapters(media: HTMLMediaElement, chapters: readonly PlayerChapter[]): void {
-    chaptersByMedia.set(media, chapters);
-    // A src-less <track> element fails to load and exposes no cues, so use a script track;
-    // those cannot be removed, hence one is reused per media element.
-    let track = tracks.get(media);
-    if (!track) {
-        track = media.addTextTrack('chapters', 'Chapters');
-        tracks.set(media, track);
-    }
-    track.mode = 'hidden';
-    for (const cue of Array.from(track.cues ?? [])) track.removeCue(cue);
-    for (const chapter of chapters) track.addCue(new VTTCue(chapter.start, chapter.end, chapter.name));
-    // The player re-reads cues on the track list's `change` event.
-    track.mode = 'disabled';
-    track.mode = 'hidden';
-    media.dispatchEvent(new Event(CHAPTERS_CHANGE_EVENT, { bubbles: true }));
-}
-
-export function getMediaChapters(media: HTMLMediaElement | null | undefined): readonly PlayerChapter[] {
-    return (media && chaptersByMedia.get(media)) || [];
+    media.querySelector('track[kind="chapters"]')?.remove();
+    if (chapters.length === 0) return;
+    const cues = chapters.map((c) => `${vttTime(c.start)} --> ${vttTime(c.end)}\n${c.name.replace(/\s+/g, ' ').replace(/-->/g, '->')}`);
+    const track = document.createElement('track');
+    track.kind = 'chapters';
+    track.default = true;
+    track.src = `data:text/vtt,${encodeURIComponent(`WEBVTT\n\n${cues.join('\n\n')}\n`)}`;
+    media.append(track);
 }
 
 /** Nearest chapter start within `thresholdSeconds` of `time`, otherwise `time` unchanged. */
-export function snapToChapter(time: number, chapters: readonly PlayerChapter[], thresholdSeconds: number): number {
+export function snapToChapter(time: number, starts: readonly number[], thresholdSeconds: number): number {
     let best = time;
     let bestDistance = thresholdSeconds;
-    for (const chapter of chapters) {
-        const distance = Math.abs(chapter.start - time);
+    for (const start of starts) {
+        const distance = Math.abs(start - time);
         if (distance <= bestDistance) {
-            best = chapter.start;
+            best = start;
             bestDistance = distance;
         }
     }

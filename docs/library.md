@@ -99,7 +99,7 @@ Metadata HAPPY parses using `ffprobe`:
 
 ## Chapters
 
-Chapters are drawn as lines on the progress bar. Pressing or dragging the bar near a line snaps to it (hold <kbd>Shift</kbd> to seek freely), and the chapter name is shown in the preview while dragging.
+Chapters split the progress bar into segments. Pressing or dragging the bar near a chapter start snaps to it (hold <kbd>Shift</kbd> to seek freely), and the chapter name is shown in the preview while dragging.
 
 HAPPY reads chapters from two sources. `CHAPTER_SOURCE_PRIORITY` (`chapterSourcePriority` in `settings.yaml`) sets their order; the first source that provides chapters wins. Leave it empty to disable chapters.
 

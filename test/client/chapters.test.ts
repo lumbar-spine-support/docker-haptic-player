@@ -30,7 +30,7 @@ test(`${TAG}: mergeChapters drops duplicates across sources`, () => {
 });
 
 test(`${TAG}: snapToChapter snaps only within threshold`, () => {
-    const chapters = [{ name: 'A', start: 0, end: 10 }, { name: 'B', start: 10, end: 20 }];
+    const chapters = [0, 10];
     assert.equal(snapToChapter(10.4, chapters, 0.5), 10);
     assert.equal(snapToChapter(11, chapters, 0.5), 11);
 });

@@ -195,7 +195,7 @@ The `@/components/videojs/` folder holds the ejected Video.js skin and small fea
 | Loop (repeat one) | `features/loop.ts` | `PlaybackSession.setLoop` |
 | Repeat mode | `features/repeat.ts` | `PlaybackController.applyRepeat`, `advance` |
 | Skip prev/next | `features/skip.ts` | `PlaybackController` registers itself with `setSkipTarget` |
-| Chapters | `features/chapters.ts` | `PlaybackSession.loadSlot` → `setMediaChapters` |
+| Chapters | `features/chapters.ts` | `PlaybackSession.loadSlot` → `setMediaChapters` replaces a default `<track kind="chapters">` (WebVTT data URL) that `<media-time-slider-chapters>` renders natively; `ui/chapter-snap.ts` snaps slider presses to `chaptersCues` |
 | VR180 view | `features/vr.ts`, `ui/vr-buttons.ts` | Reacts to `data-vr-format` set by `PlaybackSession.loadSlot` |
 
 ## VR180 playback
