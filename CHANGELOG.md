@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.14.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.13.0...v0.14.0) (2026-10-04)
+
+
+### Features
+
+* add column headers also to card view for sorting. ([8251975](https://github.com/lumbar-spine-support/docker-haptic-player/commit/8251975f2a1f4bb4963eb847dcc2c6e64de96d79))
+* add portrait artwork rendering ([5b647cf](https://github.com/lumbar-spine-support/docker-haptic-player/commit/5b647cf99a99cee07122e95a5c638bde5d2eed3e))
+* artwork now automatically generated for videos if not available as metadata (album cover) ([0304ad5](https://github.com/lumbar-spine-support/docker-haptic-player/commit/0304ad5410eb20ea681982fcd398f26b9f245d98))
+* decluttered sorting and filtering; less UI is occupied by filter buttons and hidden behind dropdowns. ([1af5142](https://github.com/lumbar-spine-support/docker-haptic-player/commit/1af514215f61a668c50a9e1e25b714fe7b8227e1))
+* **docker:** update Dockerfile with additional metadata and health check; modify installation instructions for port mapping ([cf9ee7d](https://github.com/lumbar-spine-support/docker-haptic-player/commit/cf9ee7d2bf93d2343c8de9f87d9613d10106eabb))
+* dynamic layout; landscape artwork now takes two columns relative to "square artwork" ([71ed189](https://github.com/lumbar-spine-support/docker-haptic-player/commit/71ed1895a927770390d64a361c55dcc3d1da748a))
+* migrate to new video js "compat" skin for more space in action bar for features to come ([871494a](https://github.com/lumbar-spine-support/docker-haptic-player/commit/871494a048ab35de01760b5670a4dcb84670b652))
+* **vr:** initial draft for VR180 playback (no full immersive VR playback yet, just 2D rendering for phone/desktop) ([a755875](https://github.com/lumbar-spine-support/docker-haptic-player/commit/a755875ca796035b33f49fca30a481f00ff50f29))
+
+
+### Bug Fixes
+
+* funscript section should be hidden when no funscript available. ([f2486d1](https://github.com/lumbar-spine-support/docker-haptic-player/commit/f2486d16e67aae6fe74cd2218c3dbabcab4f3256))
+* whitespace in cards view ([d7b8215](https://github.com/lumbar-spine-support/docker-haptic-player/commit/d7b8215a8f659d72b37c1a547e1dee40ff3c5ff3))
+
 ## [0.13.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.12.0...v0.13.0) (2026-10-03)
 
 
