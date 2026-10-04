@@ -176,7 +176,7 @@ test(`${TAG} getSuggestions excludes already active artist filters`, () => {
 test(`${TAG} an active artist filter narrows the track list`, () => {
     const library = makeArtistLibrary();
     library.setActiveTags(['artist:kinkyshibby']);
-    const tracks = (library as any).filterSortTrackList((library as any).tracks);
+    const tracks = (library as any).filterTrackList((library as any).tracks);
     assert.deepEqual(tracks.map((t: TrackInfo) => t.id), ['t1']);
 });
 
@@ -184,23 +184,23 @@ test(`${TAG} artist and tag filters combine`, () => {
     const library = makeArtistLibrary();
     library.setActiveTags(['artist:Kinkyshibby', 'asmr']);
     assert.deepEqual(
-        (library as any).filterSortTrackList((library as any).tracks).map((t: TrackInfo) => t.id),
+        (library as any).filterTrackList((library as any).tracks).map((t: TrackInfo) => t.id),
         ['t1'],
     );
 
     library.setActiveTags(['artist:Kinkyshibby', 'nope']);
-    assert.deepEqual((library as any).filterSortTrackList((library as any).tracks), []);
+    assert.deepEqual((library as any).filterTrackList((library as any).tracks), []);
 });
 
 test(`${TAG} artist filters apply to albums and playlists`, () => {
     const library = makeArtistLibrary();
     library.setActiveTags(['artist:Kinkyshibby']);
-    assert.deepEqual((library as any).getFilteredSortedAlbums().map((a: AlbumInfo) => a.id), ['a1']);
-    assert.deepEqual((library as any).getFilteredSortedPlaylists(), []);
+    assert.deepEqual((library as any).getFilteredAlbums().map((a: AlbumInfo) => a.id), ['a1']);
+    assert.deepEqual((library as any).getFilteredPlaylists(), []);
 
     library.setActiveTags(['artist:Playlist Artist']);
-    assert.deepEqual((library as any).getFilteredSortedPlaylists().map((p: PlaylistInfo) => p.id), ['p1']);
-    assert.deepEqual((library as any).getFilteredSortedAlbums(), []);
+    assert.deepEqual((library as any).getFilteredPlaylists().map((p: PlaylistInfo) => p.id), ['p1']);
+    assert.deepEqual((library as any).getFilteredAlbums(), []);
 });
 
 test(`${TAG} artist filters are removed like regular tags`, () => {

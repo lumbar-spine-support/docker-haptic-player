@@ -8,11 +8,39 @@ import {
     isArtistTag,
     makeArtistTag,
     playlistMatchesActiveTags,
+    sortLibraryItems,
     splitActiveTags,
     trackMatchesActiveTags,
 } from '../../src/shared/libraryFiltering';
 
 const TAG = '[shared:libraryFiltering]';
+
+function item(title: string, overrides: Partial<{ typeLabel: string; artist: string; year: string; durationSeconds: number }> = {}) {
+    return { title, typeLabel: 'Audio', artist: '', year: '', durationSeconds: 0, ...overrides };
+}
+
+test(`${TAG} sortLibraryItems mixes media types into one order`, () => {
+    const items = [
+        item('Beta', { typeLabel: 'Album' }),
+        item('alpha', { typeLabel: 'Video' }),
+        item('Track 10'),
+        item('Track 2', { typeLabel: 'Playlist' }),
+    ];
+    assert.deepEqual(sortLibraryItems(items, 'title', true).map((i) => i.title), ['alpha', 'Beta', 'Track 2', 'Track 10']);
+    assert.deepEqual(sortLibraryItems(items, 'title', false).map((i) => i.title), ['Track 10', 'Track 2', 'Beta', 'alpha']);
+});
+
+test(`${TAG} sortLibraryItems puts empty values last in both directions`, () => {
+    const items = [item('A', { year: '' }), item('B', { year: '2001' }), item('C', { year: '1999' })];
+    assert.deepEqual(sortLibraryItems(items, 'year', true).map((i) => i.title), ['C', 'B', 'A']);
+    assert.deepEqual(sortLibraryItems(items, 'year', false).map((i) => i.title), ['B', 'C', 'A']);
+});
+
+test(`${TAG} sortLibraryItems sorts duration numerically with title as tie-breaker`, () => {
+    const items = [item('B', { durationSeconds: 90 }), item('A', { durationSeconds: 90 }), item('C', { durationSeconds: 5 })];
+    assert.deepEqual(sortLibraryItems(items, 'duration', true).map((i) => i.title), ['C', 'A', 'B']);
+    assert.deepEqual(sortLibraryItems(items, 'duration', false).map((i) => i.title), ['A', 'B', 'C']);
+});
 
 test(`${TAG} artist tag helpers round-trip`, () => {
     assert.equal(makeArtistTag('Kinkyshibby'), 'artist:Kinkyshibby');

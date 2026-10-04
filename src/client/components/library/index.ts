@@ -1,7 +1,7 @@
 import { qs } from '../../utils/html';
 import { fetchLibrary, FALLBACK_ART_DATA_URI, applyPlaylistCover, renderTrackArt } from '../../api';
 import { buildUrl, trackHref, detailHref } from '../../router';
-import { renderHapticIcons } from '../haptic/icons';
+import { renderHapticIcons, ROLE_ICON_CLASSES, ROLE_LABELS } from '../haptic/icons';
 import { formatHoursMinutes } from '../../utils/formatTime';
 import { classifyArtAspect } from '../../utils/artAspect';
 import {
@@ -9,15 +9,17 @@ import {
     albumMatchesHapticFilters,
     artistTagValue,
     countMediaMatches,
-    displayMediaTypeFilters,
     filterAvailableTags,
     isArtistTag,
+    LIBRARY_SORT_FIELDS,
     makeArtistTag,
-    normalizeMediaTypeFilters,
     playlistMatchesActiveTags,
     playlistMatchesHapticFilters,
+    sortLibraryItems,
     trackMatchesActiveTags,
     trackMatchesHapticFilters,
+    type LibrarySortField,
+    type SortableLibraryItem,
 } from '../../../shared/libraryFiltering';
 import type { AlbumInfo, LibraryResponse, PlaylistInfo, TrackInfo, FunscriptType } from '../../../shared/types';
 import {
@@ -30,17 +32,35 @@ import {
 
 type LibraryViewMode = 'grid' | 'list' | 'tags';
 
-type SortField = 'title' | 'artist' | 'type' | 'year' | 'duration';
-
-/** A single media entry in the unified library table. */
-interface LibraryRow {
-    typeLabel: string;
-    title: string;
-    artist: string;
-    year: string;
-    durationSeconds: number;
-    build(): HTMLElement;
+/** A single media entry, rendered as a card in grid view and a row in list view. */
+interface LibraryRow extends SortableLibraryItem {
+    buildCard(): HTMLElement;
+    buildRow(): HTMLElement;
 }
+
+interface FilterOption {
+    key: string;
+    label: string;
+    icon: string;
+}
+
+const MEDIA_FILTERS = [
+    { key: 'albums', label: 'Albums', icon: 'bi bi-vinyl' },
+    { key: 'tracks', label: 'Audio', icon: 'bi bi-music-note' },
+    { key: 'playlists', label: 'Playlists', icon: 'bi bi-music-note-list' },
+    { key: 'videos', label: 'Videos', icon: 'bi bi-play-btn' },
+] as const satisfies readonly FilterOption[];
+type MediaFilterKey = typeof MEDIA_FILTERS[number]['key'];
+
+const HAPTIC_TYPES = Object.keys(ROLE_LABELS) as FunscriptType[];
+
+const SORT_LABELS: Record<LibrarySortField, string> = {
+    title: 'Title',
+    artist: 'Artist',
+    year: 'Year',
+    duration: 'Duration',
+    type: 'Type',
+};
 
 export interface LibraryCallbacks {
     openTrack(trackId: string): void;
@@ -53,6 +73,7 @@ export interface LibraryCallbacks {
 
 const VIEW_KEY = 'happy-view-mode';
 const LIBRARY_FILTERS_KEY = 'happy-library-filters';
+const LIBRARY_SORT_KEY = 'happy-library-sort';
 const CARD_SQUARE_GRID_CLASSES = 'col-6 col-sm-3 col-lg-2 col-xl-2 col-xxl-2';
 const CARD_LANDSCAPE_GRID_CLASSES = 'col-12 col-sm-6 col-lg-4 col-xl-4 col-xxl-4';
 const RENDER_BATCH_SIZE = 48;
@@ -87,18 +108,12 @@ export class Library {
     private playlists: PlaylistInfo[] = [];
     private searchQuery = '';
     private activeTags: string[] = [];
-    private sortField: SortField | null = null;
+    private sortField: LibrarySortField = 'title';
     private sortAsc = true;
-    private filterShowAlbums = true;
-    private filterShowPlaylists = true;
-    private filterShowTracks = true;
-    private filterShowVideos = true;
-    private filterShowHapticStroker = false;
-    private filterShowHapticButtplug = false;
-    private filterShowHapticVibrator = false;
-    private filterShowHapticEstim = false;
-    private filterShowHapticMachine = false;
-    private filterShowHapticUnknown = false;
+    /** Empty means every media type is shown. */
+    private mediaFilters = new Set<MediaFilterKey>();
+    /** Items must provide every selected haptic type; empty means no haptic filter. */
+    private hapticFilters = new Set<FunscriptType>();
     private currentViewMode: LibraryViewMode = 'grid';
     private loaded = false;
     private forceSquareArtwork = false;
@@ -140,40 +155,29 @@ export class Library {
         this.list.innerHTML = '';
         const isSearching = this.searchQuery.length > 0;
 
-        const normalizedMediaFilters = normalizeMediaTypeFilters({
-            albums: this.filterShowAlbums,
-            playlists: this.filterShowPlaylists,
-            tracks: this.filterShowTracks,
-            videos: this.filterShowVideos,
-        });
-        const visibleAlbums = normalizedMediaFilters.albums ? this.getFilteredSortedAlbums() : [];
-        const visiblePlaylists = normalizedMediaFilters.playlists ? this.getFilteredSortedPlaylists() : [];
-        const tracks = normalizedMediaFilters.tracks ? this.getFilteredSortedTracks() : [];
-        const videos = normalizedMediaFilters.videos ? this.getFilteredSortedVideos() : [];
+        const shows = (key: MediaFilterKey): boolean => this.mediaFilters.size === 0 || this.mediaFilters.has(key);
+        const visibleAlbums = shows('albums') ? this.getFilteredAlbums() : [];
+        const visiblePlaylists = shows('playlists') ? this.getFilteredPlaylists() : [];
+        const tracks = shows('tracks') ? this.filterTrackList(this.tracks) : [];
+        const videos = shows('videos') ? this.filterTrackList(this.videos) : [];
         const tracksById = new Map(this.allMedia().map((track) => [track.id, track]));
 
         if (tracks.length === 0 && videos.length === 0 && visibleAlbums.length === 0 && visiblePlaylists.length === 0) {
-            const hasActiveFilter = !normalizedMediaFilters.albums || !normalizedMediaFilters.playlists || !normalizedMediaFilters.tracks || !normalizedMediaFilters.videos;
+            const hasActiveFilter = this.mediaFilters.size > 0 || this.hapticFilters.size > 0;
             const msg = (isSearching || hasActiveFilter) ? 'No items match your search or filters.' : 'No media files found in the media directory.';
             this.grid.innerHTML = emptyStateHtml({ message: msg });
             return;
         }
 
-        this.appendInBatches(this.grid, [
-            ...visibleAlbums.map((album) => () => this.createAlbumCard(album, tracksById)),
-            ...visiblePlaylists.map((playlist) => () => this.createPlaylistCard(playlist, tracksById)),
-            ...tracks.map((track) => () => this.createTrackCard(track)),
-            ...videos.map((video) => () => this.createTrackCard(video)),
-        ]);
-
         const rows: LibraryRow[] = [
             ...visibleAlbums.map((album) => ({
                 typeLabel: 'Album',
                 title: album.title,
-                artist: album.artist || 'Unknown artist',
+                artist: album.artist ?? '',
                 year: album.year,
                 durationSeconds: album.durationSeconds,
-                build: () => this.createAlbumRow(album, tracksById),
+                buildCard: () => this.createAlbumCard(album, tracksById),
+                buildRow: () => this.createAlbumRow(album, tracksById),
             })),
             ...visiblePlaylists.map((playlist) => ({
                 typeLabel: 'Playlist',
@@ -181,19 +185,23 @@ export class Library {
                 artist: this.playlistArtists(playlist),
                 year: '',
                 durationSeconds: playlist.durationSeconds,
-                build: () => this.createPlaylistRow(playlist, tracksById),
+                buildCard: () => this.createPlaylistCard(playlist, tracksById),
+                buildRow: () => this.createPlaylistRow(playlist, tracksById),
             })),
             ...[...tracks, ...videos].map((track) => ({
                 typeLabel: track.type === 'video' ? 'Video' : 'Audio',
                 title: track.title,
                 artist: track.artist,
-                year: track.year,
+                year: track.year ?? '',
                 durationSeconds: track.durationSeconds,
-                build: () => this.createTrackRow(track),
+                buildCard: () => this.createTrackCard(track),
+                buildRow: () => this.createTrackRow(track),
             })),
         ];
 
-        this.appendInBatches(this.list, this.sortRows(rows).map((row) => row.build));
+        const sorted = sortLibraryItems(rows, this.sortField, this.sortAsc);
+        this.appendInBatches(this.grid, sorted.map((row) => row.buildCard));
+        this.appendInBatches(this.list, sorted.map((row) => row.buildRow));
     }
 
     private appendInBatches(container: HTMLElement, builders: Array<() => HTMLElement>): void {
@@ -269,69 +277,22 @@ export class Library {
             this.render();
         });
 
-        const storedFilters = this.loadLibraryFilters();
-        const normalizedMediaFilters = normalizeMediaTypeFilters({
-            albums: storedFilters.albums,
-            playlists: storedFilters.playlists,
-            tracks: storedFilters.tracks,
-            videos: storedFilters.videos,
-        });
-        const visualMediaFilters = displayMediaTypeFilters(normalizedMediaFilters);
-        this.filterShowAlbums = visualMediaFilters.albums;
-        this.filterShowPlaylists = visualMediaFilters.playlists;
-        this.filterShowTracks = visualMediaFilters.tracks;
-        this.filterShowVideos = visualMediaFilters.videos;
-        this.filterShowHapticStroker = storedFilters.hapticStroker;
-        this.filterShowHapticButtplug = storedFilters.hapticButtplug;
-        this.filterShowHapticVibrator = storedFilters.hapticVibrator;
-        this.filterShowHapticEstim = storedFilters.hapticEstim;
-        this.filterShowHapticMachine = storedFilters.hapticMachine;
-        this.filterShowHapticUnknown = storedFilters.hapticUnknown;
-
-        document.querySelectorAll<HTMLInputElement>('[data-filter-type]').forEach((cb) => {
-            const type = cb.dataset.filterType;
-            if (type === 'albums') cb.checked = visualMediaFilters.albums;
-            else if (type === 'playlists') cb.checked = visualMediaFilters.playlists;
-            else if (type === 'tracks') cb.checked = visualMediaFilters.tracks;
-            else if (type === 'videos') cb.checked = visualMediaFilters.videos;
-            else if (type === 'haptic-stroker') cb.checked = storedFilters.hapticStroker;
-            else if (type === 'haptic-buttplug') cb.checked = storedFilters.hapticButtplug;
-            else if (type === 'haptic-vibrator') cb.checked = storedFilters.hapticVibrator;
-            else if (type === 'haptic-estim') cb.checked = storedFilters.hapticEstim;
-            else if (type === 'haptic-machine') cb.checked = storedFilters.hapticMachine;
-            else if (type === 'haptic-unknown') cb.checked = storedFilters.hapticUnknown;
-
-            cb.addEventListener('change', () => {
-                if (type === 'albums') this.filterShowAlbums = cb.checked;
-                else if (type === 'playlists') this.filterShowPlaylists = cb.checked;
-                else if (type === 'tracks') this.filterShowTracks = cb.checked;
-                else if (type === 'videos') this.filterShowVideos = cb.checked;
-                else if (type === 'haptic-stroker') this.filterShowHapticStroker = cb.checked;
-                else if (type === 'haptic-buttplug') this.filterShowHapticButtplug = cb.checked;
-                else if (type === 'haptic-vibrator') this.filterShowHapticVibrator = cb.checked;
-                else if (type === 'haptic-estim') this.filterShowHapticEstim = cb.checked;
-                else if (type === 'haptic-machine') this.filterShowHapticMachine = cb.checked;
-                else if (type === 'haptic-unknown') this.filterShowHapticUnknown = cb.checked;
-                this.saveLibraryFilters();
-                this.render();
-            });
-        });
-
-        document.querySelectorAll<HTMLElement>('[data-sort-field]').forEach((th) => {
-            th.addEventListener('click', (e) => {
-                // The mobile artist control is nested inside the title header.
-                e.stopPropagation();
-                const field = th.dataset.sortField as SortField;
-                if (this.sortField === field) {
-                    this.sortAsc = !this.sortAsc;
-                } else {
-                    this.sortField = field;
-                    this.sortAsc = true;
-                }
-                this.updateSortHeaders();
-                this.render();
-            });
-        });
+        this.loadLibraryFilters();
+        this.bindFilterMenu(
+            'media',
+            MEDIA_FILTERS,
+            this.mediaFilters as Set<string>,
+            (key) => key,
+            'All media',
+        );
+        this.bindFilterMenu(
+            'haptic',
+            HAPTIC_TYPES.map((type) => ({ key: type, label: ROLE_LABELS[type], icon: `bi device-role-icon ${ROLE_ICON_CLASSES[type]}` })),
+            this.hapticFilters as Set<string>,
+            (key) => `haptic-${key}`,
+            'Any haptics',
+        );
+        this.bindSortControls();
 
         applyView(viewMode);
     }
@@ -481,7 +442,7 @@ export class Library {
         const mode = this.currentViewMode;
         const tags = mode === 'tags';
         this.grid?.classList.toggle('d-none', !this.loaded || mode !== 'grid');
-        this.table?.classList.toggle('d-none', !this.loaded || tags);
+        this.table?.classList.toggle('d-none', !this.loaded || mode !== 'list');
         this.list?.classList.toggle('rows-collapsed', mode !== 'list');
         this.tagView?.classList.toggle('d-none', !this.loaded || !tags);
         this.tagViewCounts?.classList.toggle('d-none', !this.loaded || !tags);
@@ -543,67 +504,152 @@ export class Library {
 
     // ── Private helpers ────────────────────────────────────────────────────────
 
-    private loadLibraryFilters(): {
-        albums: boolean;
-        playlists: boolean;
-        tracks: boolean;
-        videos: boolean;
-        hapticStroker: boolean;
-        hapticButtplug: boolean;
-        hapticVibrator: boolean;
-        hapticEstim: boolean;
-        hapticMachine: boolean;
-        hapticUnknown: boolean;
-    } {
-        const defaults = {
-            albums: false,
-            playlists: false,
-            tracks: false,
-            videos: false,
-            hapticStroker: false,
-            hapticButtplug: false,
-            hapticVibrator: false,
-            hapticEstim: false,
-            hapticMachine: false,
-            hapticUnknown: false,
-        };
-        const raw = localStorage.getItem(LIBRARY_FILTERS_KEY);
-        if (!raw) return defaults;
+    /** Stored as `{ [data-filter-type]: boolean }` so older saved filters keep working. */
+    private loadLibraryFilters(): void {
+        let parsed: Record<string, unknown> = {};
         try {
-            const parsed = JSON.parse(raw) as Partial<Record<'albums' | 'playlists' | 'tracks' | 'videos' | 'haptic-stroker' | 'haptic-buttplug' | 'haptic-vibrator' | 'haptic-estim' | 'haptic-machine' | 'haptic-unknown' | 'hapticStroker' | 'hapticButtplug' | 'hapticVibrator' | 'hapticEstim' | 'hapticMachine' | 'hapticUnknown', boolean>>;
-            return {
-                albums: typeof parsed.albums === 'boolean' ? parsed.albums : defaults.albums,
-                playlists: typeof parsed.playlists === 'boolean' ? parsed.playlists : defaults.playlists,
-                tracks: typeof parsed.tracks === 'boolean' ? parsed.tracks : defaults.tracks,
-                videos: typeof parsed.videos === 'boolean' ? parsed.videos : defaults.videos,
-                hapticStroker: typeof parsed['haptic-stroker'] === 'boolean' ? parsed['haptic-stroker'] : (typeof parsed.hapticStroker === 'boolean' ? parsed.hapticStroker : defaults.hapticStroker),
-                hapticButtplug: typeof parsed['haptic-buttplug'] === 'boolean' ? parsed['haptic-buttplug'] : (typeof parsed.hapticButtplug === 'boolean' ? parsed.hapticButtplug : defaults.hapticButtplug),
-                hapticVibrator: typeof parsed['haptic-vibrator'] === 'boolean' ? parsed['haptic-vibrator'] : (typeof parsed.hapticVibrator === 'boolean' ? parsed.hapticVibrator : defaults.hapticVibrator),
-                hapticEstim: typeof parsed['haptic-estim'] === 'boolean' ? parsed['haptic-estim'] : (typeof parsed.hapticEstim === 'boolean' ? parsed.hapticEstim : defaults.hapticEstim),
-                hapticMachine: typeof parsed['haptic-machine'] === 'boolean' ? parsed['haptic-machine'] : (typeof parsed.hapticMachine === 'boolean' ? parsed.hapticMachine : defaults.hapticMachine),
-                hapticUnknown: typeof parsed['haptic-unknown'] === 'boolean' ? parsed['haptic-unknown'] : (typeof parsed.hapticUnknown === 'boolean' ? parsed.hapticUnknown : defaults.hapticUnknown),
-            };
-        } catch {
-            return defaults;
-        }
+            parsed = JSON.parse(localStorage.getItem(LIBRARY_FILTERS_KEY) ?? '{}') as Record<string, unknown>;
+        } catch { /* fall back to no filters */ }
+        for (const { key } of MEDIA_FILTERS) if (parsed[key] === true) this.mediaFilters.add(key);
+        for (const type of HAPTIC_TYPES) if (parsed[`haptic-${type}`] === true) this.hapticFilters.add(type);
+        // Every media type selected is the same as none; keep the menu showing "All".
+        if (this.mediaFilters.size === MEDIA_FILTERS.length) this.mediaFilters.clear();
+
+        try {
+            const sort = JSON.parse(localStorage.getItem(LIBRARY_SORT_KEY) ?? '{}') as { field?: unknown; asc?: unknown };
+            if (LIBRARY_SORT_FIELDS.includes(sort.field as LibrarySortField)) this.sortField = sort.field as LibrarySortField;
+            if (typeof sort.asc === 'boolean') this.sortAsc = sort.asc;
+        } catch { /* keep default sort */ }
     }
 
     private saveLibraryFilters(): void {
-        localStorage.setItem(LIBRARY_FILTERS_KEY, JSON.stringify({
-            albums: this.filterShowAlbums,
-            playlists: this.filterShowPlaylists,
-            tracks: this.filterShowTracks,
-            videos: this.filterShowVideos,
-            'haptic-stroker': this.filterShowHapticStroker,
-            'haptic-buttplug': this.filterShowHapticButtplug,
-            'haptic-vibrator': this.filterShowHapticVibrator,
-            'haptic-estim': this.filterShowHapticEstim,
-            'haptic-machine': this.filterShowHapticMachine,
-            'haptic-unknown': this.filterShowHapticUnknown,
-        }));
+        const stored: Record<string, boolean> = {};
+        for (const { key } of MEDIA_FILTERS) stored[key] = this.mediaFilters.has(key);
+        for (const type of HAPTIC_TYPES) stored[`haptic-${type}`] = this.hapticFilters.has(type);
+        localStorage.setItem(LIBRARY_FILTERS_KEY, JSON.stringify(stored));
+        localStorage.setItem(LIBRARY_SORT_KEY, JSON.stringify({ field: this.sortField, asc: this.sortAsc }));
     }
 
-    private updateSortHeaders(): void {
+    /** Fills a filter dropdown with one checkbox per option plus a "show all" reset. */
+    private bindFilterMenu(
+        name: string,
+        options: readonly FilterOption[],
+        selected: Set<string>,
+        filterType: (key: string) => string,
+        allLabel: string,
+    ): void {
+        const menu = document.querySelector<HTMLElement>(`[data-filter-menu="${name}"]`);
+        const summary = menu?.parentElement?.querySelector<HTMLElement>('[data-filter-summary]');
+        if (!menu) return;
+        menu.innerHTML = '';
+
+        const inputs: HTMLInputElement[] = [];
+        const updateSummary = (): void => {
+            if (!summary) return;
+            const chosen = options.filter((o) => selected.has(o.key));
+            if (chosen.length === 0) summary.textContent = allLabel;
+            else if (chosen.length === 1) summary.textContent = chosen[0].label;
+            else summary.textContent = `${chosen.length} selected`;
+            menu.parentElement?.querySelector('.dropdown-toggle')?.classList.toggle('active', chosen.length > 0);
+        };
+        const changed = (): void => {
+            if (name === 'media' && selected.size === options.length) {
+                selected.clear();
+                inputs.forEach((input) => { input.checked = false; });
+            }
+            updateSummary();
+            this.saveLibraryFilters();
+            this.render();
+        };
+
+        for (const option of options) {
+            const li = document.createElement('li');
+            const label = document.createElement('label');
+            label.className = 'dropdown-item d-flex align-items-center gap-2';
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.className = 'form-check-input m-0';
+            input.dataset.filterType = filterType(option.key);
+            input.checked = selected.has(option.key);
+            input.addEventListener('change', () => {
+                if (input.checked) selected.add(option.key);
+                else selected.delete(option.key);
+                changed();
+            });
+            const icon = document.createElement('i');
+            icon.className = option.icon;
+            icon.setAttribute('aria-hidden', 'true');
+            label.append(input, icon, document.createTextNode(option.label));
+            li.appendChild(label);
+            menu.appendChild(li);
+            inputs.push(input);
+        }
+
+        const divider = document.createElement('li');
+        divider.innerHTML = '<hr class="dropdown-divider">';
+        const resetItem = document.createElement('li');
+        const reset = document.createElement('button');
+        reset.type = 'button';
+        reset.className = 'dropdown-item';
+        reset.textContent = allLabel;
+        reset.addEventListener('click', () => {
+            selected.clear();
+            inputs.forEach((input) => { input.checked = false; });
+            changed();
+        });
+        resetItem.appendChild(reset);
+        menu.append(divider, resetItem);
+        updateSummary();
+    }
+
+    private bindSortControls(): void {
+        const menu = document.querySelector<HTMLElement>('#sort-field-menu');
+        const setSort = (field: LibrarySortField, asc: boolean): void => {
+            this.sortField = field;
+            this.sortAsc = asc;
+            this.saveLibraryFilters();
+            this.updateSortControls();
+            this.render();
+        };
+
+        if (menu) {
+            menu.innerHTML = '';
+            for (const field of LIBRARY_SORT_FIELDS) {
+                const li = document.createElement('li');
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'dropdown-item';
+                item.dataset.sortOption = field;
+                item.textContent = SORT_LABELS[field];
+                item.addEventListener('click', () => setSort(field, this.sortField === field ? this.sortAsc : true));
+                li.appendChild(item);
+                menu.appendChild(li);
+            }
+        }
+        document.querySelector('#sort-direction')?.addEventListener('click', () => setSort(this.sortField, !this.sortAsc));
+
+        document.querySelectorAll<HTMLElement>('[data-sort-field]').forEach((th) => {
+            th.addEventListener('click', () => {
+                const field = th.dataset.sortField as LibrarySortField;
+                setSort(field, this.sortField === field ? !this.sortAsc : true);
+            });
+        });
+        this.updateSortControls();
+    }
+
+    private updateSortControls(): void {
+        const label = document.querySelector<HTMLElement>('#sort-field-label');
+        if (label) label.textContent = SORT_LABELS[this.sortField];
+        document.querySelectorAll<HTMLElement>('[data-sort-option]').forEach((item) => {
+            item.classList.toggle('active', item.dataset.sortOption === this.sortField);
+        });
+        const direction = document.querySelector<HTMLElement>('#sort-direction');
+        if (direction) {
+            const text = this.sortAsc ? 'Ascending' : 'Descending';
+            direction.title = text;
+            direction.setAttribute('aria-label', text);
+            direction.innerHTML = `<i class="bi ${this.sortAsc ? 'bi-sort-up' : 'bi-sort-down'}" aria-hidden="true"></i>`;
+        }
         document.querySelectorAll<HTMLElement>('[data-sort-field]').forEach((th) => {
             const indicator = th.querySelector<HTMLElement>(':scope > .sort-indicator');
             if (!indicator) return;
@@ -613,36 +659,9 @@ export class Library {
         });
     }
 
-    private sortRows(rows: LibraryRow[]): LibraryRow[] {
-        const field = this.sortField ?? 'title';
-        const asc = this.sortField ? this.sortAsc : true;
-        return [...rows].sort((a, b) => {
-            const cmp = field === 'duration'
-                ? a.durationSeconds - b.durationSeconds
-                : field === 'type'
-                    ? a.typeLabel.localeCompare(b.typeLabel)
-                    : a[field].localeCompare(b[field]);
-            return asc ? cmp : -cmp;
-        });
-    }
-
-    private getFilteredSortedTracks(): TrackInfo[] {
-        return this.filterSortTrackList(this.tracks);
-    }
-
-    private getFilteredSortedVideos(): TrackInfo[] {
-        return this.filterSortTrackList(this.videos);
-    }
-
-    private filterSortTrackList(list: TrackInfo[]): TrackInfo[] {
+    private filterTrackList(list: TrackInfo[]): TrackInfo[] {
         let tracks = list;
-        const allowedHapticTypes: FunscriptType[] = [];
-        if (this.filterShowHapticStroker) allowedHapticTypes.push('stroker');
-        if (this.filterShowHapticButtplug) allowedHapticTypes.push('buttplug');
-        if (this.filterShowHapticVibrator) allowedHapticTypes.push('vibrator');
-        if (this.filterShowHapticEstim) allowedHapticTypes.push('estim');
-        if (this.filterShowHapticMachine) allowedHapticTypes.push('machine');
-        if (this.filterShowHapticUnknown) allowedHapticTypes.push('unknown');
+        const allowedHapticTypes = [...this.hapticFilters];
         if (this.activeTags.length > 0) {
             tracks = tracks.filter((t) => trackMatchesActiveTags(t.tags, this.activeTags, t.artist));
         }
@@ -657,29 +676,13 @@ export class Library {
                 t.album.toLowerCase().includes(q)
             );
         }
-        if (this.sortField) {
-            const field = this.sortField;
-            const asc = this.sortAsc;
-            tracks = [...tracks].sort((a, b) => {
-                const cmp = field === 'duration'
-                    ? a.durationSeconds - b.durationSeconds
-                    : a[field].localeCompare(b[field]);
-                return asc ? cmp : -cmp;
-            });
-        }
         return tracks;
     }
 
-    private getFilteredSortedAlbums(): AlbumInfo[] {
+    private getFilteredAlbums(): AlbumInfo[] {
         let albums = this.albums;
         const tracksById = new Map(this.allMedia().map((track) => [track.id, track]));
-        const allowedHapticTypes: FunscriptType[] = [];
-        if (this.filterShowHapticStroker) allowedHapticTypes.push('stroker');
-        if (this.filterShowHapticButtplug) allowedHapticTypes.push('buttplug');
-        if (this.filterShowHapticVibrator) allowedHapticTypes.push('vibrator');
-        if (this.filterShowHapticEstim) allowedHapticTypes.push('estim');
-        if (this.filterShowHapticMachine) allowedHapticTypes.push('machine');
-        if (this.filterShowHapticUnknown) allowedHapticTypes.push('unknown');
+        const allowedHapticTypes = [...this.hapticFilters];
         if (this.activeTags.length > 0) {
             albums = albums.filter((album) => albumMatchesActiveTags(album, tracksById, this.activeTags));
         }
@@ -692,36 +695,13 @@ export class Library {
                 a.title.toLowerCase().includes(q) || (a.artist ?? '').toLowerCase().includes(q)
             );
         }
-        if (this.sortField) {
-            const field = this.sortField;
-            const asc = this.sortAsc;
-            albums = [...albums].sort((a, b) => {
-                let valA = '';
-                let valB = '';
-                if (field === 'title') { valA = a.title; valB = b.title; }
-                else if (field === 'artist') { valA = a.artist ?? ''; valB = b.artist ?? ''; }
-                else if (field === 'year') { valA = a.year; valB = b.year; }
-                else if (field === 'duration') {
-                    const cmp = a.durationSeconds - b.durationSeconds;
-                    return asc ? cmp : -cmp;
-                }
-                const cmp = valA.localeCompare(valB);
-                return asc ? cmp : -cmp;
-            });
-        }
         return albums;
     }
 
-    private getFilteredSortedPlaylists(): PlaylistInfo[] {
+    private getFilteredPlaylists(): PlaylistInfo[] {
         let playlists = this.playlists;
         const tracksById = new Map(this.allMedia().map((track) => [track.id, track]));
-        const allowedHapticTypes: FunscriptType[] = [];
-        if (this.filterShowHapticStroker) allowedHapticTypes.push('stroker');
-        if (this.filterShowHapticButtplug) allowedHapticTypes.push('buttplug');
-        if (this.filterShowHapticVibrator) allowedHapticTypes.push('vibrator');
-        if (this.filterShowHapticEstim) allowedHapticTypes.push('estim');
-        if (this.filterShowHapticMachine) allowedHapticTypes.push('machine');
-        if (this.filterShowHapticUnknown) allowedHapticTypes.push('unknown');
+        const allowedHapticTypes = [...this.hapticFilters];
         if (this.activeTags.length > 0) {
             playlists = playlists.filter((playlist) => playlistMatchesActiveTags(playlist, tracksById, this.activeTags));
         }
@@ -739,22 +719,6 @@ export class Library {
                     entry.album.toLowerCase().includes(q)
                 )
             );
-        }
-        if (this.sortField) {
-            const field = this.sortField;
-            const asc = this.sortAsc;
-            playlists = [...playlists].sort((a, b) => {
-                let valA = '';
-                let valB = '';
-                if (field === 'title') { valA = a.name; valB = b.name; }
-                else if (field === 'artist') { valA = this.playlistArtists(a); valB = this.playlistArtists(b); }
-                else if (field === 'duration') {
-                    const cmp = a.durationSeconds - b.durationSeconds;
-                    return asc ? cmp : -cmp;
-                }
-                const cmp = valA.localeCompare(valB);
-                return asc ? cmp : -cmp;
-            });
         }
         return playlists;
     }

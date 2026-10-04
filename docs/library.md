@@ -19,9 +19,15 @@ media/
     └── favorites.m3u        --> playlists are only supported as .m3u files
 ```
 
-## Sorting
+## Filtering and sorting
 
-Both the grid view and the list view show the same column header (Title, Artist, Type, Year, Duration). Click a column to sort by it; click again to reverse the order.
+Next to the search box are three controls:
+
+- **Media type**: a dropdown to limit the library to albums, audio, playlists and/or videos. With nothing selected, everything is shown.
+- **Haptics**: a dropdown to show only items that have scripts for every selected toy type.
+- **Sort**: pick the field (Title, Artist, Year, Duration, Type) and click the arrow button next to it to reverse the order. Items without a value (e.g. playlists have no year) are always listed last.
+
+Sorting applies to the grid and the list view alike, and all media types are sorted together. In the list view you can also click a column header. Filters and sort order are remembered in the browser.
 
 ## Cover art in the grid view
 

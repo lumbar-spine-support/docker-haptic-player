@@ -64,6 +64,13 @@ body.blur-content media-container {
   border-spacing: 0;
 }
 
+// On mobile the columns are merged into one, so sorting uses the toolbar instead.
+@media (max-width: 767.98px) {
+  #track-table .track-table-head {
+    display: none;
+  }
+}
+
 // Collapsed rows still size the columns, so the header keeps its list-view widths.
 #track-list.rows-collapsed>tr {
   visibility: collapse;
@@ -406,4 +413,32 @@ body.blur-content media-container {
   padding: 0.375rem 0.75rem;
   line-height: 1;
   min-width: 2.5rem;
+}
+
+// Mobile: media, haptics and sort share the row in equal parts.
+@media (max-width: 767.98px) {
+
+  .library-filter-group>*,
+  .library-sort-field {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .library-filter-group .dropdown-toggle {
+    width: 100%;
+    justify-content: space-between;
+    overflow: hidden;
+  }
+}
+
+// Very small phones: filters on one row, sort on its own row below.
+@media (max-width: 575.98px) {
+  div.library-filter-group {
+    flex-wrap: wrap;
+    height: auto;
+  }
+
+  .library-filter-group> :last-child {
+    flex-basis: 100%;
+  }
 }

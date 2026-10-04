@@ -1,100 +1,45 @@
 import type { AlbumInfo, FunscriptType, PlaylistInfo, TrackInfo } from './types';
 
-export type MediaTypeFilters = {
-  albums: boolean;
-  playlists: boolean;
-  tracks: boolean;
-  videos: boolean;
-};
+export const LIBRARY_SORT_FIELDS = ['title', 'artist', 'year', 'duration', 'type'] as const;
+export type LibrarySortField = typeof LIBRARY_SORT_FIELDS[number];
 
-export type HapticFilters = {
-  stroker: boolean;
-  buttplug: boolean;
-  vibrator: boolean;
-  estim: boolean;
-  machine: boolean;
-};
-
-export function normalizeMediaTypeFilters(filters: Partial<MediaTypeFilters>): MediaTypeFilters {
-  const albums = filters.albums ?? true;
-  const playlists = filters.playlists ?? true;
-  const tracks = filters.tracks ?? true;
-  const videos = filters.videos ?? true;
-
-  const anySelected = albums || playlists || tracks || videos;
-  if (!anySelected) {
-    return {
-      albums: true,
-      playlists: true,
-      tracks: true,
-      videos: true,
-    };
-  }
-
-  return {
-    albums,
-    playlists,
-    tracks,
-    videos,
-  };
+export interface SortableLibraryItem {
+  typeLabel: string;
+  title: string;
+  artist: string;
+  year: string;
+  durationSeconds: number;
 }
 
-export function displayMediaTypeFilters(filters: Partial<MediaTypeFilters>): MediaTypeFilters {
-  const normalized = normalizeMediaTypeFilters(filters);
-  const allEnabled = normalized.albums && normalized.playlists && normalized.tracks && normalized.videos;
-  if (allEnabled) {
-    return {
-      albums: false,
-      playlists: false,
-      tracks: false,
-      videos: false,
-    };
-  }
-
-  return normalized;
+function sortValue(item: SortableLibraryItem, field: LibrarySortField): string | number {
+  if (field === 'type') return item.typeLabel;
+  if (field === 'duration') return item.durationSeconds;
+  return item[field];
 }
 
-export function normalizeHapticFilters(filters: Partial<HapticFilters>): HapticFilters {
-  const stroker = filters.stroker ?? true;
-  const buttplug = filters.buttplug ?? true;
-  const vibrator = filters.vibrator ?? true;
-  const estim = filters.estim ?? true;
-  const machine = filters.machine ?? true;
+const isEmptySortValue = (value: string | number): boolean => value === '' || value === 0;
 
-  const anySelected = stroker || buttplug || vibrator || estim || machine;
-  if (!anySelected) {
-    return {
-      stroker: true,
-      buttplug: true,
-      vibrator: true,
-      estim: true,
-      machine: true,
-    };
-  }
-
-  return {
-    stroker,
-    buttplug,
-    vibrator,
-    estim,
-    machine,
-  };
-}
-
-export function displayHapticFilters(filters: Partial<HapticFilters>): HapticFilters {
-  const normalized = normalizeHapticFilters(filters);
-  const allEnabled = normalized.stroker && normalized.buttplug && normalized.vibrator && normalized.estim && normalized.machine;
-  if (allEnabled) {
-    return {
-      stroker: false,
-      buttplug: false,
-      vibrator: false,
-      estim: false,
-      machine: false,
-    };
-  }
-
-  return normalized;
+/** Sorts items by one field; empty values always go last and ties fall back to title. */
+export function sortLibraryItems<T extends SortableLibraryItem>(
+  items: readonly T[],
+  field: LibrarySortField,
+  asc: boolean,
+): T[] {
+  const compareText = (a: string, b: string): number =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  return [...items].sort((a, b) => {
+    const va = sortValue(a, field);
+    const vb = sortValue(b, field);
+    const emptyA = isEmptySortValue(va);
+    const emptyB = isEmptySortValue(vb);
+    if (emptyA !== emptyB) return emptyA ? 1 : -1;
+    let cmp = 0;
+    if (!emptyA) {
+      cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : compareText(String(va), String(vb));
+      if (!asc) cmp = -cmp;
+    }
+    return cmp !== 0 ? cmp : compareText(a.title, b.title);
+  });
 }
 
 /** Prefix marking an active filter entry as an artist filter rather than a real file tag. */

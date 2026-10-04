@@ -52,70 +52,37 @@
             </div>
           </div>
 
-          <div class="btn-group btn-group-sm flex-shrink-0 library-filter-group" role="group"
-            aria-label="Library filters">
-            <input type="checkbox" class="btn-check" id="filter-albums" data-filter-type="albums" />
-            <label class="btn btn-sm btn-outline-primary library-filter-btn" for="filter-albums" title="Albums">
-              <i class="bi bi-vinyl" aria-hidden="true"></i>
-            </label>
-
-            <input type="checkbox" class="btn-check" id="filter-tracks" data-filter-type="tracks" />
-            <label class="btn btn-sm btn-outline-primary library-filter-btn" for="filter-tracks" title="Audio">
-              <i class="bi bi-music-note" aria-hidden="true"></i>
-            </label>
-
-            <input type="checkbox" class="btn-check" id="filter-playlists" data-filter-type="playlists" />
-            <label class="btn btn-sm btn-outline-primary library-filter-btn" for="filter-playlists" title="Playlists">
-              <i class="bi bi-music-note-list" aria-hidden="true"></i>
-            </label>
-
-            <input type="checkbox" class="btn-check" id="filter-videos" data-filter-type="videos" />
-            <label class="btn btn-sm btn-outline-primary library-filter-btn" for="filter-videos" title="Videos">
-              <i class="bi bi-play-btn" aria-hidden="true"></i>
-            </label>
-          </div>
-
-          <div class="btn-group btn-group-sm flex-shrink-0 library-filter-group" role="group"
-            aria-label="Library haptic filters">
-            <input type="checkbox" class="btn-check" id="filter-haptic-stroker" data-filter-type="haptic-stroker"
-              checked />
-            <label class="btn btn-sm btn-outline-primary library-filter-btn" for="filter-haptic-stroker"
-              title="Stroker">
-              <i class="bi device-role-icon device-role-icon-stroker" aria-hidden="true"></i>
-            </label>
-
-            <input type="checkbox" class="btn-check" id="filter-haptic-buttplug" data-filter-type="haptic-buttplug"
-              checked />
-            <label class="btn btn-sm btn-outline-primary library-filter-btn" for="filter-haptic-buttplug"
-              title="Buttplug">
-              <i class="bi device-role-icon device-role-icon-buttplug" aria-hidden="true"></i>
-            </label>
-
-            <input type="checkbox" class="btn-check" id="filter-haptic-vibrator" data-filter-type="haptic-vibrator"
-              checked />
-            <label class="btn btn-sm btn-outline-primary library-filter-btn" for="filter-haptic-vibrator"
-              title="Vibrator">
-              <i class="bi device-role-icon device-role-icon-vibrator" aria-hidden="true"></i>
-            </label>
-
-            <input type="checkbox" class="btn-check" id="filter-haptic-estim" data-filter-type="haptic-estim" checked />
-            <label class="btn btn-sm btn-outline-primary library-filter-btn" for="filter-haptic-estim" title="E-stim">
-              <i class="bi device-role-icon device-role-icon-estim" aria-hidden="true"></i>
-            </label>
-
-            <input type="checkbox" class="btn-check" id="filter-haptic-machine" data-filter-type="haptic-machine"
-              checked />
-            <label class="btn btn-sm btn-outline-primary library-filter-btn" for="filter-haptic-machine"
-              title="Machine">
-              <i class="bi device-role-icon device-role-icon-machine" aria-hidden="true"></i>
-            </label>
-
-            <input type="checkbox" class="btn-check" id="filter-haptic-unknown" data-filter-type="haptic-unknown"
-              checked />
-            <label class="btn btn-sm btn-outline-primary library-filter-btn" for="filter-haptic-unknown"
-              title="Generic">
-              <i class="bi bi-patch-question-fill device-role-icon device-role-icon-generic" aria-hidden="true"></i>
-            </label>
+          <div class="d-flex align-items-center gap-2 flex-shrink-0 library-filter-group">
+            <div class="dropdown">
+              <button id="filter-media-toggle" class="btn btn-sm btn-outline-primary dropdown-toggle library-filter-btn"
+                type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+                title="Media type">
+                <i class="bi bi-collection-play" aria-hidden="true"></i>
+                <span class="ms-1" data-filter-summary></span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-dark library-filter-menu" data-filter-menu="media"></ul>
+            </div>
+            <div class="dropdown">
+              <button id="filter-haptic-toggle"
+                class="btn btn-sm btn-outline-primary dropdown-toggle library-filter-btn" type="button"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="Haptics">
+                <i class="bi bi-activity" aria-hidden="true"></i>
+                <span class="ms-1" data-filter-summary></span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-dark library-filter-menu" data-filter-menu="haptic"></ul>
+            </div>
+            <div class="d-flex gap-2" role="group" aria-label="Sort">
+              <div class="dropdown library-sort-field">
+                <button id="sort-field-toggle" class="btn btn-sm btn-outline-primary dropdown-toggle library-filter-btn"
+                  type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Sort by">
+                  <i class="bi bi-arrow-down-up" aria-hidden="true"></i>
+                  <span class="ms-1" id="sort-field-label"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" id="sort-field-menu"></ul>
+              </div>
+              <button id="sort-direction" class="btn btn-sm btn-outline-primary library-filter-btn"
+                type="button"></button>
+            </div>
           </div>
         </div>
         <div id="tag-view-counts" class="d-none mt-2">
@@ -141,20 +108,11 @@
         <div>Loading library…</div>
       </div>
       <table id="track-table" class="table table-dark table-hover d-none">
-        <thead>
+        <thead class="track-table-head">
           <tr>
             <th scope="col" colspan="2" class="sort-header text-uppercase text-center text-md-start"
               data-sort-field="title">Title
               <span class="sort-indicator"></span>
-              <span class="sort-header d-md-none ms-1" data-sort-field="artist">Artist
-                <span class="sort-indicator"></span>
-              </span>
-              <span class="sort-header d-md-none ms-1" data-sort-field="type">Type
-                <span class="sort-indicator"></span>
-              </span>
-              <span class="sort-header d-md-none ms-1" data-sort-field="duration">Duration
-                <span class="sort-indicator"></span>
-              </span>
             </th>
             <th scope="col" class="sort-header text-uppercase d-none d-md-table-cell" data-sort-field="artist">Artist
               <span class="sort-indicator"></span>
