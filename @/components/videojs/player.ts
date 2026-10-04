@@ -1,10 +1,11 @@
 import { createPlayer } from '@videojs/html';
 import { videoFeatures } from '@videojs/core/dom';
 import { loopFeature } from './features/loop';
+import { vrFeature } from './features/vr';
 
-const { PlayerElement } = createPlayer({ features: [...videoFeatures, loopFeature] });
+const { PlayerElement } = createPlayer({ features: [...videoFeatures, loopFeature, vrFeature] });
 
-/** `<video-player>` with the stock video features plus our loop feature. */
+/** `<video-player>` with the stock video features plus our loop and VR features. */
 export class AppPlayerElement extends PlayerElement {
     static readonly tagName = 'video-player';
 }

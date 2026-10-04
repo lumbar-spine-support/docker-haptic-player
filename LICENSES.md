@@ -28,6 +28,18 @@ When using or redistributing any files derived from Big Buck Bunny, you must inc
 
 **See Also:** [test/fixtures/media/ATTRIBUTION.md](test/fixtures/media/ATTRIBUTION.md) for detailed attribution information.
 
+### NASA VR/360 Astronaut Training: Space Walk (Public Domain)
+
+**Files:** `test/fixtures/media/NASA_VR360AstronautTraining_SpaceWalk.mp4`
+
+**License:** Public domain in the United States (work of NASA, [PD-USGov-NASA](https://commons.wikimedia.org/wiki/Template:PD-USGov-NASA))
+
+**Credit:** NASA, Public domain, via Wikimedia Commons
+
+**Source:** https://commons.wikimedia.org/wiki/File:NASA_VR-360_Astronaut_Training-_Space_Walk.webm
+
+**Note:** NASA logos and insignia remain restricted under 14 CFR 1221; their appearance does not imply endorsement.
+
 ---
 
 ## Vendored Front-End Libraries

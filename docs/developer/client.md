@@ -194,6 +194,23 @@ The `@/components/videojs/` folder holds the ejected Video.js skin and small fea
 | Repeat mode | `features/repeat.ts` | `PlaybackController.applyRepeat`, `advance` |
 | Skip prev/next | `features/skip.ts` | `PlaybackController` registers itself with `setSkipTarget` |
 | Chapters | `features/chapters.ts` | `PlaybackSession.loadSlot` → `setMediaChapters` |
+| VR180 view | `features/vr.ts`, `ui/vr-buttons.ts` | Reacts to `data-vr-format` set by `PlaybackSession.loadSlot` |
+
+## VR180 playback
+
+`parseVrFormat()` ([src/shared/vrFormat.ts](../../src/shared/vrFormat.ts)) detects VR180 from the filename; `PlaybackController` stores it in `PlaybackRequest.vr` and `PlaybackSession.loadSlot` mirrors it as `data-vr-format` (`180-sbs` / `180-tb`) on `<video-player>`. Each slot keeps its own VR state.
+
+Rendering lives in [src/client/components/vr/](../../src/client/components/vr/) and has no Video.js imports:
+
+| File | Role |
+| --- | --- |
+| `camera.ts` | Pure math: perspective/rotation matrices, drag → yaw/pitch, clamping to the front hemisphere, device orientation → yaw/pitch |
+| `projection.ts` | WebGL2 fullscreen-triangle shader that turns a camera ray into equirect UVs of one eye; takes arbitrary projection/rotation matrices so WebXR views can reuse it |
+| `types.ts` | `VrMode` (`flat` / `inline` / `immersive`) and the `VrView` start/stop contract |
+| `inline.ts` | `InlineVrView`: canvas over the (transparent) `<video>`, pointer drag, pinch/wheel zoom, optional gyroscope, `requestVideoFrameCallback` uploads |
+| `dragGuard.ts` | Capture-phase `pointerup` filter on `<media-container>` so a drag on the VR canvas does not trigger the skin's tap/double-tap gestures |
+
+`features/vr.ts` keeps one controller per media element: it observes `data-vr-format`, defaults VR tracks to `inline`, resets on `loadstart`, and exposes `setVrMode`, `toggleVrGyro` and `resetVrView` through `selectVr`. The gyro button only shows on coarse-pointer devices in a secure context.
 
 ## Code map
 
@@ -206,3 +223,4 @@ The `@/components/videojs/` folder holds the ejected Video.js skin and small fea
 | Server API calls | [api.ts](../../src/client/api.ts) |
 | Timelines | [haptic/visualization/index.ts](../../src/client/components/haptic/visualization/index.ts) |
 | Video.js | [@/components/videojs/player.ts](../../@/components/videojs/player.ts), `@/components/videojs/features/` |
+| VR180 | [components/vr/](../../src/client/components/vr/), [shared/vrFormat.ts](../../src/shared/vrFormat.ts), `@/components/videojs/features/vr.ts` |

@@ -1,6 +1,7 @@
 /** Types shared between the server API and the browser client. */
 
 import type { InterpolationMethod } from './interpolation';
+import type { VrFormat } from './vrFormat';
 
 export type Album = 'album';
 export type Single = 'single';
@@ -169,4 +170,6 @@ export interface PlaybackRequest {
   year: string;
   poster: string;
   chapters: Chapter[];
+  /** VR180 projection detected from the filename; absent for flat media. */
+  vr?: VrFormat | null;
 }

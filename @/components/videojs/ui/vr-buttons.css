@@ -1,0 +1,16 @@
+@layer components {
+    @scope (.media-skin) {
+        .media-vr-button[data-hidden] {
+            display: none;
+        }
+
+        .media-vr-button-icon {
+            opacity: 0.55;
+            transition: opacity var(--media-duration) cubic-bezier(0, 0, 0.2, 1);
+        }
+
+        .media-vr-button[data-active] .media-vr-button-icon {
+            opacity: 1;
+        }
+    }
+}
