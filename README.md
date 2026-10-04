@@ -21,6 +21,7 @@
 🧪 Experimental features:
 
 - [Dungeon Lab](https://www.dungeon-lab.com/) Coyote 3.0 E-stim haptic support
+- Virtual Reality Rendering (VR180 SBS+TB)
 
 ❌ What it tries not to be:
 
@@ -30,7 +31,7 @@
 
 🚀 Planned:
 
-- [ ] VR Video support once Video.JS v10 matures and VR plugins arrive.
+- [ ] Full immersive VR Video support
 - [ ] Playlist/Queue editor and a seperate mount with write-access.
 
 📱 Here you can find a [demo video](docs/videos/demo-player.mp4)!
