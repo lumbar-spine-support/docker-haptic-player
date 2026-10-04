@@ -121,6 +121,56 @@ body.blur-content media-container {
   object-fit: cover;
 }
 
+// CSS grid (instead of flex row) so portrait cards can span two rows; dense flow backfills gaps.
+#track-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: row dense;
+  row-gap: var(--bs-gutter-y);
+
+  @include media-breakpoint-up(sm) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  @include media-breakpoint-up(lg) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  >* {
+    width: auto;
+    max-width: none;
+    margin-top: 0;
+  }
+
+  >.col-12 {
+    grid-column: 1 / -1;
+  }
+}
+
+#track-grid>.track-card-landscape {
+  grid-column: span 2;
+}
+
+#track-grid>.track-card-portrait {
+  grid-row: span 2;
+}
+
+.track-card-portrait .track-art-link {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+// Keep body at natural height so the art bottom lines up with the second-row square art.
+.track-card-portrait .card-body {
+  flex: 0 0 auto;
+}
+
+.track-card-portrait .track-art {
+  height: 100%;
+  max-height: none;
+  aspect-ratio: auto;
+}
+
 .track-card-landscape .track-card {
   max-width: calc(600px + var(--bs-gutter-x, 1rem));
   container-type: inline-size;

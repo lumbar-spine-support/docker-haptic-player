@@ -857,15 +857,16 @@ export class Library {
         return col;
     }
 
-    /** Widens the card once its artwork turns out to be landscape. */
+    /** Widens (landscape) or heightens (portrait) the card once its artwork aspect is known. */
     private applyCardAspect(col: HTMLElement): void {
         if (this.forceSquareArtwork) return;
         const img = col.querySelector<HTMLImageElement>('img.track-art');
         if (!img) return;
         const apply = (): void => {
             if (img.src === FALLBACK_ART_DATA_URI) return;
-            if (classifyArtAspect(img.naturalWidth, img.naturalHeight) !== 'landscape') return;
-            col.className = `${CARD_LANDSCAPE_GRID_CLASSES} track-card-landscape`;
+            const aspect = classifyArtAspect(img.naturalWidth, img.naturalHeight);
+            if (aspect === 'landscape') col.className = `${CARD_LANDSCAPE_GRID_CLASSES} track-card-landscape`;
+            else if (aspect === 'portrait') col.classList.add('track-card-portrait');
         };
         if (img.complete && img.naturalWidth > 0) apply();
         else img.addEventListener('load', apply, { once: true });
