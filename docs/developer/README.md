@@ -54,3 +54,13 @@ Mermaid tips that avoid broken diagrams:
 - Quote labels that contain punctuation: `A["label (with) punctuation"]`.
 - Don't use `#` followed by text and `;` in labels (Mermaid reads it as an HTML entity).
 - Don't use a node id called `end` in flowcharts.
+
+## Updating Video.JS player skin
+
+First overwrite the skin files.
+
+```
+npx shadcn@latest add @videojs/video --overwrite --yes
+```
+
+Then check with git diff what has changed and reintegrate custom changes.

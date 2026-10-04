@@ -35,9 +35,9 @@ import '@videojs/html/icons/element'
 // <video-player> with our extra loop feature; must register before any skin uses it.
 import '@/components/videojs/player';
 
-// Ejected Minimal Skins (shadcn: @videojs/video-minimal and @videojs/audio-minimal)
-// Registers <video-minimal-skin> from the ejected skin.html/skin.css.
-import '@/components/videojs/skins/video/minimal/element';
+// Ejected Compat Skin (shadcn: @videojs/video from the compat registry)
+// Registers <video-compat-skin> from the ejected skin.html/skin.css.
+import '@/components/videojs/video/element';
 
 const INTIFACE_DELAY_KEY = 'happy-haptic-delay-ms';
 const DGLAB_DELAY_KEY = 'happy-dglab-delay-ms';

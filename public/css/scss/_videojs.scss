@@ -27,11 +27,11 @@
  }
 
  video-player,
- video-minimal-skin {
+ video-compat-skin {
      display: contents;
  }
 
- media-container.video-skin {
+ media-container.media-video {
      display: grid;
      width: min(100%, 960px);
      aspect-ratio: 16 / 9;
@@ -57,7 +57,13 @@
 
  /* Audio has no frames, so the artwork stays up for the whole session as a pseudo-video surface. */
  video-player.audio-only .media-poster {
+     display: block !important;
      opacity: 1 !important;
+ }
+
+ /* The bottom bar already has play/seek, so the centered overlay buttons only block the picture. */
+ .media-skin .video-controls-center {
+     display: none !important;
  }
 
  /* Cast and PiP are meaningless for audio; the cast button won't react to disableRemotePlayback after attach. */

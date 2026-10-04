@@ -18,8 +18,8 @@
             opacity: 0.85;
         }
 
-        .media-slider-preview .media-time-slider-preview-content {
-            --media-slider-preview-max-width: min(calc(var(--media-spacing) * 64), 100cqi);
+        .media-time-slider-preview {
+            max-width: min(calc(var(--media-spacing) * 64), 100cqi);
         }
 
         .media-time-slider-value-current {
@@ -27,14 +27,12 @@
         }
 
         /* While paused, pin the time/chapter label to the playhead unless the user is pointing or dragging. */
-        &:has(.media-play-button[data-started][data-paused]) .media-slider-preview:not([data-pointing]):not([data-dragging]) {
+        &:has(.media-play-button[data-started][data-paused]) .media-time-slider:not([data-pointing]):not([data-dragging]) .media-time-slider-preview {
             --media-slider-pointer: var(--media-slider-fill);
+            opacity: 1;
+            filter: none;
+            transform: none;
 
-            .media-time-slider-preview-content {
-                opacity: 1;
-                filter: none;
-                scale: 1;
-            }
 
             .media-time-slider-value:not(.media-time-slider-value-current) {
                 display: none;
