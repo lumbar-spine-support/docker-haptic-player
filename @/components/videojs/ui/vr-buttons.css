@@ -4,6 +4,10 @@
             display: none;
         }
 
+        :scope[data-vr] .media-cast-button {
+            display: none;
+        }
+
         .media-vr-button-icon {
             opacity: 0.55;
             transition: opacity var(--media-duration) cubic-bezier(0, 0, 0.2, 1);

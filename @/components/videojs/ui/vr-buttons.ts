@@ -54,6 +54,8 @@ class VrViewButtonElement extends VrButtonElement {
     protected render(vr: VrSlice | undefined): void {
         const on = vr?.vrMode === 'inline';
         this.toggleAttribute('data-hidden', !vr?.vrFormat);
+        // Casting a VR video would show the raw stereo frame on the TV.
+        this.closest('.media-skin')?.toggleAttribute('data-vr', Boolean(vr?.vrFormat));
         this.toggleAttribute('data-active', on);
         this.setAttribute('aria-pressed', String(on));
         this.setAttribute('aria-label', on ? 'Show flat frame' : 'Show VR view');
