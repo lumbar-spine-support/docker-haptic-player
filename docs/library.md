@@ -19,6 +19,10 @@ media/
     └── favorites.m3u        --> playlists are only supported as .m3u files
 ```
 
+## Cover art in the grid view
+
+In the grid view, cards with widescreen cover art (typical for videos) are twice as wide as other cards. Square and portrait covers are cropped to a square. Set `CARD_VIEW_FORCE_SQUARE_ARTWORK: true` (see [configuration](configuration.md)) to show all covers as squares.
+
 ## Video codecs
 
 Videos are streamed as-is and decoded by your browser. If the browser cannot decode the video track (for example HEVC/H.265 on many Linux desktops), HAPPY shows a warning under the player and a browser notification, and only the audio plays.

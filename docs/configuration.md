@@ -34,5 +34,6 @@ Every YAML setting can also be set as an environment variable. Environment varia
 | `AUTO_RECONNECT_DGLAB` | `true` | Reconnect to the DG-Lab relay on page load if it was connected and last seen less than 5 minutes ago. |
 | `FUNSCRIPT_INTERPOLATION_METHOD` | `pchip` | How positions between funscript points are computed for haptics and the timeline: none, linear, pchip. none holds each position until the next point; strokers follow pchip as linear |
 | `FUNSCRIPT_COLOR_GRADIENT` | `false` | Colour the timeline graph on a heat scale by movement speed (blue = slow, red = fast). Can be toggled in web interface. |
+| `CARD_VIEW_FORCE_SQUARE_ARTWORK` | `false` | If true, the media's artwork is reduced to a square. This ensures a consistent layout. |
 
 <!-- /ENV_OPTIONS -->

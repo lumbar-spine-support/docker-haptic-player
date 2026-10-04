@@ -3,6 +3,7 @@ import { fetchLibrary, FALLBACK_ART_DATA_URI, applyPlaylistCover, renderTrackArt
 import { buildUrl, trackHref, detailHref } from '../../router';
 import { renderHapticIcons } from '../haptic/icons';
 import { formatHoursMinutes } from '../../utils/formatTime';
+import { classifyArtAspect } from '../../utils/artAspect';
 import {
     albumMatchesActiveTags,
     albumMatchesHapticFilters,
@@ -52,7 +53,8 @@ export interface LibraryCallbacks {
 
 const VIEW_KEY = 'happy-view-mode';
 const LIBRARY_FILTERS_KEY = 'happy-library-filters';
-const CARD_GRID_CLASSES = 'col-6 col-sm-3 col-lg-2 col-xl-2 col-xxl-2';
+const CARD_SQUARE_GRID_CLASSES = 'col-6 col-sm-3 col-lg-2 col-xl-2 col-xxl-2';
+const CARD_LANDSCAPE_GRID_CLASSES = 'col-12 col-sm-6 col-lg-4 col-xl-4 col-xxl-4';
 const RENDER_BATCH_SIZE = 48;
 
 export class Library {
@@ -99,6 +101,7 @@ export class Library {
     private filterShowHapticUnknown = false;
     private currentViewMode: LibraryViewMode = 'grid';
     private loaded = false;
+    private forceSquareArtwork = false;
 
     constructor(callbacks: LibraryCallbacks) {
         this.callbacks = callbacks;
@@ -462,6 +465,10 @@ export class Library {
         this.callbacks.showLibrary();
     }
 
+    setForceSquareArtwork(force: boolean): void {
+        this.forceSquareArtwork = force;
+    }
+
     setActiveTags(tags: string[]): void {
         this.activeTags = tags;
     }
@@ -801,7 +808,7 @@ export class Library {
 
     private createAlbumCard(album: AlbumInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
         const col = document.createElement('div');
-        col.className = CARD_GRID_CLASSES;
+        col.className = CARD_SQUARE_GRID_CLASSES;
         const artSrc = renderTrackArt(album.coverTrackId ? tracksById.get(album.coverTrackId) : null);
         const artist = `${album.artist || 'Unknown'}`;
         const meta = this.prependYear(this.buildCardMeta('album', album.durationSeconds), album.year);
@@ -818,12 +825,13 @@ export class Library {
             event.preventDefault();
             this.callbacks.openAlbum(album.id);
         });
+        this.applyCardAspect(col);
         return col;
     }
 
     private createTrackCard(track: TrackInfo): HTMLElement {
         const col = document.createElement('div');
-        col.className = CARD_GRID_CLASSES;
+        col.className = CARD_SQUARE_GRID_CLASSES;
         const artSrc = renderTrackArt(track);
         const artist = track.artist || 'Unknown';
         const meta = this.prependYear(this.buildCardMeta(track.type, track.durationSeconds), track.year);
@@ -840,7 +848,22 @@ export class Library {
             event.preventDefault();
             this.callbacks.openTrack(track.id);
         });
+        this.applyCardAspect(col);
         return col;
+    }
+
+    /** Widens the card once its artwork turns out to be landscape. */
+    private applyCardAspect(col: HTMLElement): void {
+        if (this.forceSquareArtwork) return;
+        const img = col.querySelector<HTMLImageElement>('img.track-art');
+        if (!img) return;
+        const apply = (): void => {
+            if (img.src === FALLBACK_ART_DATA_URI) return;
+            if (classifyArtAspect(img.naturalWidth, img.naturalHeight) !== 'landscape') return;
+            col.className = `${CARD_LANDSCAPE_GRID_CLASSES} track-card-landscape`;
+        };
+        if (img.complete && img.naturalWidth > 0) apply();
+        else img.addEventListener('load', apply, { once: true });
     }
 
 
@@ -850,7 +873,7 @@ export class Library {
         const artists = this.playlistArtists(playlist);
         const meta = this.buildCardMeta('playlist', playlist.durationSeconds);
         const col = document.createElement('div');
-        col.className = CARD_GRID_CLASSES;
+        col.className = CARD_SQUARE_GRID_CLASSES;
         col.innerHTML = cardHtml({
             href: detailHref('playlist', playlist.id),
             artSrc,

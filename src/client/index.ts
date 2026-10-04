@@ -56,6 +56,7 @@ const FALLBACK_SETTINGS: ClientSettings = {
   debugLogging: false,
   funscriptInterpolationMethod: 'pchip',
   funscriptColorGradient: false,
+  cardViewForceSquareArtwork: false,
   mediaAccessToken: null,
 };
 
@@ -180,6 +181,7 @@ class App {
     }
     setMediaAccessToken(this.settings.mediaAccessToken);
     this.applySeekInterval();
+    this.library.setForceSquareArtwork(this.settings.cardViewForceSquareArtwork);
     this.library.bindControls();
     bindIntifaceSettings(this.buttplug, this.settings.autoReconnectIntiface);
     bindToggle('#blur-content-toggle', 'happy-blur-content', this.settings.blurContent,

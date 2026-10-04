@@ -116,6 +116,19 @@ body.blur-content media-container {
   object-fit: cover;
 }
 
+.track-card-landscape .track-card {
+  max-width: calc(600px + var(--bs-gutter-x, 1rem));
+  container-type: inline-size;
+}
+
+// Fill the full column width; height matches a square card: (2 cols - gutter) / 2, capped like .track-art.
+.track-card-landscape .track-art {
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto;
+  height: min(calc((100cqw - var(--bs-gutter-x, 1rem)) / 2), 300px);
+}
+
 .track-art-thumb {
   display: block;
   height: 40px;

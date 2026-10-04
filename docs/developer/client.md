@@ -123,6 +123,8 @@ flowchart TD
 | `./?view=player&id=<trackId>` | Track page |
 | `./?view=docs&id=<page>` | In-app user documentation |
 
+Grid cards start with `CARD_SQUARE_GRID_CLASSES`. When an album or track card's artwork loads, `classifyArtAspect()` (`client/utils/artAspect.ts`) checks its natural size. Art at a ratio of 1.2 or wider switches the card to `CARD_LANDSCAPE_GRID_CLASSES` with `.track-card-landscape`, which shows the image at 2:1. Playlist cards and the fallback art stay square. If `cardViewForceSquareArtwork` is on, every card stays square.
+
 ## The two-player model
 
 There are two `<video-player>` elements. `PlaybackSession` decides which one does what:
