@@ -197,13 +197,15 @@ export class PlaybackSession {
             slot.yearEl.textContent = year;
             slot.yearEl.classList.toggle('d-none', !year);
         }
-        slot.el.setAttribute('poster', request.poster);
+        if (request.hasArtwork) slot.el.setAttribute('poster', request.poster);
+        else slot.el.removeAttribute('poster');
         // Audio has no frames, so the skin keeps the poster up as a pseudo-video surface.
         slot.el.classList.toggle('audio-only', request.type === 'audio');
         if (request.vr) slot.el.setAttribute('data-vr-format', vrFormatToAttribute(request.vr));
         else slot.el.removeAttribute('data-vr-format');
         const media = slot.host.querySelector('video');
         if (media) {
+            if (!request.hasArtwork) media.removeAttribute('poster');
             media.disableRemotePlayback = request.type === 'audio';
             if (slot.request?.id !== request.id) setMediaChapters(media, request.chapters);
         }

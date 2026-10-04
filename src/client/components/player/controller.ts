@@ -135,6 +135,7 @@ export class PlaybackController {
             artist: track.artist || track.filename,
             year: track.year,
             poster: track.hasArtwork ? artworkUrl(track.id, track.artworkVersion) : FALLBACK_ART_DATA_URI,
+            hasArtwork: track.hasArtwork,
             chapters: track.chapters ?? [],
             vr: track.type === 'video' ? parseVrFormat(track.filename) : null,
         };

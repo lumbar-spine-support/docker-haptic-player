@@ -169,6 +169,8 @@ export interface PlaybackRequest {
   artist: string;
   year: string;
   poster: string;
+  /** False when `poster` is only the placeholder art, which the player must not show. */
+  hasArtwork: boolean;
   chapters: Chapter[];
   /** VR180 projection detected from the filename; absent for flat media. */
   vr?: VrFormat | null;

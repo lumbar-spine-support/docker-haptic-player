@@ -17,6 +17,7 @@ import type { LibraryResponse } from '../../shared/types';
 import { Config } from '../config';
 import { buildLibrary, computeMediaFingerprint } from './libraryService';
 import type { ArtworkCache } from './artworkCache';
+import type { ArtworkResolver } from './artworkResolver';
 import { createLogger } from '../utils/logger';
 
 export const TAG = '[library-index]';
@@ -45,7 +46,7 @@ export interface LibraryIndex {
   refresh(): Promise<LibraryResponse>;
 }
 
-export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: ArtworkCache): LibraryIndex {
+export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: ArtworkCache, artworkResolver?: ArtworkResolver): LibraryIndex {
   const cacheFile = Config.libraryCacheFilePath(config.configDir);
 
   let snapshot: Snapshot | null = null;
@@ -63,6 +64,8 @@ export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: A
     config.funscriptSuffixEstim,
     config.funscriptSuffixMachine,
     config.chapterSourcePriority,
+    config.videoArtworkGenerate,
+    config.videoArtworkOffset,
   ]);
 
   const fingerprint = (): string => crypto.createHash('sha1')
@@ -103,11 +106,30 @@ export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: A
     artworkCache.prune(keys);
   };
 
+  /** Extract a frame for every video without embedded art, so cards and posters never need the placeholder. */
+  const generateVideoArtwork = async (library: LibraryResponse): Promise<void> => {
+    if (!artworkResolver || !config.videoArtworkGenerate) return;
+    const pending = library.videos.filter((video) => !video.hasArtwork);
+    if (pending.length === 0) return;
+    const started = Date.now();
+    let generated = 0;
+    for (const video of pending) {
+      const filePath = path.join(config.mediaDir, video.filename);
+      const entry = await artworkResolver.resolve(video.id, filePath, video.artworkVersion, video.durationSeconds);
+      if (entry.data) {
+        video.hasArtwork = true;
+        generated++;
+      }
+    }
+    log.info(`Generated artwork for ${generated}/${pending.length} videos in ${Date.now() - started}ms`);
+  };
+
   const build = (expectedFingerprint: string): Promise<LibraryResponse> => {
     if (inflight) return inflight;
     const started = Date.now();
     inflight = (async () => {
       const library = await buildLibrary(config);
+      await generateVideoArtwork(library);
       snapshot = { fingerprint: expectedFingerprint, library };
       lastValidatedAt = Date.now();
       writeCacheFile(snapshot);

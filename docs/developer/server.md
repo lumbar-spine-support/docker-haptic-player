@@ -104,7 +104,8 @@ flowchart TD
   HasSnap -- no --> Disk{"cache/library.json<br/>same format version<br/>and fingerprint?"}
   Disk -- yes --> Restore["load it into memory"] --> Mem
   Disk -- no --> Build["buildLibrary()"]
-  Build --> Save["write library.json<br/>tmp file + rename"]
+  Build --> Gen["generateVideoArtwork()<br/>frame for videos without cover"]
+  Gen --> Save["write library.json<br/>tmp file + rename"]
   Save --> Prune["artworkCache.prune()<br/>drop covers of removed files"]
   Prune --> Done(["return library"])
 ```
@@ -138,10 +139,10 @@ sequenceDiagram
   participant B as Browser
   participant R as routes/artwork.ts
   participant C as artworkCache
-  participant F as ffmpeg (extractArtwork)
+  participant F as ffmpeg (artworkResolver)
 
   B->>R: GET /api/artwork/:id?v=mtime
-  R->>R: key = sha1(id + mtime), ETag = key
+  R->>R: key = sha1(id + mtime + generation settings), ETag = key
   alt If-None-Match equals ETag
     R-->>B: 304 Not Modified
   else cached on disk
@@ -149,7 +150,7 @@ sequenceDiagram
     C-->>R: image or "no artwork" marker
     R-->>B: 200 image, or 404
   else not cached
-    R->>F: extract the embedded picture
+    R->>F: extract the embedded picture,<br/>else a video frame at VIDEO_ARTWORK_OFFSET %
     F-->>R: bytes or nothing
     R->>C: write(key, mime, data), also caches "none"
     R-->>B: 200 image, or 404
@@ -157,6 +158,8 @@ sequenceDiagram
 ```
 
 With `?v=` the response is `Cache-Control: immutable`, so the browser never asks again until the file's mtime changes.
+
+When `VIDEO_ARTWORK_GENERATE` is on, every library build pre-generates the frame for videos without embedded art through the same `artworkResolver` and marks them `hasArtwork`. The player only sets a `poster` when `hasArtwork` is true; otherwise videos show their first frame and audio a black surface.
 
 ## Authentication
 
@@ -210,5 +213,5 @@ The full sequence is in [Pair a DG-Lab Coyote](use-cases/coyote-pairing.md).
 | Auth | [middleware/auth.ts](../../src/server/middleware/auth.ts), [middleware/loginThrottle.ts](../../src/server/middleware/loginThrottle.ts), [routes/auth.ts](../../src/server/routes/auth.ts), [services/tokenStore.ts](../../src/server/services/tokenStore.ts) |
 | Library | [services/libraryIndex.ts](../../src/server/services/libraryIndex.ts), [services/libraryService.ts](../../src/server/services/libraryService.ts), [services/mediaProbe.ts](../../src/server/services/mediaProbe.ts), [services/albums.ts](../../src/server/services/albums.ts), [services/playlists.ts](../../src/server/services/playlists.ts), [services/funscripts.ts](../../src/server/services/funscripts.ts), [services/chapterService.ts](../../src/server/services/chapterService.ts), [shared/chapters.ts](../../src/shared/chapters.ts) |
 | Media, funscripts | [routes/media.ts](../../src/server/routes/media.ts), [routes/funscript.ts](../../src/server/routes/funscript.ts), [utils/mediaFiles.ts](../../src/server/utils/mediaFiles.ts), [utils/paths.ts](../../src/server/utils/paths.ts) |
-| Artwork | [routes/artwork.ts](../../src/server/routes/artwork.ts), [services/artworkCache.ts](../../src/server/services/artworkCache.ts) |
+| Artwork | [routes/artwork.ts](../../src/server/routes/artwork.ts), [services/artworkCache.ts](../../src/server/services/artworkCache.ts), [services/artworkResolver.ts](../../src/server/services/artworkResolver.ts) |
 | Relay | [services/dglabRelay.ts](../../src/server/services/dglabRelay.ts) |

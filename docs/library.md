@@ -27,6 +27,8 @@ Both the grid view and the list view show the same column header (Title, Artist,
 
 In the grid view, cards with widescreen cover art (typical for videos) are twice as wide as other cards. Square and portrait covers are cropped to a square. Set `CARD_VIEW_FORCE_SQUARE_ARTWORK: true` (see [configuration](configuration.md)) to show all covers as squares.
 
+Videos without embedded cover art get a generated cover: a frame taken at `VIDEO_ARTWORK_OFFSET` percent of the video (default 10%), extracted once when the library is scanned and then cached. Set `VIDEO_ARTWORK_GENERATE: false` to turn this off. Audio files without cover art show a black player surface.
+
 ## Video codecs
 
 Videos are streamed as-is and decoded by your browser. If the browser cannot decode the video track (for example HEVC/H.265 on many Linux desktops), HAPPY shows a warning under the player and a browser notification, and only the audio plays.

@@ -61,6 +61,11 @@
      opacity: 1 !important;
  }
 
+ /* Without artwork the skin's poster <img> has no src and would render a broken-image icon. */
+ video-player:not([poster]) .media-poster {
+     display: none !important;
+ }
+
  /* The bottom bar already has play/seek, so the centered overlay buttons only block the picture. */
  .media-skin .video-controls-center {
      display: none !important;

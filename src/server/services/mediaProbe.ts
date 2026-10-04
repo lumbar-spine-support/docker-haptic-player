@@ -123,6 +123,22 @@ export async function extractArtwork(filePath: string): Promise<Buffer | null> {
     }
 }
 
+/** A single video frame at `seconds` as JPEG, or null when it cannot be decoded. */
+export async function extractVideoFrame(filePath: string, seconds: number): Promise<Buffer | null> {
+    try {
+        const data = await run('ffmpeg', [
+            '-nostdin', '-v', 'error',
+            '-ss', Math.max(0, seconds).toFixed(3), '-i', `file:${filePath}`,
+            '-map', '0:V:0', '-frames:v', '1',
+            '-vf', "scale='min(1280,iw)':-2",
+            '-c:v', 'mjpeg', '-q:v', '3', '-f', 'image2pipe', '-',
+        ], ARTWORK_MAX_BYTES);
+        return data.length > 0 ? data : null;
+    } catch {
+        return null;
+    }
+}
+
 /** Whether the ffprobe binary can be executed. */
 export async function isFfprobeAvailable(): Promise<boolean> {
     try {

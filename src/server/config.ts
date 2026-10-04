@@ -40,6 +40,8 @@ export namespace Config {
     funscriptSuffixEstim: string;
     funscriptSuffixMachine: string;
     chapterSourcePriority: string[];
+    videoArtworkGenerate: boolean;
+    videoArtworkOffset: number;
   }
 
   /** Stores the client-side configuration. Can be loaded from YAML or environment variables. */
@@ -116,6 +118,8 @@ export namespace Config {
     funscriptSuffixEstim: 'estim',
     funscriptSuffixMachine: 'machine',
     chapterSourcePriority: ['embedded', 'funscript'],
+    videoArtworkGenerate: true,
+    videoArtworkOffset: 10,
   };
 
   export const DEFAULT_CLIENT_CONFIG: ClientConfig = {
@@ -161,6 +165,8 @@ export namespace Config {
     funscriptSuffixEstim: 'Suffix associated with estim funscript',
     funscriptSuffixMachine: 'Suffix associated with machine funscript',
     chapterSourcePriority: `Chapter sources in order of precedence: ${CHAPTER_SOURCES.join(', ')}. The first source that provides chapters is used. Empty to disable chapters`,
+    videoArtworkGenerate: 'Generate artwork from a video frame for videos without embedded cover art. Frames are extracted on startup and cached.',
+    videoArtworkOffset: 'Position of the generated video artwork frame, in percent (0-100) of the video duration.',
   };
 
   export const ENV_NAMES: Record<string, string> = {
@@ -189,6 +195,8 @@ export namespace Config {
     funscriptSuffixEstim: 'FUNSCRIPT_SUFFIX_ESTIM',
     funscriptSuffixMachine: 'FUNSCRIPT_SUFFIX_MACHINE',
     chapterSourcePriority: 'CHAPTER_SOURCE_PRIORITY',
+    videoArtworkGenerate: 'VIDEO_ARTWORK_GENERATE',
+    videoArtworkOffset: 'VIDEO_ARTWORK_OFFSET',
   };
 
   // Infer which env vars belong to which config from the default config objects
@@ -404,6 +412,11 @@ export namespace Config {
     }
     server.logLevel = setLogLevel(String(server.logLevel));
     server.chapterSourcePriority = validateChapterSources(server.chapterSourcePriority);
+    const offset = Number(server.videoArtworkOffset);
+    if (!Number.isFinite(offset) || offset < 0 || offset > 100) {
+      log.warn(`Invalid ${ENV_NAMES.videoArtworkOffset} "${server.videoArtworkOffset}", expected 0-100; using ${DEFAULT_SERVER_CONFIG.videoArtworkOffset}.`);
+      server.videoArtworkOffset = DEFAULT_SERVER_CONFIG.videoArtworkOffset;
+    }
     const client = envOverridden.client;
     if (!isInterpolationMethod(client.funscriptInterpolationMethod)) {
       log.warn(`Unknown ${ENV_NAMES.funscriptInterpolationMethod} "${client.funscriptInterpolationMethod}", falling back to "${DEFAULT_INTERPOLATION_METHOD}". Valid methods: ${INTERPOLATION_METHODS.join(', ')}`);

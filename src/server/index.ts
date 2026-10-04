@@ -16,6 +16,7 @@ import { createDocsRouter } from './routes/docs';
 import { createAuthMiddleware, createMediaAccessToken, COOKIE_NAME } from './middleware/auth';
 import { createTokenStore, type TokenStore } from './services/tokenStore';
 import { createArtworkCache } from './services/artworkCache';
+import { createArtworkResolver } from './services/artworkResolver';
 import { createLibraryIndex } from './services/libraryIndex';
 import { DglabRelay } from './services/dglabRelay';
 import { logLibrarySummary } from './services/libraryService';
@@ -50,8 +51,10 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
   // Kept configurable so a direct LAN deployment cannot spoof X-Forwarded-* headers.
   app.set('trust proxy', config.trustProxy);
   const tokenStore = createTokenStore(Config.tokenFilePath(config.configDir));
-  const artworkCache = createArtworkCache(config.configDir);
-  const libraryIndex = createLibraryIndex(config, artworkCache);
+  // Generation settings are part of the key, so changing them regenerates every frame.
+  const artworkCache = createArtworkCache(config.configDir, config.videoArtworkGenerate ? `:${config.videoArtworkOffset}` : '');
+  const artworkResolver = createArtworkResolver(config, artworkCache);
+  const libraryIndex = createLibraryIndex(config, artworkCache, artworkResolver);
   app.tokenStore = tokenStore;
   app.requireAuth = Boolean(config.password);
   app.use(createRequestLogger());
@@ -62,7 +65,7 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
   app.use('/api/config', createConfigRouter(client, mediaAccessToken));
   app.use('/api/library', createLibraryRouter(libraryIndex));
   app.use('/api/media', createMediaRouter(config, libraryIndex));
-  app.use('/api/artwork', createArtworkRouter(config, artworkCache));
+  app.use('/api/artwork', createArtworkRouter(config, artworkCache, artworkResolver));
   app.use('/api/funscript', createFunscriptRouter(config));
   app.use('/api/version', createVersionRouter());
   app.use('/api/docs', createDocsRouter(path.join(__dirname, '..', '..', 'docs')));

@@ -38,7 +38,7 @@ export interface ArtworkCache {
   prune(validKeys: Set<string>): void;
 }
 
-export function createArtworkCache(configDir: string): ArtworkCache {
+export function createArtworkCache(configDir: string, salt = ''): ArtworkCache {
   const dir = Config.artworkCacheDirPath(configDir);
   let dirReady = false;
 
@@ -56,7 +56,7 @@ export function createArtworkCache(configDir: string): ArtworkCache {
 
   return {
     key(trackId: string, artworkVersion: number): string {
-      return crypto.createHash('sha1').update(`${trackId}:${artworkVersion}`).digest('hex');
+      return crypto.createHash('sha1').update(`${trackId}:${artworkVersion}${salt}`).digest('hex');
     },
 
     read(key: string): ArtworkCacheEntry | null {
