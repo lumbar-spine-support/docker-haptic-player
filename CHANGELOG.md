@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.14.0...v0.15.0) (2026-10-05)
+
+
+### Features
+
+* **config:** make portrait card size configurable ([cb72dad](https://github.com/lumbar-spine-support/docker-haptic-player/commit/cb72dade58dad35c75b0b67889a8898d5a622181))
+
 ## [0.14.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.13.0...v0.14.0) (2026-10-04)
 
 
