@@ -150,6 +150,7 @@ export interface ClientSettings {
   funscriptInterpolationMethod: InterpolationMethod;
   funscriptColorGradient: boolean;
   cardViewForceSquareArtwork: boolean;
+  cardViewLargePortraitArtwork: boolean;
   /** Process-local token allowing a remote playback receiver to fetch media only. */
   mediaAccessToken: string | null;
 }

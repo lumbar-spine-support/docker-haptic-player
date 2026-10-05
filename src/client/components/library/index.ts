@@ -117,6 +117,7 @@ export class Library {
     private currentViewMode: LibraryViewMode = 'grid';
     private loaded = false;
     private forceSquareArtwork = false;
+    private largePortraitArtwork = true;
 
     constructor(callbacks: LibraryCallbacks) {
         this.callbacks = callbacks;
@@ -432,6 +433,10 @@ export class Library {
 
     setForceSquareArtwork(force: boolean): void {
         this.forceSquareArtwork = force;
+    }
+
+    setLargePortraitArtwork(large: boolean): void {
+        this.largePortraitArtwork = large;
     }
 
     setActiveTags(tags: string[]): void {
@@ -833,7 +838,7 @@ export class Library {
             if (img.src === FALLBACK_ART_DATA_URI) return;
             const aspect = classifyArtAspect(img.naturalWidth, img.naturalHeight);
             if (aspect === 'landscape') col.className = `${CARD_LANDSCAPE_GRID_CLASSES} track-card-landscape`;
-            else if (aspect === 'portrait') col.classList.add('track-card-portrait');
+            else if (aspect === 'portrait' && this.largePortraitArtwork) col.classList.add('track-card-portrait');
         };
         if (img.complete && img.naturalWidth > 0) apply();
         else img.addEventListener('load', apply, { once: true });

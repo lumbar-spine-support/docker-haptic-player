@@ -57,6 +57,7 @@ const FALLBACK_SETTINGS: ClientSettings = {
   funscriptInterpolationMethod: 'pchip',
   funscriptColorGradient: false,
   cardViewForceSquareArtwork: false,
+  cardViewLargePortraitArtwork: true,
   mediaAccessToken: null,
 };
 
@@ -183,6 +184,7 @@ class App {
     setMediaAccessToken(this.settings.mediaAccessToken);
     this.applySeekInterval();
     this.library.setForceSquareArtwork(this.settings.cardViewForceSquareArtwork);
+    this.library.setLargePortraitArtwork(this.settings.cardViewLargePortraitArtwork);
     this.library.bindControls();
     bindIntifaceSettings(this.buttplug, this.settings.autoReconnectIntiface);
     bindToggle('#blur-content-toggle', 'happy-blur-content', this.settings.blurContent,

@@ -59,6 +59,7 @@ export namespace Config {
     funscriptInterpolationMethod: string;
     funscriptColorGradient: boolean;
     cardViewForceSquareArtwork: boolean;
+    cardViewLargePortraitArtwork: boolean;
   }
 
   export interface Config {
@@ -135,6 +136,7 @@ export namespace Config {
     funscriptInterpolationMethod: DEFAULT_INTERPOLATION_METHOD,
     funscriptColorGradient: false,
     cardViewForceSquareArtwork: false,
+    cardViewLargePortraitArtwork: false,
   };
 
   export const DEFAULTS = { ...DEFAULT_SERVER_CONFIG, ...DEFAULT_CLIENT_CONFIG };
@@ -158,6 +160,7 @@ export namespace Config {
     funscriptInterpolationMethod: `How positions between funscript points are computed for haptics and the timeline: ${INTERPOLATION_METHODS.join(', ')}. none holds each position until the next point; strokers follow pchip as linear`,
     funscriptColorGradient: 'Colour the timeline graph on a heat scale by movement speed (blue = slow, red = fast). Can be toggled in web interface.',
     cardViewForceSquareArtwork: "If true, the media's artwork is reduced to a square. This ensures a consistent layout.",
+    cardViewLargePortraitArtwork: 'If true, portrait artwork takes up two rows.',
     funscriptSuffixSeparator: 'Single character that separates filename from funscript suffix',
     funscriptSuffixStroker: 'Suffix associated with stroker funscript',
     funscriptSuffixButtplug: 'Suffix associated with buttplug funscript',
@@ -188,6 +191,7 @@ export namespace Config {
     funscriptInterpolationMethod: 'FUNSCRIPT_INTERPOLATION_METHOD',
     funscriptColorGradient: 'FUNSCRIPT_COLOR_GRADIENT',
     cardViewForceSquareArtwork: 'CARD_VIEW_FORCE_SQUARE_ARTWORK',
+    cardViewLargePortraitArtwork: 'CARD_VIEW_LARGE_PORTRAIT_ARTWORK',
     funscriptSuffixSeparator: 'FUNSCRIPT_SUFFIX_SEPARATOR',
     funscriptSuffixStroker: 'FUNSCRIPT_SUFFIX_STROKER',
     funscriptSuffixButtplug: 'FUNSCRIPT_SUFFIX_BUTTPLUG',

@@ -22,6 +22,7 @@ export function createConfigRouter(clientConfig: Config.ClientConfig, mediaAcces
       : DEFAULT_INTERPOLATION_METHOD,
     funscriptColorGradient: Boolean(clientConfig.funscriptColorGradient),
     cardViewForceSquareArtwork: Boolean(clientConfig.cardViewForceSquareArtwork),
+    cardViewLargePortraitArtwork: Boolean(clientConfig.cardViewLargePortraitArtwork),
     mediaAccessToken: mediaAccessToken ?? null,
   };
   router.get('/', (_req, res) => {
