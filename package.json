@@ -45,7 +45,7 @@
     "esbuild-plugin-tsconfig-paths": "^1.0.2",
     "nodemon": "^3.0.3",
     "playwright": "^1.63.0",
-    "sass": "^1.89.2",
+    "sass": "^1.105.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.13",
     "typescript": "^5.3.3"
