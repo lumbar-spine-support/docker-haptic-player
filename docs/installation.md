@@ -33,7 +33,9 @@ Start the app with `docker compose up`. After a few seconds it is reachable at `
 
 On first start a `settings.yaml` is created in the `/config` mount. You may also pass those settings as environment variables to the Docker container as shown above with `JELLYFIN_URL`. To change the port, change the host side of the port mapping; `PORT` is only needed when running with host networking. The image has a built-in health check, so `docker ps` shows the container as `healthy` once it answers requests. See [Configuration](configuration.md) for details on each setting.
 
-HAPPY additionally guards its own page with `PASSWORD`, which defaults to `happy`. Set it to an empty string to rely on the Jellyfin sign-in alone; see [Authentication](authentication.md).
+HAPPY has no accounts of its own: who may see what is decided by Jellyfin's users and their library access, see [Authentication](authentication.md).
+
+The HAPPY server itself only contacts Jellyfin to check sign-ins for the DG-Lab relay. If the HAPPY container reaches Jellyfin at a different address than your browser does (for example `http://jellyfin:8096` on a shared Docker network), set `JELLYFIN_INTERNAL_URL` to that address.
 
 ## Jellyfin plugin
 

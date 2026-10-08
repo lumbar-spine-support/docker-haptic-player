@@ -8,7 +8,7 @@ The Coyote talks Bluetooth only to the **DG-Lab app** on a phone. The app, in tu
 
 ```mermaid
 flowchart LR
-  Browser["Browser tab<br/>CoyoteBackend + DglabV4Socket"] <-- "wss /ws/dglab<br/>cookie auth" --> Relay["HAPPY server<br/>dglabRelay"]
+  Browser["Browser tab<br/>CoyoteBackend + DglabV4Socket"] <-- "wss /ws/dglab<br/>Jellyfin token as subprotocol" --> Relay["HAPPY server<br/>dglabRelay"]
   Phone["DG-Lab app"] <-- "wss /ws/dglab?tid=…<br/>tid is the credential" --> Relay
   Phone <-- Bluetooth --> Coyote["Coyote 3.0"]
 ```
@@ -34,8 +34,8 @@ sequenceDiagram
   U->>UI: press Connect
   UI->>CB: connect()
   CB->>SK: connect(ws(s)://host/ws/dglab)
-  SK->>R: WebSocket upgrade with auth cookie
-  R->>R: no tid: verify cookie, else 401
+  SK->>R: WebSocket upgrade<br/>protocols: happy, jellyfin.TOKEN
+  R->>R: no tid: verify the token with Jellyfin<br/>(GET /Users/Me), else 401
   R->>R: take the single controller slot, close previous tab
   R-->>SK: hello(clientId)
   SK-->>UI: state connected
@@ -76,7 +76,7 @@ The deep link opens the DG-Lab app directly (`pairingDeepLink`). The QR code use
 
 ## The relay's view of a controller
 
-There is one controller slot with a random id created at server start. Every authenticated tab gets that **same** id, so neither a reload nor switching to another device requires pairing again. A server restart does.
+There is one controller slot with a random id created at server start. Every tab signed in to Jellyfin gets that **same** id, so neither a reload nor switching to another device requires pairing again. A server restart does.
 
 ```mermaid
 stateDiagram-v2
@@ -99,7 +99,7 @@ The idle timeout is sent as an `idle_timeout` frame, but the client does not han
 
 | Situation | Result |
 | --- | --- |
-| Controller without a valid cookie (auth enabled) | HTTP 401 at the upgrade |
+| Controller without a valid Jellyfin token, or Jellyfin unreachable | HTTP 401 at the upgrade |
 | Path other than `/ws/dglab` | HTTP 404 at the upgrade |
 | App with an unknown `tid` | closed with 4001 `controller_not_found` |
 | A second app connects | the old app is closed with 4000 `replaced`, the controller gets `client_disconnected` then `client_attached` |
@@ -126,5 +126,5 @@ The idle timeout is sent as an `idle_timeout` frame, but the client does not han
 | Deep link, QR payload | [haptic/dglab/v4/pairing.ts](../../../src/client/components/haptic/dglab/v4/pairing.ts) |
 | Carrier waveform | [haptic/dglab/waveform.ts](../../../src/client/components/haptic/dglab/waveform.ts) |
 | Relay | [src/server/services/dglabRelay.ts](../../../src/server/services/dglabRelay.ts) |
-| Upgrade wiring and auth | `attachWebSocketUpgradeHandlers` in [src/server/index.ts](../../../src/server/index.ts) |
+| Upgrade wiring and auth | `attachWebSocketUpgradeHandlers` in [src/server/index.ts](../../../src/server/index.ts), [services/jellyfinAuth.ts](../../../src/server/services/jellyfinAuth.ts) |
 | User docs | [docs/dg-lab.md](../../dg-lab.md) |

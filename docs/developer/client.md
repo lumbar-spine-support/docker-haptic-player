@@ -2,7 +2,7 @@
 
 # Client
 
-The client is a single-page app bundled from [src/client/index.ts](../../src/client/index.ts). It uses no framework: plain TypeScript classes, Bootstrap for layout and Video.js 10 (`<video-player>`) for the players. The login page is a separate bundle from [src/client/login.ts](../../src/client/login.ts).
+The client is a single-page app bundled from [src/client/index.ts](../../src/client/index.ts). It uses no framework: plain TypeScript classes, Bootstrap for layout and Video.js 10 (`<video-player>`) for the players. Signing in happens inside the app (the Jellyfin sign-in card); there is no separate login page.
 
 ## Object graph
 
@@ -81,16 +81,17 @@ sequenceDiagram
   A->>A: interpolation method, seek step
   A->>A: bind library, Intiface settings, toggles, zoom
   A->>A: mount Intiface DeviceAssignment, initHapticControls
-  opt dglabEnabled
-    A->>A: initDglab: new CoyoteBackend, sync engine,<br/>DeviceAssignment, bindPairingPanel
-  end
-  A->>A: playback.onActiveTrack(onActiveTrackChanged)
   A->>A: connectJellyfin(): no jellyfinUrl → notice, stop
   opt no stored Jellyfin session
     A->>J: ensureSignedIn: sign-in card →<br/>POST /Users/AuthenticateByName
     J-->>A: AccessToken, User
   end
   A->>A: useJellyfin(connection, suffixes, chapter priority)
+  opt dglabEnabled
+    A->>A: initDglab: new CoyoteBackend(token callback), sync engine,<br/>DeviceAssignment, bindPairingPanel
+  end
+  A->>A: playback.onActiveTrack(onActiveTrackChanged)
+  A->>A: bindLogout()
   A->>J: loadLibrary(): GET /Items, /Happy/Funscripts, playlists
   J-->>A: items → buildLibrary() → LibraryResponse
   A->>A: router.start()
@@ -120,7 +121,7 @@ Intiface drops are retried by `bindIntifaceSettings()` with backoff (1 s doublin
 
 `chaptersVttUrl()` and `storyboardVttUrl()` build WebVTT in the browser (`shared/webvtt.ts`) and return `blob:` URLs, cached per chapter list and per track. Blob URLs are same-origin, so `<track>` needs no CORS. Media and canvas images are cross-origin, so both `<video>` elements in `public/index.html` and `loadImage()` (playlist collage) use `crossorigin="anonymous"`; WebGL (VR) and `canvas.toDataURL()` need it.
 
-The logout button (`bindLogout()`, bound after the sign-in) shows whenever there is a Jellyfin session or HAPPY's password is on; `logout()` signs out of Jellyfin and then of HAPPY when required.
+The logout button (`bindLogout()`, bound after the sign-in) shows whenever there is a Jellyfin session; `logout()` signs out of Jellyfin and reloads, which shows the sign-in card. `initDglab()` runs after the sign-in as well: `CoyoteBackend` gets the token through a callback and offers it to the relay as the `jellyfin.<token>` WebSocket subprotocol, so the DG-Lab auto-reconnect never dials without one.
 
 ## Routing
 

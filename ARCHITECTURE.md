@@ -24,7 +24,7 @@ forwards opaque payloads. It never parses a device command, so all haptic logic 
 the browser and all safety limits still live in the DG-Lab app.
 
 HAPPY is single-user, so the relay has exactly one controller slot with a random id created at
-startup. Any authenticated tab that connects takes the slot (the previous one is closed as
+startup. Any tab signed in to Jellyfin that connects takes the slot (the previous one is closed as
 `replaced`), so the pairing URL survives reloads and switching devices. The slot also outlives
 its socket by a grace period: switching to the DG-Lab app backgrounds the browser and mobile
 Chrome may close the WebSocket, so the relay keeps the app, accepts one that arrives meanwhile,
@@ -36,14 +36,14 @@ and hands it to the tab when it returns. A newly connecting app likewise replace
 
 - Load runtime configuration from `config/settings.yaml`
 - Expose API routes for:
-  - `/api/auth/login`, `/api/auth/logout`, `/api/auth/status`
   - `/api/config` (the client-visible half of the configuration only, including `JELLYFIN_URL`)
   - `/api/version`
   - `/api/docs` (the user docs shown in the app)
   - `/ws/dglab` (WebSocket relay, only when `DGLAB_ENABLED` is on)
 - Serve compiled frontend assets from `public/`
-- Gate every asset and API route behind HAPPY's own access token while `PASSWORD` is set
-- Write a level-filtered log of startup, connection, and authentication events to the docker console
+- Serve the shell, `/api/config`, `/api/version` and `/api/docs` publicly: none of them holds media
+- Verify the Jellyfin token of HAPPY tabs on the `/ws/dglab` upgrade
+- Write a level-filtered log of startup and connection events to the docker console
 
 ### Client responsibilities
 
@@ -277,55 +277,41 @@ Jellyfin scales them on the first request and caches the result.
 
 ## Authentication
 
-There are two independent gates:
+Jellyfin is the only account system. The in-app Jellyfin sign-in card (see
+[Jellyfin data layer](#jellyfin-data-layer)) is the one sign-in; users and their library access are
+managed in Jellyfin, and the plugin only serves scripts of items the signed-in user can see.
+HAPPY keeps no passwords, tokens or cookies of its own.
 
-- **Jellyfin sign-in** (see [Jellyfin data layer](#jellyfin-data-layer)) controls access to media,
-  artwork and funscripts. Users and their library access are managed in Jellyfin; the plugin only
-  serves scripts of items the signed-in user can see.
-- **HAPPY's own password** (`PASSWORD`) optionally guards the HAPPY page itself. It is a single
-  shared password without user management, described below. Dropping it in favour of the Jellyfin
-  sign-in alone is planned.
+- The HAPPY server serves the shell, `/api/config`, `/api/version` and `/api/docs` without
+  authentication. They hold no media; everything else comes from Jellyfin and needs the token.
+- The logout button (shown whenever there is a Jellyfin session) calls `POST /Sessions/Logout`
+  and reloads the page, which shows the sign-in card again.
+- A Jellyfin `401` on any client request drops the stored session and reloads into the sign-in card.
 
-The logout button signs out of Jellyfin and, when `PASSWORD` is set, revokes HAPPY's token too.
+### DG-Lab relay
 
-### Password flow
+Express middleware never runs on WebSocket upgrades, so `attachWebSocketUpgradeHandlers()` in
+`src/server/index.ts` authenticates them:
 
-1. `createApp()` mounts `/api/auth` and then `createAuthMiddleware()` **before** `express.static`,
-   so `index.html`, `/js/app.js` and every `/api/*` route are unreachable without a token.
-2. `POST /api/auth/login` compares the submitted password against `PASSWORD` in constant time,
-   issues a 256-bit opaque token and returns it in an `HttpOnly`, `SameSite=Lax` cookie.
-3. Subsequent requests to the HAPPY server are authorized by that cookie, which the browser
-   sends with every asset request without any client code.
-4. Rejected requests get `401 { error }`, or a `302` to `/auth/` for browser navigations.
-   The client logs the failure to the console before redirecting.
+1. Browsers cannot set headers on a WebSocket, so a HAPPY tab offers its Jellyfin token as a
+   subprotocol: `new WebSocket(url, ['happy', 'jellyfin.<token>'])` (`DGLAB_PROTOCOL`,
+   `DGLAB_AUTH_PROTOCOL_PREFIX` in `src/shared/dglab.ts`). The token never appears in a URL or a log.
+2. `tokenFromProtocols()` reads it from `Sec-WebSocket-Protocol`; the verifier from
+   `createJellyfinTokenVerifier()` (`src/server/services/jellyfinAuth.ts`) checks it with
+   `GET /Users/Me` on `JELLYFIN_INTERNAL_URL`, or `JELLYFIN_URL` when that is empty. Valid tokens
+   are cached for 60 s and rejections for 5 s; an unreachable Jellyfin (5 s timeout) is not cached.
+   Anything else is refused with `401`.
+3. The relay's `handleProtocols` selects `happy`, so the token is never echoed in the handshake.
+4. DG-Lab apps connect with `?tid=` and no token; the unguessable `tid` is their credential.
 
-### Token persistence
+`initDglab()` runs after the Jellyfin sign-in so the relay's auto-reconnect already has a token.
+Tests replace the verifier through `createApp(…, { verifyJellyfinToken })` (`AppDependencies`).
 
-Tokens are appended to `tokens.txt` inside the config directory (default `/config/tokens.txt`, mode `0600`) as
-`<token> <issued-at> <label>`. The file lives in the `/config` mount, so sessions survive
-container restarts and rebuilds. The store re-reads the file whenever its mtime changes:
-**deleting `/config/tokens.txt` revokes every session immediately, without a restart.**
-Tokens do not expire on their own.
+### Reverse proxies
 
-### Deployment modes
-
-`TRUST_PROXY` is the number of reverse-proxy hops Express should trust:
-
-- `0` (default) — direct LAN exposure over plain HTTP. `X-Forwarded-*` headers are ignored,
-  the session cookie is issued without `Secure` (a `Secure` cookie would be dropped by the
-  browser), and the login throttle keys on the real socket address.
-- `1` — behind nginx/Traefik. `X-Forwarded-Proto: https` marks the cookie `Secure`, and
-  `X-Forwarded-For` resolves the client IP.
-
-### Files
-
-- `src/server/middleware/auth.ts` — the guard, allow-list and cookie options
-- `src/server/middleware/loginThrottle.ts` — in-process per-IP backoff on the login endpoint
-- `src/server/services/tokenStore.ts` — issue/verify/revoke against the plain-text file
-- `src/server/routes/auth.ts` — login, logout and status endpoints
-- `public/auth/` — standalone login page, deliberately outside the bundle
-
-Setting `PASSWORD` to an empty string disables the guard entirely.
+`TRUST_PROXY` is the number of reverse-proxy hops Express should trust. It only decides which client
+address the log shows: `0` (default) logs the socket address and ignores `X-Forwarded-*`, `1`
+(behind nginx/Traefik) resolves `X-Forwarded-For`.
 
 ## Device connection flow
 
@@ -385,8 +371,8 @@ What each level covers:
 | Level | Content |
 | --- | --- |
 | `error` | Unhandled request errors, failure to listen on the port |
-| `warn` | Missing `JELLYFIN_URL`, read-only config mount, failed logins, throttled clients, authentication disabled |
-| `info` | Listening address, first request of a client, login/logout, redirect to the login page |
+| `warn` | Missing `JELLYFIN_URL`, read-only config mount, Jellyfin unreachable or erroring while verifying a relay token |
+| `info` | Listening address, first request of a client, DG-Lab relay enabled |
 | `debug` | Every HTTP request with status and duration, the effective configuration |
 
 Connection logging lives in `src/server/middleware/requestLog.ts`. Logging every request at `info`
@@ -408,7 +394,7 @@ src/
     jellyfin/           Jellyfin session, sign-in card, library loader, mapper, URL builders
     utils/              Formatting and DOM helpers
     index.ts            Main SPA/controller
-  server/               Express app, routes, config, auth and the DG-Lab relay
+  server/               Express app, routes, config, Jellyfin token check and the DG-Lab relay
   shared/               Shared types and utility logic used by client/server
 test/                   Unit tests (server, client) and opt-in Jellyfin integration tests
 dist/                   Compiled server output

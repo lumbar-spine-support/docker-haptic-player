@@ -11,7 +11,7 @@ These pages explain how HAPPY works inside: which modules exist, how they talk t
 | Page | What you learn |
 | --- | --- |
 | [architecture.md](architecture.md) | The big picture: processes, network connections, module layers, build and deployment |
-| [server.md](server.md) | Express pipeline, configuration, HAPPY's password gate, WebSocket upgrades, DG-Lab relay |
+| [server.md](server.md) | Express pipeline, configuration, WebSocket upgrades and their Jellyfin token check, DG-Lab relay |
 | [client.md](client.md) | App bootstrap, Jellyfin data layer, routing, the two-player playback model |
 | [haptics.md](haptics.md) | Backends, channels and features, the funscript pipeline, the sync loop, the e-stim sandbox |
 | [jellyfin-plugin.md](jellyfin-plugin.md) | The Jellyfin companion plugin: funscript endpoints, matching, building, testing against a real Jellyfin |
@@ -22,7 +22,7 @@ Each use case follows one user action from start to finish, across client, serve
 
 | Use case | Covers |
 | --- | --- |
-| [Log in](use-cases/login.md) | Jellyfin sign-in, HAPPY password and token cookie, logout |
+| [Log in](use-cases/login.md) | Jellyfin sign-in, expired tokens, logout, the relay's token check |
 | [Load the library from Jellyfin](use-cases/library-load.md) | Items, funscript listing, playlists, client-side mapping, new files |
 | [Browse and play a track](use-cases/browse-and-play.md) | Opening a track, pressing play, player handoff, autoplay |
 | [Connect Intiface and a toy](use-cases/intiface-pairing.md) | Intiface connection, device discovery, disconnects |

@@ -2,24 +2,26 @@
 
 # Use case: Log in
 
-**Goal:** a user opens HAPPY on a new device, signs in and lands on the page they asked for.
+**Goal:** a user opens HAPPY on a new device, signs in with their Jellyfin account and lands on the page they asked for.
 
-There are two sign-ins:
+There is exactly one sign-in: Jellyfin's. The HAPPY server keeps no accounts. It serves the shell, `/api/config`, `/api/version` and `/api/docs` without authentication because none of them holds media; media, artwork and funscripts come from Jellyfin and need the user's token.
 
-1. **HAPPY's password** (`PASSWORD`) guards the HAPPY page itself. It is on when `PASSWORD` is not empty. With an empty password, every request to the HAPPY server is allowed and `/api/auth/status` reports `required: false`.
-2. **The Jellyfin sign-in** gives access to media, artwork and funscripts. It always applies.
-
-## Jellyfin sign-in
+## Sign in
 
 ```mermaid
 sequenceDiagram
   autonumber
   actor U as User
   participant A as App (index.ts)
+  participant S as HAPPY server
   participant C as JellyfinConnection
   participant LS as localStorage
   participant J as Jellyfin
 
+  U->>S: GET /?view=player&id=abc
+  S-->>A: index.html, app.js (public)
+  A->>S: GET /api/config
+  S-->>A: ClientSettings incl. jellyfinUrl
   A->>C: new JellyfinConnection(jellyfinUrl, reload)
   C->>LS: happy-jellyfin-session
   alt stored session for this server
@@ -37,77 +39,58 @@ sequenceDiagram
       C-->>A: JellyfinSignInError, card shows the message
     end
   end
-  A->>A: useJellyfin(), loadLibrary()
+  A->>A: useJellyfin(), loadLibrary(), router.start()
+  Note over A: the original URL is still in the address bar,<br/>so the requested page opens
 ```
 
 | Situation | Behaviour |
 | --- | --- |
-| Token rejected later (401) | `JellyfinConnection.request()` forgets the session and reloads; the card appears again |
-| Logout | `logout()` → `POST /Sessions/Logout` to Jellyfin, then HAPPY's own logout when `PASSWORD` is on, otherwise a reload |
-| Chromecast / AirPlay | The stream URL carries the Jellyfin token as `api_key`, so receivers need no cookie |
+| No `JELLYFIN_URL` configured | `connectJellyfin()` shows `showMissingServerNotice()` and stops; nothing else loads |
+| Token rejected later (401) | `JellyfinConnection.request()` forgets the session and reloads; the sign-in card appears again |
+| Session ended in Jellyfin (*Dashboard → Devices*) or user removed | The next request gets a 401, see above |
+| Logout | The lock button runs `logout()` → `POST /Sessions/Logout` to Jellyfin, then a reload, which shows the card |
+| Chromecast / AirPlay | The stream URL carries the Jellyfin token as `api_key`, so receivers need no sign-in of their own |
 | Device list | `DeviceId` is a random id stored once per browser (`happy-jellyfin-device-id`), so Jellyfin lists one device per browser |
 
-## HAPPY password: happy path
+## DG-Lab relay
+
+The relay is the only HAPPY server feature that needs a signed-in user. `initDglab()` runs after the sign-in, so `CoyoteBackend` can hand the token to every relay connection.
 
 ```mermaid
 sequenceDiagram
   autonumber
-  actor U as User
-  participant B as Browser
-  participant MW as Auth middleware
-  participant AR as Auth router
-  participant TS as tokenStore<br/>tokens.txt
+  participant B as Browser (CoyoteBackend)
+  participant D as attachWebSocketUpgradeHandlers
+  participant V as jellyfinAuth verifier
+  participant J as Jellyfin
+  participant R as DglabRelay
 
-  U->>B: open /?view=player&id=abc
-  B->>MW: GET /?view=player&id=abc (no cookie)
-  MW-->>B: 302 → /auth/?returnTo=original URL
-  B->>MW: GET /auth/ (public prefix)
-  MW-->>B: login page + login.js
-  B->>AR: GET /api/auth/status
-  AR-->>B: required: true, authenticated: false
-  U->>B: type password, submit
-  B->>AR: POST /api/auth/login password
-  AR->>AR: loginThrottle: not blocked
-  AR->>AR: timing-safe compare
-  AR->>TS: issue(user agent)
-  TS->>TS: append "token timestamp label", mode 0600
-  TS-->>AR: token
-  AR-->>B: 200, Set-Cookie happy_token (httpOnly, SameSite=Lax, 10 years)
-  B->>B: safeReturnTo(): only same-origin paths
-  B->>MW: GET /?view=player&id=abc (cookie)
-  MW->>TS: verify(token)
-  TS-->>MW: valid
-  MW-->>B: app
+  B->>D: upgrade /ws/dglab<br/>Sec-WebSocket-Protocol: happy, jellyfin.TOKEN
+  D->>D: no ?tid= → tokenFromProtocols()
+  D->>V: verifyJellyfinToken(token)
+  alt cached verdict
+    V-->>D: valid / invalid
+  else
+    V->>J: GET /Users/Me (JELLYFIN_INTERNAL_URL or JELLYFIN_URL)
+    J-->>V: 200 / 401
+    V-->>D: valid / invalid (cached 60 s / 5 s)
+  end
+  alt valid
+    D->>R: handleUpgrade()
+    R-->>B: 101, protocol "happy", then hello
+  else invalid, missing or Jellyfin unreachable
+    D-->>B: 401
+  end
 ```
 
-## HAPPY password: other paths
-
-```mermaid
-flowchart TD
-  Submit(["POST /api/auth/login"]) --> Blocked{"IP blocked?"}
-  Blocked -- yes --> R429["429 + Retry-After<br/>login page counts down"]
-  Blocked -- no --> Match{"password matches?"}
-  Match -- no --> Fail["recordFailure(ip)"] --> Five{"5th failure?"}
-  Five -- no --> R401["401 Invalid password"]
-  Five -- yes --> Block["block for 60 s × 2^(n-1),<br/>max 15 min"] --> R401
-  Match -- yes --> Reset["reset(ip)"] --> Issue["issue token, set cookie"] --> R200["200"]
-```
-
-| Situation | Behaviour |
-| --- | --- |
-| Already signed in and opens `/auth/` | `skipIfSignedIn()` sees `authenticated: true` and redirects to `returnTo` |
-| An API call returns 401 later (token revoked) | `handleUnauthorized()` in `api.ts` redirects to `/auth/?returnTo=…` once |
-| Logout | Jellyfin sign-out first, then `POST /api/auth/logout` → `tokenStore.revoke(token)` + clear cookie → login page |
-| Admin revokes a device | Delete its line from `tokens.txt`. The store re-reads the file when its mtime changes |
-| DG-Lab relay | The browser's WebSocket upgrade carries the cookie. The app side uses the unguessable `tid` instead. See [Pair a DG-Lab Coyote](coyote-pairing.md) |
+The relay's `handleProtocols` selects `happy`, so the token is never echoed in the handshake, and because it travels as a subprotocol it never appears in a URL or a log. DG-Lab apps connect with `?tid=` and no token; the unguessable `tid` is their credential (see [Pair a DG-Lab Coyote](coyote-pairing.md)).
 
 ## Code map
 
-| Step | Files |
+| Topic | Files |
 | --- | --- |
-| Gatekeeping | [middleware/auth.ts](../../../src/server/middleware/auth.ts) |
-| Login, logout, status | [routes/auth.ts](../../../src/server/routes/auth.ts), [middleware/loginThrottle.ts](../../../src/server/middleware/loginThrottle.ts) |
-| Token persistence | [services/tokenStore.ts](../../../src/server/services/tokenStore.ts) |
-| Login page | [src/client/login.ts](../../../src/client/login.ts), [public/auth/index.html](../../../public/auth/index.html) |
-| 401 handling in the app | [src/client/api.ts](../../../src/client/api.ts) |
-| Jellyfin sign-in | [jellyfin/connection.ts](../../../src/client/jellyfin/connection.ts), [jellyfin/signIn.ts](../../../src/client/jellyfin/signIn.ts), [src/client/index.ts](../../../src/client/index.ts) (`connectJellyfin`, `bindLogout`) |
+| Session, sign-in, sign-out | [jellyfin/connection.ts](../../../src/client/jellyfin/connection.ts), [jellyfin/signIn.ts](../../../src/client/jellyfin/signIn.ts), [jellyfin/signIn.html](../../../src/client/jellyfin/signIn.html) |
+| App wiring, logout button | [src/client/index.ts](../../../src/client/index.ts) (`connectJellyfin`, `bindLogout`), [src/client/api.ts](../../../src/client/api.ts) (`logout`) |
+| Relay token check | [src/server/index.ts](../../../src/server/index.ts) (`attachWebSocketUpgradeHandlers`, `tokenFromProtocols`), [services/jellyfinAuth.ts](../../../src/server/services/jellyfinAuth.ts), [src/shared/dglab.ts](../../../src/shared/dglab.ts) |
+| Relay side of the browser | [dglab/coyoteBackend.ts](../../../src/client/components/haptic/dglab/coyoteBackend.ts) |
+| Tests | [test/server/jellyfinAuth.test.ts](../../../test/server/jellyfinAuth.test.ts), [test/server/dglabRelay.test.ts](../../../test/server/dglabRelay.test.ts), [test/integration/jellyfin/dglab.test.ts](../../../test/integration/jellyfin/dglab.test.ts) |

@@ -5,7 +5,7 @@
 - [Configuration](configuration.md)
   <br>Description of available settings / environment variables
 - [Authentication](authentication.md)
-  <br>Jellyfin sign-in and the optional HAPPY password
+  <br>Signing in with your Jellyfin account
 - [Media Library](library.md)
   <br>Jellyfin libraries, funscripts, tags, descriptions, chapters and VR
 - [Intiface Central Integration](intiface.md)

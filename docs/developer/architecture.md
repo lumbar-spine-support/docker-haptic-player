@@ -19,8 +19,9 @@ flowchart LR
   end
 
   subgraph container["HAPPY container (Node.js)"]
-    Express["Express app<br/>static files, /api/config,<br/>/api/version, /api/docs, /api/auth"]
+    Express["Express app, public<br/>static files, /api/config,<br/>/api/version, /api/docs"]
     Relay["DG-Lab relay<br/>WebSocket /ws/dglab<br/>only if DGLAB_ENABLED"]
+    TokenCheck["Jellyfin token check<br/>jellyfinAuth.ts"]
   end
 
   subgraph jellyfin["Jellyfin server"]
@@ -29,14 +30,16 @@ flowchart LR
   end
 
   MediaVol[("Jellyfin libraries<br/>audio, video, .funscript")]
-  ConfigVol[("/config<br/>settings.yaml, tokens.txt")]
+  ConfigVol[("/config<br/>settings.yaml")]
 
   Browser -- "HTTP: UI, config, docs" --> Express
   Browser -- "HTTP, CORS: library, streams,<br/>art, trickplay" --> JF
   Browser -- "HTTP, CORS: funscripts" --> Plugin
   Browser -- "WebSocket: Buttplug protocol" --> Intiface
   Intiface -- "BLE / USB" --> Toys
-  Browser -- "WebSocket: controller" --> Relay
+  Browser -- "WebSocket: controller,<br/>subprotocol jellyfin.TOKEN" --> Relay
+  Relay -. "upgrade" .-> TokenCheck
+  TokenCheck -- "GET /Users/Me" --> JF
   DGApp -- "WebSocket: app, ?tid=" --> Relay
   DGApp -- BLE --> Coyote
   Express --> ConfigVol
@@ -59,7 +62,6 @@ Key points:
 flowchart TB
   subgraph client["src/client (browser, bundled by esbuild)"]
     AppIndex["index.ts<br/>App: wiring, routing, views"]
-    Login["login.ts<br/>login page"]
     Player["components/player<br/>PlaybackSession, PlaybackQueue,<br/>PlaybackController, footer"]
     LibraryUI["components/library<br/>Library grid, filters, tags"]
     Haptic["components/haptic<br/>backends, device UI, visualization"]
@@ -83,10 +85,10 @@ flowchart TB
 
   subgraph server["src/server (Node.js, compiled by tsc)"]
     ServerIndex["index.ts<br/>createApp, main"]
-    Middleware["middleware/<br/>auth, loginThrottle, requestLog"]
+    Middleware["middleware/<br/>requestLog"]
     Routes["routes/<br/>one router per /api prefix"]
-    Services["services/<br/>tokenStore, dglabRelay"]
-    SUtils["utils/<br/>logger, errors, cookies"]
+    Services["services/<br/>jellyfinAuth, dglabRelay"]
+    SUtils["utils/<br/>logger, errors"]
   end
 
   AppIndex --> Player & LibraryUI & Haptic & Sync & JellyfinC & Utils
@@ -95,7 +97,7 @@ flowchart TB
   Sync --> Interp
   Haptic --> Interp & HapticsShared
   LibraryUI --> Filtering
-  ServerIndex --> Middleware & Routes
+  ServerIndex --> Middleware & Routes & Services
   Routes --> Services & SUtils
   Routes --> Types
   client -. "types only" .-> Types
@@ -109,7 +111,7 @@ flowchart TB
 | Stream media with range requests, trickplay | Jellyfin | `/Videos/{id}/stream`, `/Audio/{id}/stream` (`static=true`) |
 | Index and serve funscripts | Jellyfin plugin | `FunscriptIndex`, `HappyController` |
 | Jellyfin sign-in, library model | Browser | `JellyfinConnection`, `loadLibrary()`, `buildLibrary()` |
-| Optional HAPPY password, tokens | Server | `middleware/auth.ts`, `routes/auth.ts`, `tokenStore` |
+| Check Jellyfin tokens of relay controllers | Server | `services/jellyfinAuth.ts`, `attachWebSocketUpgradeHandlers()` |
 | Relay DG-Lab messages | Server | `services/dglabRelay.ts` |
 | Routing, views, library grid | Browser | `App` in `client/index.ts`, `Library` |
 | Playback with two players | Browser | `PlaybackSession`, `PlaybackController` |
@@ -131,9 +133,9 @@ flowchart LR
     DevDocs["docs/developer/**"]
   end
 
-  SC -- "esbuild<br/>scripts/build-client.js" --> JS["public/js/app.js<br/>public/auth/login.js"]
+  SC -- "esbuild<br/>scripts/build-client.js" --> JS["public/js/app.js"]
   SS -- "tsc<br/>tsconfig.server.json" --> Dist["dist/server, dist/shared"]
-  SCSS -- sass --> CSS["public/css/app.css<br/>public/auth/auth.css"]
+  SCSS -- sass --> CSS["public/css/app.css"]
   NM -- "scripts/copy-vendor-assets.js" --> Vendor["public/vendor/**"]
 
   JS & CSS & Vendor --> Image[["Docker runtime image"]]

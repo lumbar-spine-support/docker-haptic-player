@@ -29,17 +29,17 @@ NODE_ENV=test node --import tsx --test --test-name-pattern="some name" test/clie
 
 Type-check (no lint script exists): `npx tsc --noEmit -p tsconfig.json` (covers `src`, `@`, `test`, `scripts`). The client config additionally enables `noUnusedLocals`/`noUnusedParameters`: `npx tsc --noEmit -p tsconfig.client.json`.
 
-Server integration tests use `test/helpers/index.ts` (`startTestServer`, which seeds an auth token cookie). Tests against a real Jellyfin live in `test/integration/jellyfin/` and run only via `npm run test:jellyfin` (see `docs/developer/jellyfin-plugin.md`).
+Server integration tests use `test/helpers/index.ts` (`startTestServer`, which injects a stub Jellyfin token verifier that accepts `TEST_JELLYFIN_TOKEN`; use `TEST_APP_DEPENDENCIES` when calling `createApp` yourself). Tests against a real Jellyfin live in `test/integration/jellyfin/` and run only via `npm run test:jellyfin` (see `docs/developer/jellyfin-plugin.md`).
 
 ## Layout and build
 
 - `src/server/` — compiled by `tsc` (`tsconfig.server.json`, Node16 modules) to `dist/`.
-- `src/client/` — bundled by esbuild (`scripts/build-client.js`) into `public/js/app.js`; `src/client/login.ts` is a separate bundle to `public/auth/login.js` because the login page is served before authentication.
+- `src/client/` — bundled by esbuild (`scripts/build-client.js`) into `public/js/app.js`.
 - `src/shared/` — pure code used by both sides (haptic channels, interpolation, VR format detection, chapters/WebVTT, library filtering). Keep it free of DOM and Node APIs.
 - `@/components/videojs/` — Video.js v10 skin, features (chapters, loop, repeat, skip, vr) and UI elements, imported via the `@/*` path alias (tsconfig `paths` + esbuild `alias`).
 - `.html` and `.svg` files are imported as text strings (esbuild `text` loader) and used as templates via `src/client/utils/template.ts`. Tests that transitively import templates must register a `.html` loader (see `test/client/library.test.ts` or `test/helpers/htmlLoader.mjs`).
 - `public/` holds the static shell, SCSS and icons; generated output (`public/js`, `public/vendor`, compiled CSS) is gitignored.
-- `config/` (gitignored) is the local stand-in for the `/config` volume: `settings.yaml` (set `JELLYFIN_URL` there for local runs), `tokens.txt`, and `test.env` for `npm run test:jellyfin`.
+- `config/` (gitignored) is the local stand-in for the `/config` volume: `settings.yaml` (set `JELLYFIN_URL` there for local runs) and `test.env` for `npm run test:jellyfin`.
 - `jellyfin-plugin/` — the HAPPY Jellyfin plugin (.NET 10); build and test with the .NET SDK (`dotnet test jellyfin-plugin/Jellyfin.Plugin.Happy.slnx`, `sh jellyfin-plugin/package.sh`).
 - `docs/*.md` are user docs, served in-app at `/docs` and shipped in the Docker image. `docs/developer/` is dev-only and excluded from the image.
 
@@ -49,7 +49,7 @@ Server integration tests use `test/helpers/index.ts` (`startTestServer`, which s
 - **Two-player model:** the client keeps two `<video-player>` slots (`PlaybackSession` in `src/client/components/player/session.ts`). Browsing loads the idle slot without interrupting playback; only pressing play promotes a slot to active (footer, haptics, Media Session follow). Nothing is re-parented during handoff.
 - **Haptics:** `HapticBackend` interface with `ButtplugClientManager` (Intiface) and `CoyoteBackend` (DG-Lab). Each backend gets its own `FunscriptSync`; `HapticBackendRegistry` is only for combined status/stop-all. Sync style is chosen by the assigned *actuator* type (scalar/rotate interpolate continuously, linear is edge-triggered), not by script type. Channels are `<stem>.<type>[.<sub>].funscript`.
 - **Jellyfin:** the client signs in to Jellyfin and loads the whole library once (`src/client/jellyfin/`; `api.ts` stays the single data facade). Albums, tags (Tags ∪ Genres) and funscript types are derived client-side; chapter/storyboard WebVTT are `blob:` URLs; media plays direct (`static=true`) with `crossorigin="anonymous"`. Never commit the Jellyfin address or credentials used for testing; integration tests assert shapes only.
-- **Auth:** media access goes through the Jellyfin sign-in (token in `localStorage`, `api_key` in stream URLs, which also covers Chromecast). HAPPY's optional shared `PASSWORD` still gates the HAPPY page: the auth middleware is mounted before `express.static`, and tokens are lines in `<configDir>/tokens.txt`.
+- **Auth:** Jellyfin is the only sign-in (token in `localStorage`, `api_key` in stream URLs, which also covers Chromecast). The HAPPY server's shell, `/api/config`, `/api/version` and `/api/docs` are public. The DG-Lab relay checks a HAPPY tab's Jellyfin token, offered as the `jellyfin.<token>` WebSocket subprotocol, with `GET /Users/Me` (`services/jellyfinAuth.ts`); apps pair with the unguessable `tid`.
 - **Configuration:** `src/server/config.ts` defines `DEFAULTS`, `ENV_NAMES` and `DESCRIPTIONS`; env vars override `settings.yaml`. After adding or changing an option, run `npm run docs:env`. Only the client-visible subset is exposed through `/api/config`.
 
 ## Conventions
