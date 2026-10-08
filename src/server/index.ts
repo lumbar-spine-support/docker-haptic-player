@@ -6,15 +6,13 @@ import Stream from 'stream';
 import { Config } from './config';
 import { errorMiddleware } from './utils/errorHandler';
 import { createVersionRouter } from './routes/version';
-import { createAuthRouter } from './routes/auth';
 import { createConfigRouter } from './routes/config';
 import { createDocsRouter } from './routes/docs';
-import { createAuthMiddleware, COOKIE_NAME } from './middleware/auth';
-import { createTokenStore, type TokenStore } from './services/tokenStore';
+import { createJellyfinTokenVerifier, type TokenVerifier } from './services/jellyfinAuth';
 import { DglabRelay } from './services/dglabRelay';
 import { createRequestLogger } from './middleware/requestLog';
 import { createLogger } from './utils/logger';
-import { parseCookies } from './utils/cookies';
+import { DGLAB_AUTH_PROTOCOL_PREFIX } from '../shared/dglab';
 
 export const TAG = '[server]';
 
@@ -24,12 +22,16 @@ const log = createLogger(TAG);
 export interface HappyApp extends express.Express {
   /** Present only while the DG-Lab feature flag is on. */
   dglabRelay?: DglabRelay;
-  tokenStore: TokenStore;
-  /** False when no password is set, so WebSocket upgrades need no cookie. */
-  requireAuth: boolean;
+  /** Checks a Jellyfin access token; WebSocket upgrades of signed-in users carry one. */
+  verifyJellyfinToken: TokenVerifier;
 }
 
-export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Config.ClientConfig): HappyApp {
+/** Replaceable collaborators, so tests need no real Jellyfin. */
+export interface AppDependencies {
+  verifyJellyfinToken?: TokenVerifier;
+}
+
+export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Config.ClientConfig, deps: AppDependencies = {}): HappyApp {
   if (!serverConfig) {
     const fullConfig = Config.load();
     serverConfig = fullConfig.server;
@@ -40,13 +42,11 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
   const app = express() as HappyApp;
   // Kept configurable so a direct LAN deployment cannot spoof X-Forwarded-* headers.
   app.set('trust proxy', config.trustProxy);
-  const tokenStore = createTokenStore(Config.tokenFilePath(config.configDir));
-  app.tokenStore = tokenStore;
-  app.requireAuth = Boolean(config.password);
+  // Jellyfin is the only account system; the HAPPY shell, docs and settings defaults hold no media and are public.
+  app.verifyJellyfinToken = deps.verifyJellyfinToken
+    ?? createJellyfinTokenVerifier(String(config.jellyfinInternalUrl || client.jellyfinUrl));
   app.use(createRequestLogger());
   app.use(compression());
-  app.use('/api/auth', createAuthRouter(config, tokenStore));
-  app.use(createAuthMiddleware(config, tokenStore));
   app.use(express.static(path.join(__dirname, '..', '..', 'public')));
   app.use('/api/config', createConfigRouter(client));
   app.use('/api/version', createVersionRouter());
@@ -71,16 +71,23 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
 }
 
 /** Represents a WebSocket upgrade route with a handler.
- * Some WebSocket clients may not be able to include cookies for authentication.
- * An example is the Dungeon Lab App, which is only given a WebSocket URL to connect to but not an
- * authentication token.This URL will include a `tid` parameter however that is handed out by a
- * HAPPY client (controller). So comparing the `tid` to the stored value ensures a valid upgrade request,
- * but needs to be dealt with by the route-specific handler.
- * These route-specific authentications are enabled by setting `isPublic` to `true`.
+ * Upgrades from HAPPY tabs are authenticated with the user's Jellyfin token. Browsers cannot set
+ * headers on a WebSocket, so the token travels as a subprotocol (`Sec-WebSocket-Protocol`), which
+ * keeps it out of URLs and proxy logs.
+ * Some clients have no token at all. An example is the Dungeon Lab App, which is only given a
+ * WebSocket URL to connect to. That URL includes a `tid` parameter handed out by a HAPPY client
+ * (controller), so comparing the `tid` to the stored value authenticates the app; the
+ * route-specific handler does that. Such routes declare it with `isPublic`.
  */
 interface WebSocketUpgradeRoute {
   handler: (req: http.IncomingMessage, socket: Stream.Duplex, head: Buffer) => void;
   isPublic?: (req: http.IncomingMessage) => boolean;
+}
+
+/** The Jellyfin token offered as `jellyfin.<token>` in `Sec-WebSocket-Protocol`, if any. */
+export function tokenFromProtocols(header: string | string[] | undefined): string | undefined {
+  const offered = (Array.isArray(header) ? header.join(',') : header ?? '').split(',').map((p) => p.trim());
+  return offered.find((p) => p.startsWith(DGLAB_AUTH_PROTOCOL_PREFIX))?.slice(DGLAB_AUTH_PROTOCOL_PREFIX.length);
 }
 
 /** Attach WebSocket upgrade handlers for multiple routes.
@@ -100,7 +107,6 @@ export function attachWebSocketUpgradeHandlers(server: http.Server, app: HappyAp
     socket.destroy();
   };
 
-  const tokenStore = app.tokenStore;
   const routes = new Map<string, WebSocketUpgradeRoute>();
 
   const relay = app.dglabRelay;
@@ -116,14 +122,16 @@ export function attachWebSocketUpgradeHandlers(server: http.Server, app: HappyAp
     if (!route) {
       return refuseWebSocketUpgrade(socket, 404, 'Not Found');
     }
-    // Express middleware never runs on upgrades, so auth is enforced here.
-    const authorized = !app.requireAuth
-      || route.isPublic?.(req)
-      || tokenStore.verify(parseCookies(req.headers.cookie)[COOKIE_NAME]);
-    if (!authorized) {
-      return refuseWebSocketUpgrade(socket, 401, 'Unauthorized');
+    if (route.isPublic?.(req)) {
+      route.handler(req, socket, head);
+      return;
     }
-    route.handler(req, socket, head);
+    // Express middleware never runs on upgrades, so auth is enforced here.
+    void app.verifyJellyfinToken(tokenFromProtocols(req.headers['sec-websocket-protocol'])).then((valid) => {
+      if (socket.destroyed) return;
+      if (!valid) return refuseWebSocketUpgrade(socket, 401, 'Unauthorized');
+      route.handler(req, socket, head);
+    });
   });
 }
 

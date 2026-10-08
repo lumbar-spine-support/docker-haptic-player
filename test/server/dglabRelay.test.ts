@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import WebSocket from 'ws';
-import { startTestServer } from '../helpers';
+import { startTestServer, TEST_APP_DEPENDENCIES, TEST_JELLYFIN_TOKEN } from '../helpers';
 import { DGLAB_CLOSE_CODE } from '../../src/server/services/dglabRelay';
 import { Config } from '../../src/server/config';
 
@@ -9,10 +9,13 @@ const TAG = '[server:dglab]';
 
 interface Frame { type: string;[key: string]: unknown }
 
+/** HAPPY tabs offer their Jellyfin token as a subprotocol; DG-Lab apps offer none. */
+function protocolsFor(token?: string | null): string[] | undefined {
+    return token ? ['happy', `jellyfin.${token}`] : undefined;
+}
+
 function open(port: number, query: string, token?: string | null): WebSocket {
-    return new WebSocket(`ws://localhost:${port}${Config.DGLAB_WS_PATH}${query}`, {
-        headers: token ? { Cookie: `happy_token=${token}` } : {},
-    });
+    return new WebSocket(`ws://localhost:${port}${Config.DGLAB_WS_PATH}${query}`, protocolsFor(token));
 }
 
 /** Resolves on the next JSON frame matching `type`, or rejects when the socket closes first. */
@@ -40,7 +43,7 @@ async function withRelay(
 ): Promise<void> {
     const server = await startTestServer(createAppFn, undefined, { dglabEnabled: true });
     try {
-        await fn({ port: server.port, token: server.token });
+        await fn({ port: server.port, token: TEST_JELLYFIN_TOKEN });
     } finally {
         await server.close();
     }
@@ -64,23 +67,19 @@ test(`${TAG} rejects a controller upgrade with a bogus token`, async () => {
 
 test(`${TAG} refuses upgrades on any other path`, async () => {
     await withRelay(async ({ port, token }) => {
-        const ws = new WebSocket(`ws://localhost:${port}/ws/other`, {
-            headers: { Cookie: `happy_token=${token}` },
-        });
+        const ws = new WebSocket(`ws://localhost:${port}/ws/other`, protocolsFor(token));
         const err = await new Promise<Error>((resolve) => ws.once('error', resolve));
         assert.match(err.message, /404/);
     });
 });
 
-test(`${TAG} accepts a controller without a cookie when no password is set`, async () => {
-    const server = await startTestServer(undefined, { password: '' }, { dglabEnabled: true });
-    try {
-        const controller = open(server.port, '', null);
+test(`${TAG} selects the plain protocol and never echoes the token`, async () => {
+    await withRelay(async ({ port, token }) => {
+        const controller = open(port, '', token);
         await nextFrame(controller, 'hello');
+        assert.equal(controller.protocol, 'happy');
         controller.close();
-    } finally {
-        await server.close();
-    }
+    });
 });
 
 test(`${TAG} greets an authenticated controller with a client id`, async () => {
@@ -159,7 +158,7 @@ test(`${TAG} attaches an app that presents a known tid and notifies both sides`,
         const controller = open(port, '', token);
         const { clientId: tid } = await nextFrame(controller, 'hello');
 
-        // The app has no cookie; possession of the unguessable tid is its only credential.
+        // The app has no Jellyfin token; possession of the unguessable tid is its only credential.
         const app = open(port, `?tid=${tid as string}`, null);
         // Both listeners have to be armed before awaiting: frames arrive immediately.
         const appAttached = nextFrame(app, 'controller_attached');
@@ -241,7 +240,7 @@ test(`${TAG} closes attached apps once the controller's grace period expires`, a
         const code = await nextClose(app);
         assert.equal(code, DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED);
     }, (config) => {
-        const app = createApp(config, { ...Config.DEFAULT_CLIENT_CONFIG, dglabEnabled: true });
+        const app = createApp(config, { ...Config.DEFAULT_CLIENT_CONFIG, dglabEnabled: true }, TEST_APP_DEPENDENCIES);
         app.dglabRelay?.close();
         app.dglabRelay = new DglabRelay(50);
         return app;
@@ -252,7 +251,7 @@ async function withFastPing(fn: (ctx: { port: number; token: string }) => Promis
     const { createApp } = await import('../../src/server/index');
     const { DglabRelay } = await import('../../src/server/services/dglabRelay');
     await withRelay(fn, (config) => {
-        const app = createApp(config, { ...Config.DEFAULT_CLIENT_CONFIG, dglabEnabled: true });
+        const app = createApp(config, { ...Config.DEFAULT_CLIENT_CONFIG, dglabEnabled: true }, TEST_APP_DEPENDENCIES);
         app.dglabRelay?.close();
         app.dglabRelay = new DglabRelay(Config.DGLAB_DETACH_GRACE_MS, 20);
         return app;
@@ -314,7 +313,7 @@ test(`${TAG} reports bad_request for malformed frames`, async () => {
 test(`${TAG} has no endpoint at all when the feature flag is off`, async () => {
     const server = await startTestServer();
     try {
-        const ws = open(server.port, '', server.token);
+        const ws = open(server.port, '', TEST_JELLYFIN_TOKEN);
         const err = await new Promise<Error>((resolve) => ws.once('error', resolve));
         // Express answers the upgrade as a normal request instead of a relay handshake.
         assert.match(err.message, /Unexpected server response/);

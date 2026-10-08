@@ -37,14 +37,14 @@ test(`${TAG} load writes a default settings.yaml and returns built-in defaults w
         const config = Config.load();
         assert.equal(fs.existsSync(configPath), true);
         assert.equal(config.server.port, DEFAULTS.port);
-        assert.equal(config.server.password, DEFAULTS.password);
+        assert.equal(config.client.jellyfinUrl, DEFAULTS.jellyfinUrl);
         assert.equal(config.client.videoSeekInterval, DEFAULTS.videoSeekInterval);
         assert.deepEqual(config.client.chapterSourcePriority, DEFAULTS.chapterSourcePriority);
     });
 });
 
 test(`${TAG} a newly created settings.yaml is seeded with environment variable overrides`, async () => {
-    const env = { PORT: '8123', PASSWORD: 'envpass', DEFAULT_BLUR_CONTENT: 'true', CHAPTER_SOURCE_PRIORITY: 'funscript, embedded' };
+    const env = { PORT: '8123', JELLYFIN_URL: 'https://jellyfin.example.com', DEFAULT_BLUR_CONTENT: 'true', CHAPTER_SOURCE_PRIORITY: 'funscript, embedded' };
     const original = Object.fromEntries(Object.keys(env).map(k => [k, process.env[k]]));
     Object.assign(process.env, env);
     try {
@@ -52,13 +52,13 @@ test(`${TAG} a newly created settings.yaml is seeded with environment variable o
             assert.equal(fs.existsSync(configPath), false);
             const config = Config.load();
             assert.equal(config.server.port, 8123);
-            assert.equal(config.server.password, 'envpass');
+            assert.equal(config.client.jellyfinUrl, 'https://jellyfin.example.com');
             assert.equal(config.client.blurContent, true);
             assert.deepEqual(config.client.chapterSourcePriority, ['funscript', 'embedded']);
 
             const written = yaml.load(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
             assert.equal(written.PORT, 8123);
-            assert.equal(written.PASSWORD, 'envpass');
+            assert.equal(written.JELLYFIN_URL, 'https://jellyfin.example.com');
             assert.equal(written.DEFAULT_BLUR_CONTENT, true);
             assert.deepEqual(written.CHAPTER_SOURCE_PRIORITY, ['funscript', 'embedded']);
             assert.equal(written.DEFAULT_HAPTIC_FREQUENCY, DEFAULTS.hapticFrequency);
@@ -71,13 +71,12 @@ test(`${TAG} a newly created settings.yaml is seeded with environment variable o
     }
 });
 
-test(`${TAG} CONFIG_PATH names the directory holding settings.yaml and tokens.txt`, async () => {
+test(`${TAG} CONFIG_PATH names the directory holding settings.yaml`, async () => {
     await withConfigPath((configPath) => {
         const config = Config.load();
         const dir = path.dirname(configPath);
         assert.equal(config.server.configDir, dir);
         assert.equal(Config.settingsFilePath(dir), configPath);
-        assert.equal(Config.tokenFilePath(dir), path.join(dir, 'tokens.txt'));
     });
 });
 
@@ -98,18 +97,18 @@ test(`${TAG} the generated settings.yaml contains no key without an env name`, a
 
 test(`${TAG} load merges a partial settings.yaml on top of the defaults`, async () => {
     await withConfigPath((configPath) => {
-        fs.writeFileSync(configPath, 'PORT: 8080\nPASSWORD: secret123\n', 'utf-8');
+        fs.writeFileSync(configPath, 'PORT: 8080\nJELLYFIN_URL: https://jellyfin.example.com/\n', 'utf-8');
         const config = Config.load();
         assert.equal(config.server.port, 8080);
-        assert.equal(config.server.password, 'secret123');
+        assert.equal(config.client.jellyfinUrl, 'https://jellyfin.example.com', 'trailing slash trimmed');
         assert.equal(config.client.videoSeekInterval, DEFAULTS.videoSeekInterval);
     });
 });
 
-test(`${TAG} a blank password in settings.yaml disables authentication`, async () => {
+test(`${TAG} a blank JELLYFIN_URL in settings.yaml stays empty`, async () => {
     await withConfigPath((configPath) => {
-        fs.writeFileSync(configPath, 'PASSWORD:\n', 'utf-8');
-        assert.equal(Config.load().server.password, '');
+        fs.writeFileSync(configPath, 'JELLYFIN_URL:\n', 'utf-8');
+        assert.equal(Config.load().client.jellyfinUrl, '');
     });
 });
 
@@ -118,19 +117,19 @@ test(`${TAG} load falls back to defaults when settings.yaml is malformed`, async
         fs.writeFileSync(configPath, 'PORT: [1, 2\nunterminated: "oops', 'utf-8');
         const config = Config.load();
         assert.equal(config.server.port, DEFAULTS.port);
-        assert.equal(config.server.password, DEFAULTS.password);
+        assert.equal(config.client.jellyfinUrl, DEFAULTS.jellyfinUrl);
     });
 });
 
 test(`${TAG} load both from environment variables and settings.yaml`, async () => {
     await withConfigPath((configPath) => {
-        fs.writeFileSync(configPath, 'PORT: 8080\nPASSWORD: shouldbeoverridden', 'utf-8');
-        process.env.PASSWORD = 'envpassword';
+        fs.writeFileSync(configPath, 'PORT: 8080\nJELLYFIN_URL: https://shouldbeoverridden.example.com', 'utf-8');
+        process.env.JELLYFIN_URL = 'https://jellyfin.example.com';
         const config = Config.load();
         assert.equal(config.server.port, 8080);
-        assert.equal(config.server.password, 'envpassword');
+        assert.equal(config.client.jellyfinUrl, 'https://jellyfin.example.com');
         assert.equal(config.client.videoSeekInterval, DEFAULTS.videoSeekInterval);
-        delete process.env.PASSWORD;
+        delete process.env.JELLYFIN_URL;
     });
 });
 

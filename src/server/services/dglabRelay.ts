@@ -4,6 +4,7 @@ import type { Duplex } from 'stream';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createLogger } from '../utils/logger';
 import { Config } from '../config';
+import { DGLAB_PROTOCOL } from '../../shared/dglab';
 
 const log = createLogger('dglab:relay');
 
@@ -98,7 +99,12 @@ function listen(socket: WebSocket, onMessage: (frame: MessageFrame) => void): vo
  * Whichever peer connects last owns its slot; the previous one is closed as `replaced`.
  */
 export class DglabRelay {
-  private readonly wss = new WebSocketServer({ noServer: true, maxPayload: MAX_FRAME_BYTES });
+  private readonly wss = new WebSocketServer({
+    noServer: true,
+    maxPayload: MAX_FRAME_BYTES,
+    // Select the plain protocol so the token offered next to it is never echoed back.
+    handleProtocols: (protocols) => (protocols.has(DGLAB_PROTOCOL) ? DGLAB_PROTOCOL : false),
+  });
   // Random per process: unguessable because it is the app's only credential.
   private readonly controllerId = crypto.randomUUID();
   private readonly heartbeat: NodeJS.Timeout;
@@ -112,7 +118,7 @@ export class DglabRelay {
   private idleTimer: NodeJS.Timeout | null = null;
   private graceTimer: NodeJS.Timeout | null = null;
 
-  /** Expects upgrades already authenticated by the dispatcher; requests with `tid` are apps. */
+  /** Expects controller upgrades already authenticated by the dispatcher; requests with `tid` are apps. */
   constructor(graceMs = DETACH_GRACE_MS, pingMs = WS_PING_INTERVAL_MS) {
     this.graceMs = graceMs;
     this.heartbeat = this.startHeartbeat();

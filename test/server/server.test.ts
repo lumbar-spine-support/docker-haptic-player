@@ -28,14 +28,20 @@ test(`${TAG} GET /api/config exposes the client config and nothing from the serv
     assert.equal(body.dglabEnabled, false);
     assert.equal(body.videoSeekInterval, 10);
     assert.equal('mediaAccessToken' in body, false, 'remote receivers use the Jellyfin api_key now');
-    for (const secret of ['password', 'configDir']) {
+    for (const secret of ['jellyfinInternalUrl', 'configDir']) {
         assert.equal(secret in (body as Record<string, unknown>), false, `${secret} must not be exposed`);
     }
 });
 
-test(`${TAG} GET /api/config requires authentication`, async () => {
-    const { status } = await httpGet(testServer.port, '/api/config', { token: null });
-    assert.equal(status, 401);
+test(`${TAG} the app shell and its settings are public; Jellyfin guards the media`, async () => {
+    for (const path of ['/', '/api/config', '/api/version']) {
+        const { status } = await httpGet(testServer.port, path);
+        assert.equal(status, 200, path);
+    }
+    for (const path of ['/api/auth/status', '/auth/']) {
+        const { status } = await httpGet(testServer.port, path);
+        assert.equal(status, 404, `${path} is gone with HAPPY's own password`);
+    }
 });
 
 test.after(async () => {

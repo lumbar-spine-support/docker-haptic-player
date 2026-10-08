@@ -1,5 +1,5 @@
 import { channelKey, type HapticChannel } from '../../../../shared/haptics';
-import { DGLAB_WS_PATH } from '../../../../shared/dglab';
+import { DGLAB_AUTH_PROTOCOL_PREFIX, DGLAB_PROTOCOL, DGLAB_WS_PATH } from '../../../../shared/dglab';
 import {
   clamp01,
   type AssignmentListener,
@@ -21,7 +21,7 @@ import {
   clampFrequency,
 } from './waveform';
 import { CoyoteChannelScheduler, mapIntensity, type PositionSampler, type PulseSettings } from './channelScheduler';
-import { DglabSocketDeviceType, V4Channel } from 'dglab-kit';
+import { DglabSocket, DglabSocketDeviceType, V4Channel } from 'dglab-kit';
 import { DglabV4Socket, type Device } from './v4/socket';
 import { log } from '.';
 
@@ -198,7 +198,7 @@ export function normalizeHost(raw: string): string {
  * four times the time resolution of a strength update.
  */
 export class CoyoteBackend implements HapticBackend {
-  private readonly socket = new DglabV4Socket();
+  private readonly socket: DglabV4Socket;
   private readonly settings = new FeatureSettings(ASSIGNMENTS_KEY, STRENGTHS_KEY);
   /** Feature id -> output timing for that channel. */
   private readonly schedulers = new Map<string, CoyoteChannelScheduler>();
@@ -233,7 +233,15 @@ export class CoyoteBackend implements HapticBackend {
     writeJsonRecord(FREQUENCY_KEY, this.frequencies);
   }
 
-  constructor() {
+  /**
+   * @param accessToken Jellyfin access token of the signed-in user; the relay only accepts
+   *   HAPPY tabs that offer one (as a WebSocket subprotocol, so it never appears in a URL).
+   */
+  constructor(accessToken: () => string) {
+    this.socket = new DglabV4Socket((url) => new DglabSocket({
+      url,
+      protocols: [DGLAB_PROTOCOL, `${DGLAB_AUTH_PROTOCOL_PREFIX}${accessToken()}`],
+    }));
     this.loadPersisted();
     this.socket.onDevicesChange(() => {
       this.emitDevices();

@@ -8,20 +8,6 @@ import { imageUrl, streamUrl, trickplayVtt } from './jellyfin/urls';
 
 const BASE = new URL('.', window.location.href).pathname;
 
-let redirectingToLogin = false;
-
-/** Reports an expired or missing access token and sends the user back to the login page. */
-function handleUnauthorized(res: Response, what: string): void {
-  if (res.status !== 401) return;
-
-  console.error(`[auth] ${what} rejected: token missing or invalid (401). Redirecting to login.`);
-  if (redirectingToLogin) return;
-
-  redirectingToLogin = true;
-  const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
-  window.location.replace(`${BASE}auth/?returnTo=${returnTo}`);
-}
-
 /** The signed-in Jellyfin session the library, streams and funscripts come from. */
 let jellyfin: JellyfinConnection | null = null;
 let mapOptions: MapOptions = { funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES, chapterSourcePriority: ['embedded', 'funscript'] };
@@ -87,7 +73,6 @@ export function storyboardVttUrl(track: TrackInfo): string | null {
 export async function fetchDoc(page: string): Promise<string> {
   const res = await fetch(`${BASE}api/docs/${encodeURIComponent(page)}`);
   if (!res.ok) {
-    handleUnauthorized(res, 'Docs fetch');
     throw new Error(`Docs fetch failed: ${res.status}`);
   }
   return res.text();
@@ -107,45 +92,21 @@ export function artworkUrl(trackId: string, artworkTag?: string | null): string 
 export async function fetchVersion(): Promise<VersionInfo> {
   const res = await fetch(`${BASE}api/version`);
   if (!res.ok) {
-    handleUnauthorized(res, 'Version fetch');
     throw new Error(`Version fetch failed: ${res.status}`);
   }
   return res.json() as Promise<VersionInfo>;
 }
 
-/** Reports whether authentication is enabled and whether the current token is still valid. */
-export async function fetchAuthStatus(): Promise<{ required: boolean; authenticated: boolean }> {
-  const res = await fetch(`${BASE}api/auth/status`);
-  if (!res.ok) throw new Error(`Auth status fetch failed: ${res.status}`);
-  return res.json() as Promise<{ required: boolean; authenticated: boolean }>;
-}
-
-/** Signs out of Jellyfin and, when HAPPY's own password is enabled, revokes that token too. */
+/** Signs out of Jellyfin; the reload then shows the sign-in card. */
 export async function logout(): Promise<void> {
   await jellyfin?.signOut();
-  let happyAuth = false;
-  try {
-    happyAuth = (await fetchAuthStatus()).required;
-  } catch {
-    // Unknown: fall through to a reload, which shows whichever sign-in is still missing.
-  }
-  if (!happyAuth) {
-    window.location.reload();
-    return;
-  }
-  try {
-    await fetch(`${BASE}api/auth/logout`, { method: 'POST' });
-  } catch (err) {
-    console.error('[auth] Logout request failed', err);
-  }
-  window.location.replace(`${BASE}auth/`);
+  window.location.reload();
 }
 
 /** Fetches the server-configured defaults for client-side settings. */
 export async function fetchClientSettings(): Promise<ClientSettings> {
   const res = await fetch(`${BASE}api/config`);
   if (!res.ok) {
-    handleUnauthorized(res, 'Config fetch');
     throw new Error(`Config fetch failed: ${res.status}`);
   }
   return res.json() as Promise<ClientSettings>;

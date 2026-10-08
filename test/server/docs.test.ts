@@ -56,7 +56,7 @@ test(`${TAG} GET /docs/:page redirects to the in-app docs view`, async () => {
     assert.equal(rootSlash.headers.location, '../?view=docs&id=index');
 });
 
-test(`${TAG} docs require authentication`, async () => {
-    const { status } = await httpGet(testServer.port, '/api/docs/library', { token: null });
-    assert.equal(status, 401);
+test(`${TAG} docs are public`, async () => {
+    const { status } = await httpGet(testServer.port, '/api/docs/library');
+    assert.equal(status, 200);
 });

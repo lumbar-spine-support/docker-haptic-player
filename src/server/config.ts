@@ -24,7 +24,7 @@ export namespace Config {
   export interface ServerConfig {
     [key: string]: ConfigEntry;
     port: number;
-    password: string;
+    jellyfinInternalUrl: string;
     configDir: string;
     trustProxy: number;
     logLevel: string;
@@ -65,33 +65,14 @@ export namespace Config {
 
   export const SETTINGS_FILE_NAME = 'settings.yaml';
 
-  export const TOKEN_FILE_NAME = 'tokens.txt';
-
-  export const CACHE_DIR_NAME = 'cache';
-
-
-
   /** Path of the settings file inside a config directory. */
   export function settingsFilePath(configDir: string): string {
     return path.join(configDir, SETTINGS_FILE_NAME);
   }
 
-  /** Path of the persisted access token file inside a config directory. */
-  export function tokenFilePath(configDir: string): string {
-    return path.join(configDir, TOKEN_FILE_NAME);
-  }
-
-  /** Root of all derived, disposable data inside a config directory. Safe to delete at any time. */
-  export function cacheDirPath(configDir: string): string {
-    return path.join(configDir, CACHE_DIR_NAME);
-  }
-
-
-
-
   export const DEFAULT_SERVER_CONFIG: ServerConfig = {
     port: 3000,
-    password: 'happy',
+    jellyfinInternalUrl: '',
     configDir: DEFAULT_MOUNT,
     trustProxy: 0,
     logLevel: DEFAULT_LOG_LEVEL,
@@ -125,8 +106,8 @@ export namespace Config {
 
   export const DESCRIPTIONS: Record<string, string> = {
     port: 'HTTP port of the web interface.',
-    password: 'Web interface access password. Leave empty to disable authentication',
-    trustProxy: 'Number of reverse proxy hops to trust for X-Forwarded-* headers. 0 for direct LAN access, 1 behind nginx/Traefik',
+    jellyfinInternalUrl: 'Address HAPPY itself uses to reach Jellyfin, when it differs from JELLYFIN_URL (e.g. http://jellyfin:8096 on a Docker network). Empty to use JELLYFIN_URL.',
+    trustProxy: 'Number of reverse proxy hops to trust for X-Forwarded-* headers (client addresses in the log). 0 for direct LAN access, 1 behind nginx/Traefik',
     logLevel: `Verbosity of the console log: ${LOG_LEVELS.join(', ')}`,
     videoSeekInterval: 'Seek interval in seconds when double-tapping/clicking.',
     blurContent: 'Enable to blur images and videos. Can be toggled in web interface.',
@@ -153,7 +134,7 @@ export namespace Config {
 
   export const ENV_NAMES: Record<string, string> = {
     port: 'PORT',
-    password: 'PASSWORD',
+    jellyfinInternalUrl: 'JELLYFIN_INTERNAL_URL',
     trustProxy: 'TRUST_PROXY',
     logLevel: 'LOG_LEVEL',
     videoSeekInterval: 'VIDEO_SEEK_INTERVAL',
@@ -394,6 +375,7 @@ export namespace Config {
     const client = envOverridden.client;
     client.chapterSourcePriority = validateChapterSources(client.chapterSourcePriority);
     client.jellyfinUrl = String(client.jellyfinUrl).trim().replace(/\/+$/, '');
+    server.jellyfinInternalUrl = String(server.jellyfinInternalUrl).trim().replace(/\/+$/, '');
     if (!client.jellyfinUrl) log.warn(`${ENV_NAMES.jellyfinUrl} is not set; HAPPY needs a Jellyfin server for its library.`);
     if (!isInterpolationMethod(client.funscriptInterpolationMethod)) {
       log.warn(`Unknown ${ENV_NAMES.funscriptInterpolationMethod} "${client.funscriptInterpolationMethod}", falling back to "${DEFAULT_INTERPOLATION_METHOD}". Valid methods: ${INTERPOLATION_METHODS.join(', ')}`);

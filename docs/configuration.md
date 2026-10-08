@@ -11,8 +11,8 @@ Every YAML setting can also be set as an environment variable. Environment varia
 | Setting | Default | Description |
 | --- | --- | --- |
 | `PORT` | `3000` | HTTP port of the web interface. |
-| `PASSWORD` | `happy` | Web interface access password. Leave empty to disable authentication |
-| `TRUST_PROXY` | `0` | Number of reverse proxy hops to trust for X-Forwarded-* headers. 0 for direct LAN access, 1 behind nginx/Traefik |
+| `JELLYFIN_INTERNAL_URL` | *(empty)* | Address HAPPY itself uses to reach Jellyfin, when it differs from JELLYFIN_URL (e.g. http://jellyfin:8096 on a Docker network). Empty to use JELLYFIN_URL. |
+| `TRUST_PROXY` | `0` | Number of reverse proxy hops to trust for X-Forwarded-* headers (client addresses in the log). 0 for direct LAN access, 1 behind nginx/Traefik |
 | `LOG_LEVEL` | `info` | Verbosity of the console log: error, warn, info, debug |
 | `VIDEO_SEEK_INTERVAL` | `10` | Seek interval in seconds when double-tapping/clicking. |
 | `DEFAULT_BLUR_CONTENT` | `false` | Enable to blur images and videos. Can be toggled in web interface. |

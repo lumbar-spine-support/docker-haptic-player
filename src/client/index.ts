@@ -1,4 +1,4 @@
-import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, logout, artworkUrl, chaptersVttUrl, useJellyfin } from './api';
+import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchClientSettings, logout, artworkUrl, chaptersVttUrl, useJellyfin } from './api';
 import { JellyfinConnection } from './jellyfin/connection';
 import { ensureSignedIn, showMissingServerNotice } from './jellyfin/signIn';
 import { formatVersion } from './utils/formatVersion';
@@ -214,12 +214,13 @@ class App {
     }
 
     this.initHapticControls();
+    if (!(await this.connectJellyfin())) return;
+    // The relay only accepts signed-in tabs, so DG-Lab (and its auto-reconnect) waits for the session.
     await this.initDglab();
     this.playback.onActiveTrack((track) => { void this.onActiveTrackChanged(track); });
 
-    if (!(await this.connectJellyfin())) return;
     // Needs the Jellyfin session to decide whether there is anyone to sign out.
-    whenIdle(() => { void this.bindLogout(); });
+    this.bindLogout();
     await yieldToMain();
     await this.library.load();
     await yieldToMain();
@@ -305,17 +306,9 @@ class App {
     }
   }
 
-  private async bindLogout(): Promise<void> {
-    if (!this.logoutBtn) return;
-    if (!this.jellyfin?.signedIn) {
-      try {
-        const status = await fetchAuthStatus();
-        if (!status.required) return;
-      } catch {
-        return;
-      }
-    }
-    if (this.jellyfin?.userName) this.logoutBtn.title = `Sign out ${this.jellyfin.userName}`;
+  private bindLogout(): void {
+    if (!this.logoutBtn || !this.jellyfin?.signedIn) return;
+    if (this.jellyfin.userName) this.logoutBtn.title = `Sign out ${this.jellyfin.userName}`;
     this.logoutBtn.classList.remove('d-none');
     this.logoutBtn.addEventListener('click', () => {
       void logout();
@@ -413,7 +406,7 @@ class App {
     }
 
     if (this.settings.debugLogging) setLogLevel('dglab', 'debug');
-    const coyote = new CoyoteBackend();
+    const coyote = new CoyoteBackend(() => this.jellyfin?.endpoint.token ?? '');
     this.haptics.add(coyote);
     bindDelaySlider(this.createSyncEngine(coyote), 'dglab-delay', DGLAB_DELAY_KEY, 0, this.settings.hapticDelayLimit);
     this.mountDeviceAssignment(coyote, '#dglab-devices');

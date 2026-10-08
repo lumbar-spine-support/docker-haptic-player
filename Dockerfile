@@ -46,7 +46,7 @@ ENV NODE_ENV=production
 ENV APP_VERSION=$APP_VERSION
 ENV APP_CHANNEL=$APP_CHANNEL
 
-# Any non-5xx answer (including 401 with a password set) means the server is up.
+# Any non-5xx answer means the server is up.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/version').then(r=>process.exit(r.status<500?0:1),()=>process.exit(1))"]
 

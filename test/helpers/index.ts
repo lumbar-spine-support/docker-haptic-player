@@ -4,33 +4,32 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import http from 'http';
-import type { HappyApp } from '../../src/server/index';
+import type { AppDependencies, HappyApp } from '../../src/server/index';
 import { Config } from '../../src/server/config';
 
-// Token seeded by the most recent startTestServer(), attached to requests unless overridden.
-let defaultToken: string | null = null;
+/** The only token the stub Jellyfin verifier of test servers accepts. */
+export const TEST_JELLYFIN_TOKEN = '0123456789abcdef0123456789abcdef';
+
+/** Dependencies for test apps built by hand with `createApp`. */
+export const TEST_APP_DEPENDENCIES: AppDependencies = {
+    verifyJellyfinToken: async (token) => token === TEST_JELLYFIN_TOKEN,
+};
 
 export interface RequestOptions {
-    // null sends no cookie at all, which is how unauthenticated access is tested.
-    token?: string | null;
     headers?: Record<string, string>;
 }
 
 function requestHeaders(opts?: RequestOptions): Record<string, string> {
-    const headers = { ...(opts?.headers ?? {}) };
-    const token = opts && 'token' in opts ? opts.token : defaultToken;
-    if (token) headers.Cookie = `happy_token=${token}`;
-    return headers;
+    return { ...(opts?.headers ?? {}) };
 }
 
-// Start a test server with a temporary config directory.
+// Start a test server with a temporary config directory and a stub Jellyfin token check.
 export async function startTestServer(
     createAppFn?: (config: Config.ServerConfig) => HappyApp,
     overrides?: Partial<Config.ServerConfig>,
     clientOverrides?: Partial<Config.ClientConfig>,
-): Promise<{ port: number; config: Config.ServerConfig; tokenFile: string; token: string; close: () => Promise<void> }> {
+): Promise<{ port: number; config: Config.ServerConfig; close: () => Promise<void> }> {
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'server-config-'));
-    const tokenFile = Config.tokenFilePath(configDir);
 
     const config: Config.ServerConfig = {
         ...Config.DEFAULT_SERVER_CONFIG,
@@ -43,11 +42,9 @@ export async function startTestServer(
     } as Config.ClientConfig;
 
     const { createApp, attachWebSocketUpgradeHandlers } = await import('../../src/server/index');
-    const app = createAppFn ? createAppFn(config) : createApp(config, clientConfig);
-
-    const { createTokenStore } = await import('../../src/server/services/tokenStore');
-    const token = createTokenStore(tokenFile).issue('test');
-    defaultToken = token;
+    const app = createAppFn
+        ? createAppFn(config)
+        : createApp(config, clientConfig, TEST_APP_DEPENDENCIES);
 
     const server = await new Promise<http.Server>((resolve) => {
         const srv = app.listen(0, () => {
@@ -70,14 +67,12 @@ export async function startTestServer(
     return {
         port: addr.port,
         config,
-        tokenFile,
-        token,
         close: async () => {
             return new Promise((resolve) => {
                 app.dglabRelay?.close();
                 server.closeAllConnections?.();
                 server.close(() => {
-                    fs.rmSync(path.dirname(tokenFile), { recursive: true, force: true });
+                    fs.rmSync(configDir, { recursive: true, force: true });
                     resolve();
                 });
             });
