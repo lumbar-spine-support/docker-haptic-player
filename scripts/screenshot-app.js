@@ -5,7 +5,18 @@ import { chromium, devices } from 'playwright';
 const SERVER_URL = 'http://localhost:3000';
 const LANDSCAPE_VIEWPORT = { width: 412, height: 915 };
 const SCREENSHOT_FULL_PAGE = false;
-const PLAYER_MEDIA = 'BigBuckBunny_320x180.mp4';
+// Card title of test/fixtures/media/BigBuckBunny_320x180.mp4 (Jellyfin falls back to the file name).
+const PLAYER_MEDIA = /big\s*buck\s*bunny/i;
+
+// Screenshots end up in the public docs, so they come from a demo Jellyfin holding only
+// test/fixtures/media, never from a personal library. Deliberately separate from the
+// HAPPY_JELLYFIN_* variables of the integration tests.
+const { SCREENSHOT_JELLYFIN_URL, SCREENSHOT_JELLYFIN_USER, SCREENSHOT_JELLYFIN_PASSWORD = '' } = process.env;
+if (!SCREENSHOT_JELLYFIN_URL || !SCREENSHOT_JELLYFIN_USER) {
+    console.error('Set SCREENSHOT_JELLYFIN_URL and SCREENSHOT_JELLYFIN_USER (and SCREENSHOT_JELLYFIN_PASSWORD) to a demo Jellyfin '
+        + 'that serves test/fixtures/media with the HAPPY plugin installed.');
+    process.exit(1);
+}
 
 async function capture(page, path) {
     // avoid focus/hover/selection styling leaking into the screenshot
@@ -93,12 +104,12 @@ async function applyMediaFilter(page, filterName) {
 }
 
 async function clickPlayerMedia(page) {
-    // Library ids are the base64-encoded relative media path.
-    const id = Buffer.from(PLAYER_MEDIA).toString('base64');
-    const link = page.locator(`#track-grid a.track-art-link[href*="view=player"][href*="${encodeURIComponent(id)}"]`).first();
+    // Library ids are Jellyfin item ids, so the card is found by its title.
+    const card = page.locator('#track-grid .track-card', { has: page.locator('.card-title', { hasText: PLAYER_MEDIA }) });
+    const link = card.locator('a.track-art-link[href*="view=player"]').first();
 
     if (!(await link.count())) {
-        throw new Error(`Could not find "${PLAYER_MEDIA}" in the library`);
+        throw new Error(`Could not find ${PLAYER_MEDIA} in the library`);
     }
 
     await link.click();
@@ -150,9 +161,7 @@ try {
         env: {
             ...process.env,
             CONFIG_PATH: `${process.cwd()}/config`,
-            MEDIA_DIR: `${process.cwd()}/test/fixtures/media/`,
-            // Screenshots document the library and player, so skip the login gate entirely.
-            PASSWORD: '',
+            JELLYFIN_URL: SCREENSHOT_JELLYFIN_URL,
         },
     });
 
@@ -172,6 +181,12 @@ try {
     await page.goto(SERVER_URL, {
         waitUntil: 'networkidle',
     });
+
+    await page.locator('#jellyfin-user').fill(SCREENSHOT_JELLYFIN_USER);
+    await page.locator('#jellyfin-password').fill(SCREENSHOT_JELLYFIN_PASSWORD);
+    await page.locator('#jellyfin-sign-in-submit').click();
+    await page.locator('#jellyfin-sign-in').waitFor({ state: 'detached' });
+    await page.waitForLoadState('networkidle');
 
     await applyMediaFilter(page, 'audio');
     await applyMediaFilter(page, 'video');
