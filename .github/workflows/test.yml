@@ -45,3 +45,27 @@ jobs:
           files: coverage/lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+
+  jellyfin-plugin:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test plugin
+        run: dotnet test jellyfin-plugin/Jellyfin.Plugin.Happy.slnx
+
+      - name: Package plugin
+        run: sh jellyfin-plugin/package.sh
+
+      - name: Upload plugin build
+        uses: actions/upload-artifact@v5
+        with:
+          name: jellyfin-plugin-happy
+          path: jellyfin-plugin/artifacts/HAPPY_*

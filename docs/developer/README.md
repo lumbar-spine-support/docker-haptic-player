@@ -14,6 +14,7 @@ These pages explain how HAPPY works inside: which modules exist, how they talk t
 | [server.md](server.md) | Express pipeline, authentication, library indexing, artwork cache, configuration |
 | [client.md](client.md) | App bootstrap, routing, the two-player playback model |
 | [haptics.md](haptics.md) | Backends, channels and features, the funscript pipeline, the sync loop, the e-stim sandbox |
+| [jellyfin-plugin.md](jellyfin-plugin.md) | The Jellyfin companion plugin: funscript endpoints, matching, building, testing against a real Jellyfin |
 
 ### Use cases
 

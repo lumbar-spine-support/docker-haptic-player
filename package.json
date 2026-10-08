@@ -15,6 +15,7 @@
     "build:css": "npx sass public/css/app.scss:public/css/app.css public/css/auth.scss:public/auth/auth.css --style=compressed --quiet-deps --silence-deprecation=import,global-builtin,if-function,color-functions",
     "test": "NODE_ENV=test node --import tsx --test $(find test/server test/client -name '*.test.ts')",
     "test:coverage": "mkdir -p coverage && NODE_ENV=test node --import tsx --test --experimental-test-coverage --test-coverage-include='src/**' --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info $(find test/server test/client -name '*.test.ts')",
+    "test:jellyfin": "NODE_ENV=test node --env-file-if-exists=config/test.env --import tsx --test test/integration/jellyfin/*.test.ts",
     "test:watch": "NODE_ENV=test node --import tsx --test --watch $(find test/server test/client -name '*.test.ts')",
     "screenshot": "node scripts/screenshot-app.js",
     "sandbox": "node sandbox/serve.js",

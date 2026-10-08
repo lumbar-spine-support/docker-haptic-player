@@ -11,3 +11,4 @@ test/
 sandbox/
 docs/developer/
 npm-debug.log*
+jellyfin-plugin/
