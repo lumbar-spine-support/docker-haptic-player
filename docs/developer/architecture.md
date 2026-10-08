@@ -2,7 +2,7 @@
 
 # Architecture overview
 
-HAPPY is one Node.js process that serves a single-page app. The server indexes and streams media. **Everything that happens in real time runs in the browser**: playback, funscript interpolation and device output. The server never talks to a toy.
+HAPPY is one Node.js process that serves a single-page app, next to a Jellyfin server that owns the media library. The browser loads the library and streams directly from Jellyfin; the HAPPY server only serves the app, its configuration, the docs and the DG-Lab relay. **Everything that happens in real time runs in the browser**: playback, funscript interpolation and device output. Neither server ever talks to a toy.
 
 ## System context
 
@@ -19,30 +19,37 @@ flowchart LR
   end
 
   subgraph container["HAPPY container (Node.js)"]
-    Express["Express app<br/>HTTP /api/*, static files"]
+    Express["Express app<br/>static files, /api/config,<br/>/api/version, /api/docs, /api/auth"]
     Relay["DG-Lab relay<br/>WebSocket /ws/dglab<br/>only if DGLAB_ENABLED"]
   end
 
-  MediaVol[("/media<br/>audio, video, .funscript,<br/>.md, .m3u")]
-  ConfigVol[("/config<br/>settings.yaml, tokens.txt,<br/>cache/")]
-  FF["ffprobe / ffmpeg<br/>child processes"]
+  subgraph jellyfin["Jellyfin server"]
+    JF["Jellyfin API<br/>items, streams, images,<br/>chapters, trickplay, users"]
+    Plugin["HAPPY plugin<br/>/Happy/Funscripts"]
+  end
 
-  Browser -- "HTTP: UI, library, media, funscripts" --> Express
+  MediaVol[("Jellyfin libraries<br/>audio, video, .funscript")]
+  ConfigVol[("/config<br/>settings.yaml, tokens.txt")]
+
+  Browser -- "HTTP: UI, config, docs" --> Express
+  Browser -- "HTTP, CORS: library, streams,<br/>art, trickplay" --> JF
+  Browser -- "HTTP, CORS: funscripts" --> Plugin
   Browser -- "WebSocket: Buttplug protocol" --> Intiface
   Intiface -- "BLE / USB" --> Toys
   Browser -- "WebSocket: controller" --> Relay
   DGApp -- "WebSocket: app, ?tid=" --> Relay
   DGApp -- BLE --> Coyote
-  Express --> MediaVol
   Express --> ConfigVol
-  Express --> FF
+  JF --> MediaVol
+  Plugin --> MediaVol
 ```
 
 Key points:
 
 - The browser connects to **Intiface directly**. The server is not involved, so the Intiface address must be reachable from the browser's device, not from the container.
 - The DG-Lab app cannot reach a browser tab, so the server hosts a small **relay**. Both the browser tab and the app connect to it, and the relay forwards messages between them without interpreting them. See [Pair a DG-Lab Coyote](use-cases/coyote-pairing.md).
-- `/config/cache` only holds derived data (library index, extracted covers). It is safe to delete.
+- The browser also connects to **Jellyfin directly**, so `JELLYFIN_URL` must be the address the browser uses, not one only the container can resolve. Jellyfin is another origin, which is why media elements use CORS mode (see [client.md](client.md#jellyfin-data-layer)).
+- The [HAPPY plugin](jellyfin-plugin.md) is the only HAPPY code inside Jellyfin. It indexes funscripts and serves them to signed-in users.
 
 ## Code layers
 
@@ -57,7 +64,8 @@ flowchart TB
     LibraryUI["components/library<br/>Library grid, filters, tags"]
     Haptic["components/haptic<br/>backends, device UI, visualization"]
     Sync["components/funscriptSync.ts<br/>FunscriptSync"]
-    Utils["utils/<br/>api, routes, html, formatting"]
+    JellyfinC["jellyfin/ + api.ts<br/>session, sign-in, loader,<br/>mapper, URL builders"]
+    Utils["utils/<br/>routes, html, formatting"]
   end
 
   subgraph videojs["@/components/videojs"]
@@ -68,7 +76,8 @@ flowchart TB
     Types["types.ts"]
     HapticsShared["haptics.ts<br/>HapticChannel, channelKey"]
     Interp["interpolation.ts<br/>prepareScript, positionAt"]
-    Chapters["chapters.ts"]
+    Chapters["chapters.ts, webvtt.ts"]
+    Names["funscriptNames.ts, albums.ts"]
     Filtering["libraryFiltering.ts"]
   end
 
@@ -76,18 +85,19 @@ flowchart TB
     ServerIndex["index.ts<br/>createApp, main"]
     Middleware["middleware/<br/>auth, loginThrottle, requestLog"]
     Routes["routes/<br/>one router per /api prefix"]
-    Services["services/<br/>libraryIndex, libraryService,<br/>mediaProbe, artworkCache,<br/>tokenStore, dglabRelay"]
-    SUtils["utils/<br/>paths, mediaFiles, logger, errors"]
+    Services["services/<br/>tokenStore, dglabRelay"]
+    SUtils["utils/<br/>logger, errors, cookies"]
   end
 
-  AppIndex --> Player & LibraryUI & Haptic & Sync & Utils
+  AppIndex --> Player & LibraryUI & Haptic & Sync & JellyfinC & Utils
+  JellyfinC --> Names & Chapters
   Player --> VJS
   Sync --> Interp
   Haptic --> Interp & HapticsShared
   LibraryUI --> Filtering
   ServerIndex --> Middleware & Routes
   Routes --> Services & SUtils
-  Services --> Chapters & Types
+  Routes --> Types
   client -. "types only" .-> Types
 ```
 
@@ -95,12 +105,11 @@ flowchart TB
 
 | Concern | Where it runs | Main module |
 | --- | --- | --- |
-| Scan media folder, read tags, chapters | Server | `libraryService.buildLibrary()` behind `libraryIndex` |
-| Cache the library across restarts | Server | `libraryIndex` → `/config/cache/library.json` |
-| Extract cover art | Server | `routes/artwork.ts` + `artworkCache` |
-| Stream media with range requests | Server | `routes/media.ts` |
-| Serve raw funscript JSON | Server | `routes/funscript.ts` |
-| Password login, tokens | Server | `middleware/auth.ts`, `routes/auth.ts`, `tokenStore` |
+| Scan media, read tags, chapters, cover art | Jellyfin | — |
+| Stream media with range requests, trickplay | Jellyfin | `/Videos/{id}/stream`, `/Audio/{id}/stream` (`static=true`) |
+| Index and serve funscripts | Jellyfin plugin | `FunscriptIndex`, `HappyController` |
+| Jellyfin sign-in, library model | Browser | `JellyfinConnection`, `loadLibrary()`, `buildLibrary()` |
+| Optional HAPPY password, tokens | Server | `middleware/auth.ts`, `routes/auth.ts`, `tokenStore` |
 | Relay DG-Lab messages | Server | `services/dglabRelay.ts` |
 | Routing, views, library grid | Browser | `App` in `client/index.ts`, `Library` |
 | Playback with two players | Browser | `PlaybackSession`, `PlaybackController` |
@@ -139,12 +148,13 @@ flowchart LR
 | `npm run dev:client` | esbuild in watch mode with source maps |
 | `npm start` | `node dist/server/index.js` |
 | `npm test` | `node --test` with `tsx` over `test/server` and `test/client` |
+| `npm run test:jellyfin` | Integration tests against a real Jellyfin (see [jellyfin-plugin.md](jellyfin-plugin.md#testing-against-a-real-jellyfin)) |
 | `npm run docs:env` | Regenerates the environment variable table in `docs/configuration.md` |
 
 ## Code map
 
 | Diagram | Based on |
 | --- | --- |
-| System context | [src/server/index.ts](../../src/server/index.ts), [src/server/services/dglabRelay.ts](../../src/server/services/dglabRelay.ts), [src/client/components/haptic/buttplugClient.ts](../../src/client/components/haptic/buttplugClient.ts) |
+| System context | [src/server/index.ts](../../src/server/index.ts), [src/server/services/dglabRelay.ts](../../src/server/services/dglabRelay.ts), [src/client/components/haptic/buttplugClient.ts](../../src/client/components/haptic/buttplugClient.ts), [src/client/jellyfin/](../../src/client/jellyfin/library.ts), [jellyfin-plugin/](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Api/HappyController.cs) |
 | Code layers | `src/client`, `src/shared`, `src/server`, [@/components/videojs](../../@/components/videojs/player.ts) |
 | Build | [package.json](../../package.json), [scripts/build-client.js](../../scripts/build-client.js), [Dockerfile](../../Dockerfile), [.dockerignore](../../.dockerignore) |

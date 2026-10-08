@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-HAPPY is a self-hosted haptic player for audio/video files: an Express server (`src/server/`) that scans a media directory, plus a browser client (`src/client/`) that plays media with Video.js v10 and drives toys through Intiface/Buttplug or a DG-Lab Coyote.
+HAPPY is a self-hosted haptic player for audio/video files: a browser client (`src/client/`) that takes its library and streams from a Jellyfin server, plays media with Video.js v10 and drives toys through Intiface/Buttplug or a DG-Lab Coyote. A small Express server (`src/server/`) serves the client, its config, the docs and the DG-Lab relay; a Jellyfin plugin (`jellyfin-plugin/`, C#) serves funscripts.
 
 **Read [ARCHITECTURE.md](ARCHITECTURE.md) before non-trivial changes.** It holds the rules and invariants. [docs/developer/](docs/developer/README.md) has diagrams and step-by-step use cases. Don't duplicate them here; update them instead (see below).
 
@@ -14,6 +14,7 @@ npm start              # node dist/server/index.js (needs a build first)
 npm run dev:client     # esbuild watch for the client bundle (no CSS; run build:css separately)
 npm run build:css      # compile public/css/*.scss
 npm test               # all tests: node:test via tsx over test/server and test/client
+npm run test:jellyfin  # opt-in integration tests against a real Jellyfin (reads gitignored config/test.env)
 npm run test:coverage  # what CI runs (Node 26)
 npm run docs:env       # regenerate the env-var tables in README/docs from Config.DEFAULTS/ENV_NAMES/DESCRIPTIONS
 npm run sandbox        # standalone e-stim waveform sandbox at :8100 (sandbox/)
@@ -38,7 +39,8 @@ Server integration tests use `test/helpers/index.ts` (`startTestServer`, which s
 - `@/components/videojs/` — Video.js v10 skin, features (chapters, loop, repeat, skip, vr) and UI elements, imported via the `@/*` path alias (tsconfig `paths` + esbuild `alias`).
 - `.html` and `.svg` files are imported as text strings (esbuild `text` loader) and used as templates via `src/client/utils/template.ts`. Tests that transitively import templates must register a `.html` loader (see `test/client/library.test.ts` or `test/helpers/htmlLoader.mjs`).
 - `public/` holds the static shell, SCSS and icons; generated output (`public/js`, `public/vendor`, compiled CSS) is gitignored.
-- `config/` (gitignored) is the local stand-in for the `/config` volume: `settings.yaml`, `tokens.txt`, `cache/`. The `cache/` subdir is always safe to delete.
+- `config/` (gitignored) is the local stand-in for the `/config` volume: `settings.yaml` (set `JELLYFIN_URL` there for local runs), `tokens.txt`, and `test.env` for `npm run test:jellyfin`.
+- `jellyfin-plugin/` — the HAPPY Jellyfin plugin (.NET 10); build and test with the .NET SDK (`dotnet test jellyfin-plugin/Jellyfin.Plugin.Happy.slnx`, `sh jellyfin-plugin/package.sh`).
 - `docs/*.md` are user docs, served in-app at `/docs` and shipped in the Docker image. `docs/developer/` is dev-only and excluded from the image.
 
 ## Key architectural points (details in ARCHITECTURE.md)
@@ -46,8 +48,8 @@ Server integration tests use `test/helpers/index.ts` (`startTestServer`, which s
 - The server is stateless with respect to playback; all playback, haptic timing and device state live in the browser. The only exception is the DG-Lab `/ws/dglab` relay, a dumb single-slot passthrough that never parses device commands.
 - **Two-player model:** the client keeps two `<video-player>` slots (`PlaybackSession` in `src/client/components/player/session.ts`). Browsing loads the idle slot without interrupting playback; only pressing play promotes a slot to active (footer, haptics, Media Session follow). Nothing is re-parented during handoff.
 - **Haptics:** `HapticBackend` interface with `ButtplugClientManager` (Intiface) and `CoyoteBackend` (DG-Lab). Each backend gets its own `FunscriptSync`; `HapticBackendRegistry` is only for combined status/stop-all. Sync style is chosen by the assigned *actuator* type (scalar/rotate interpolate continuously, linear is edge-triggered), not by script type. Channels are `<stem>.<type>[.<sub>].funscript`.
-- **Library cache:** `libraryIndex.ts` revalidates via a stat-based fingerprint (plus relevant config values), not a timer. Bump `CACHE_FORMAT_VERSION` whenever `LibraryResponse` changes. Artwork and storyboard caches key on track id + mtime, so no explicit invalidation is needed.
-- **Auth:** single shared `PASSWORD`; the auth middleware is mounted before `express.static`, so every asset and API route is gated. Tokens are lines in `<configDir>/tokens.txt`. A separate process-local media token allows only `GET`/`HEAD` under `/api/media/` (for Chromecast).
+- **Jellyfin:** the client signs in to Jellyfin and loads the whole library once (`src/client/jellyfin/`; `api.ts` stays the single data facade). Albums, tags (Tags ∪ Genres) and funscript types are derived client-side; chapter/storyboard WebVTT are `blob:` URLs; media plays direct (`static=true`) with `crossorigin="anonymous"`. Never commit the Jellyfin address or credentials used for testing; integration tests assert shapes only.
+- **Auth:** media access goes through the Jellyfin sign-in (token in `localStorage`, `api_key` in stream URLs, which also covers Chromecast). HAPPY's optional shared `PASSWORD` still gates the HAPPY page: the auth middleware is mounted before `express.static`, and tokens are lines in `<configDir>/tokens.txt`.
 - **Configuration:** `src/server/config.ts` defines `DEFAULTS`, `ENV_NAMES` and `DESCRIPTIONS`; env vars override `settings.yaml`. After adding or changing an option, run `npm run docs:env`. Only the client-visible subset is exposed through `/api/config`.
 
 ## Conventions

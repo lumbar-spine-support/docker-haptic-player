@@ -142,27 +142,33 @@ classDiagram
 
 ```mermaid
 flowchart LR
-  subgraph server["Server, at scan time"]
-    Files[("/media<br/>song.mp3<br/>song.vibrator.funscript<br/>song.estim.nipples.funscript")]
-    Parse["parseFunscriptName()<br/>stem, type, sub"]
-    Info["TrackInfo.funscripts[]<br/>filename, type, sub"]
-    Ch["readFunscriptChapters()<br/>chapters only"]
-    Files --> Parse --> Info
-    Files --> Ch
+  subgraph jellyfin["Jellyfin + HAPPY plugin"]
+    Files[("library folder<br/>song.mp3<br/>song.vibrator.funscript<br/>song.estim.nipples.funscript")]
+    Index["FunscriptIndex<br/>longest stem prefix,<br/>same folder first"]
+    Listing["GET /Happy/Funscripts<br/>item id → Key, FileName"]
+    Raw["GET /Happy/Items/{id}/Funscripts/{key}<br/>raw JSON"]
+    Files --> Index --> Listing
+    Index --> Raw
   end
 
-  subgraph client["Browser, per track"]
-    Fetch["App.fetchTrackScripts()<br/>GET /api/funscript/:id/:file<br/>cached per track id"]
-    Loaded["LoadedScript[]<br/>channel + raw Funscript"]
-    VizPrep["Visualization<br/>prepareScript() per script"]
-    SyncPrep["each FunscriptSync<br/>prepareScript() per script"]
+  subgraph client["Browser"]
+    Parse["buildLibrary(): parseFunscriptName()<br/>TrackInfo.funscripts[]<br/>key, filename, type, sub"]
+    Fetch["App.fetchTrackScripts()<br/>fetchFunscript(track, info)<br/>cached per track id"]
+    Ch["applyFunscriptChapters()<br/>metadata.chapters"]
+    Loaded["LoadedScript[]<br/>channel + prepared script"]
+    VizPrep["Visualization"]
+    SyncPrep["each FunscriptSync"]
     Fetch --> Loaded
+    Fetch --> Ch
     Loaded -- "browsed track" --> VizPrep
     Loaded -- "active track" --> SyncPrep
   end
 
-  Info -- "GET /api/library" --> Fetch
+  Listing -- "loadLibrary()" --> Parse --> Fetch
+  Raw --> Fetch
 ```
+
+The plugin only matches files to items; type and subcategory are parsed in the browser with the `FUNSCRIPT_SUFFIX_*` settings from `/api/config`. See [jellyfin-plugin.md](jellyfin-plugin.md#matching).
 
 `prepareScript(actions, method)` sorts the actions and precomputes one cubic polynomial per segment, so `positionAt(prepared, ms)` is a binary search plus a polynomial evaluation. The methods are:
 
@@ -323,7 +329,8 @@ Ideas for Coyote playback, taken from the [Restim stim theory wiki](https://gith
 
 | Topic | Files |
 | --- | --- |
-| Channel model | [shared/haptics.ts](../../src/shared/haptics.ts), [shared/types.ts](../../src/shared/types.ts) |
+| Channel model | [shared/haptics.ts](../../src/shared/haptics.ts), [shared/types.ts](../../src/shared/types.ts), [shared/funscriptNames.ts](../../src/shared/funscriptNames.ts) |
+| Funscript source | [jellyfin-plugin/](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptMatcher.cs), [client/api.ts](../../src/client/api.ts) (`fetchFunscript`) |
 | Interpolation | [shared/interpolation.ts](../../src/shared/interpolation.ts) |
 | Sync loop | [components/funscriptSync.ts](../../src/client/components/funscriptSync.ts) |
 | Interface and registry | [haptic/backend.ts](../../src/client/components/haptic/backend.ts), [haptic/backendRegistry.ts](../../src/client/components/haptic/backendRegistry.ts) |

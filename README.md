@@ -12,7 +12,8 @@
 
 ⭐ Key features:
 
-- Easily self-hosted using the prebuilt Docker image.
+- Easily self-hosted using the prebuilt Docker image, next to your [Jellyfin](https://jellyfin.org/) server.
+- Uses your Jellyfin library: metadata, artwork, chapters, timeline thumbnails and users.
 - [Intiface](https://intiface.com/) interface for wide-raning haptic toys support.
 - Multiple `.funscript` files can be played in parallel.
 - Modern [Video.JS v10](https://videojs.org/blog/videojs-v10-release-candidate) framework for audio and video playback.
@@ -38,39 +39,41 @@
 
 ## Quick Start
 
+HAPPY needs a [Jellyfin](https://jellyfin.org/) server with the HAPPY plugin installed. Jellyfin manages your media; HAPPY plays it and adds the haptics.
+
 ### 1. Docker Compose Setup
 
-Create a [service](https://docs.docker.com/reference/compose-file/services/) in a `docker-compose.yml` and run it using `docker compose up`. The web interface should be accessible shortly after.
+Create a [service](https://docs.docker.com/reference/compose-file/services/) in a `docker-compose.yml` and run it using `docker compose up`. The web interface should be accessible shortly after. `JELLYFIN_URL` is the address of your Jellyfin server as your browser reaches it.
 
 ```yaml
 services:
   happy:
     image: ghcr.io/lumbar-spine-support/docker-haptic-player:stable
     ports:
-      - "8069:8069"
+      - "8069:3000"
     environment:
-      PASSWORD: "happy"
-      PORT: 8069
+      JELLYFIN_URL: "https://jellyfin.example.com"
     volumes:
-      - ./media:/media:ro
       - ./config:/config
     restart: unless-stopped
 ```
 
 →  [docs/installation.md](docs/installation.md), [docs/configuration.md](docs/configuration.md)
 
-### 2. Media Library Setup
+### 2. Jellyfin Plugin and Library Setup
 
-Put your files into the folder you mounted as `./media`. Funscripts and optional descriptions are matched by file name not by folder.
+Install the HAPPY plugin into Jellyfin (see [installation](docs/installation.md#jellyfin-plugin)) and put your funscripts next to the media files in your Jellyfin libraries:
 
 ```
-media/
+audio/
 ├── audio.mp3
-├── audio.vibrator.mp3
+└── audio.vibrator.funscript
+video/
 ├── video.mp4
-├── video.stroker.funscript
-└── playlists/favorites.m3u
+└── video.stroker.funscript
 ```
+
+Sign in to HAPPY with your Jellyfin account.
 
 →  [docs/library.md](docs/library.md)
 

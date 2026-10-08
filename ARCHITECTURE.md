@@ -1,21 +1,21 @@
 # Architecture
 
-> Diagrams and step-by-step use cases (pairing, playback, library scan, login) live in [docs/developer/](docs/developer/README.md).
+> Diagrams and step-by-step use cases (pairing, playback, library load, login) live in [docs/developer/](docs/developer/README.md).
 
 ## Overview
 
-This is a TypeScript application split into two clear runtime layers:
+This is a TypeScript application split into two runtime layers, backed by a Jellyfin server:
 
-- **Server (`src/server/`)**: scans media, parses metadata, serves static assets, and exposes JSON/media endpoints.
-- **Client (`src/client/`)**: renders the Bootstrap UI, manages routing, playback, haptic synchronization, and device control in the browser.
+- **Server (`src/server/`)**: serves the static client, the client-visible configuration, the built-in docs and the optional DG-Lab relay. It has no media library of its own.
+- **Client (`src/client/`)**: signs in to Jellyfin, builds the library model from Jellyfin's API, and renders the Bootstrap UI, routing, playback, haptic synchronization and device control in the browser.
+- **Jellyfin + the HAPPY plugin (`jellyfin-plugin/`)**: Jellyfin owns scanning, metadata, artwork, chapters, trickplay thumbnails, users and streaming. The plugin adds the one thing Jellyfin does not know: funscripts next to the media files.
 
 The server is intentionally stateless with respect to playback. All live playback, footer state, haptic timing, and Intiface device connection state live in the browser.
 
-Chromecast and other remote playback receivers fetch media independently and do not inherit the
-browser's session cookie. When authentication is enabled, `/api/config` therefore includes a random
-process-local media token. The client appends it to playback URLs, and the auth middleware accepts
-it only for `GET`/`HEAD` requests below `/api/media/`. It cannot access the library or other APIs and
-is redacted from request logs.
+Media always plays **directly** (`/Videos|Audio/{id}/stream?static=true`), never transcoded: haptic
+timing follows the media element's own clock, and VR needs the full-resolution frame. Chromecast and
+other remote playback receivers fetch that URL themselves; the Jellyfin access token travels in its
+`api_key` query parameter, so no separate media token is needed.
 
 The one carve-out is the optional **DG-Lab V4 relay** (`/ws/dglab`). A browser cannot accept
 WebSocket connections, so pairing a phone-hosted DG-Lab app with the player needs a meeting
@@ -35,23 +35,20 @@ and hands it to the tab when it returns. A newly connecting app likewise replace
 ### Server responsibilities
 
 - Load runtime configuration from `config/settings.yaml`
-- Build the media library model from the filesystem and cache it in `<configDir>/cache/`
 - Expose API routes for:
-  - `/api/library`, `POST /api/library/refresh`
-  - `/api/media/:trackId`
-  - `/api/artwork/:trackId`
-  - `/api/funscript/:trackId/:filename`
   - `/api/auth/login`, `/api/auth/logout`, `/api/auth/status`
-  - `/api/config` (the client-visible half of the configuration only)
+  - `/api/config` (the client-visible half of the configuration only, including `JELLYFIN_URL`)
+  - `/api/version`
+  - `/api/docs` (the user docs shown in the app)
   - `/ws/dglab` (WebSocket relay, only when `DGLAB_ENABLED` is on)
 - Serve compiled frontend assets from `public/`
-- Gate every asset and API route behind a valid access token
-- Issue authenticated clients a process-local, media-only token for remote playback receivers
+- Gate every asset and API route behind HAPPY's own access token while `PASSWORD` is set
 - Write a level-filtered log of startup, connection, and authentication events to the docker console
 
 ### Client responsibilities
 
-- Fetch library/config data from the server
+- Sign in to Jellyfin and keep the session token
+- Load the library from Jellyfin and the funscript listing from the HAPPY plugin
 - Render library, album, playlist, and file views
 - Maintain the **two-player model**
 - Keep the persistent footer in sync with the active playback player
@@ -148,13 +145,13 @@ with `PlaybackSession`, `PlaybackQueue` and `PlaybackController`.
 
 ### Sync flow
 
-1. Client fetches library/config from API utilities in `src/client/api.ts`
+1. Client fetches config from the HAPPY server and the library from Jellyfin, both through `src/client/api.ts`
 2. Router state determines whether library/detail/player view is shown
 3. Opening a file:
    - updates `currentTrackId`
    - `PlaybackSession.browse()` points the focus at the active slot when the ids
      match, otherwise loads the track into the idle slot
-   - loads funscripts/description for the browsed file
+   - loads funscripts for the browsed file and renders its description
 4. Starting playback:
    - the focused slot promotes itself to active
    - footer and Media Session metadata follow via `PlaybackController.onActiveTrack`
@@ -167,7 +164,7 @@ with `PlaybackSession`, `PlaybackQueue` and `PlaybackController`.
 The haptic pipeline is:
 
 1. user opens a track
-2. client fetches matching funscripts
+2. client fetches the track's funscripts from the HAPPY plugin by key
 3. `FunscriptSync` receives sorted script actions
 4. store updates from the active player slot drive sync start/pause/seek/stop
 5. device commands are routed through `ButtplugClientManager`
@@ -201,100 +198,56 @@ The sync engine recalculates output when:
 
 VR180 videos (detected from the filename by `src/shared/vrFormat.ts`) are tagged with `data-vr-format` on their `<video-player>`. The `vr` player feature then draws the `<video>` through a WebGL2 canvas as an inline panorama (mouse/touch drag, wheel/pinch zoom, optional gyroscope). Camera math, the shared projection shader and the inline view live in `src/client/components/vr/`; a capture-phase drag guard keeps panorama drags from firing the skin's tap gestures. Haptic sync is independent of the render loop. See [docs/developer/client.md](docs/developer/client.md#vr180-playback).
 
-## Library indexing and caching
+## Jellyfin data layer
 
-Scanning the media directory is the single most expensive thing the server does: `buildLibrary()`
-runs `ffprobe` over every audio and video file, and extracting a cover means running `ffmpeg` on the
-container of a file that may be several gigabytes. Neither cost may be paid per request once a
-library grows past a few hundred items, so both results are cached.
+The client talks to Jellyfin directly. `src/client/api.ts` stays the single data facade the rest
+of the client calls; behind it, `src/client/jellyfin/` holds the session, loader, mapper and URL
+builders.
 
-Everything derived lives under the `cache/` subdirectory of the `/config` mount. It contains only
-reproducible data and is safe to delete at any time — the next request rebuilds it:
+### Session
 
-```text
-<configDir>/
-  settings.yaml        hand-edited configuration
-  tokens.txt           issued access tokens
-  cache/
-    library.json       library index snapshot
-    artwork/           extracted cover images, two files per entry
-    storyboards/       timeline thumbnail sprite sheets, one directory per video
-```
+`JellyfinConnection` (`connection.ts`) signs in with `POST /Users/AuthenticateByName` and stores the
+access token, user id and user name in `localStorage`, keyed to the server address in `JELLYFIN_URL`.
+API requests send it in a `MediaBrowser … Token="…"` authorization header. A stable per-browser
+`DeviceId` keeps Jellyfin's device list to one entry per browser. A `401` forgets the session and
+reloads, which shows the sign-in card (`signIn.ts`) again. Without `JELLYFIN_URL` the app shows a
+notice instead of loading.
 
-All cache writes are best effort. A read-only or full `/config` mount logs a warning and degrades to
-an in-memory-only cache rather than failing the request.
+Media elements cannot send headers, so stream and trickplay sheet URLs carry the token as
+`api_key`. Images (`/Items/{id}/Images/Primary`) need no token.
 
-### Library index
+### Library model
 
-`src/server/services/libraryIndex.ts` wraps `buildLibrary()` with an in-memory snapshot that is
-mirrored to `cache/library.json`, so a restart does not re-scan an unchanged library.
+`loadLibrary()` (`library.ts`) loads everything once and the client keeps it in memory:
 
-Staleness is decided by a **fingerprint**, not by a timer:
+- one `/Items` request for all playable items (`Audio`, `AudioBook`, `Video`, `Movie`, `MusicVideo`, `Episode`) with `Fields=Path,Tags,Genres,Overview,Chapters,Trickplay`; `MediaType` decides audio vs video
+- `GET /Happy/Funscripts` from the plugin (a missing plugin logs a warning and the library loads without funscripts)
+- Jellyfin playlists and their entries
 
-- `computeMediaFingerprint()` walks the media directory and hashes `path`, `size` and `mtimeMs` of
-  every file. This is one `stat` per file and no metadata parsing, i.e. orders of magnitude cheaper
-  than a rebuild.
-- The config values that influence the scan result (media directory, `ignoreExt`, all funscript
-  suffixes) are hashed into the same digest, so editing `settings.yaml` invalidates the snapshot.
+`buildLibrary()` (`mapper.ts`) turns that into the existing `LibraryResponse` shape:
 
-`get()` revalidates the fingerprint at most once every 30 seconds; within that window it answers
-straight from memory. A rebuild is triggered only when the digest actually differs. Concurrent
-callers share a single in-flight build promise, so a burst of requests can never start two scans.
+- the track id is the Jellyfin item id; `filename` is the basename of `Path` and drives VR detection
+- tags are Jellyfin `Tags` ∪ `Genres` (case-insensitive), the description is the item `Overview`
+- albums are grouped client-side from album artist + album (`src/shared/albums.ts`), because
+  Jellyfin only builds album entities for Music libraries
+- funscript type and subcategory are parsed client-side from the plugin's file names
+  (`src/shared/funscriptNames.ts`, honouring `FUNSCRIPT_SUFFIX_*`)
+- embedded chapters come from Jellyfin; funscript `metadata.chapters` are only known once the
+  scripts load, and replace them according to `CHAPTER_SOURCE_PRIORITY`
+  (`PlaybackSession.updateChapters()` swaps the chapter track without reloading the media)
+- trickplay uses the resolution closest to 320 px
 
-`CACHE_FORMAT_VERSION` guards the on-disk shape: bump it whenever `LibraryResponse` changes, and
-older snapshots are discarded instead of being trusted. The file is written via a temp file plus
-rename so a crash mid-write cannot leave a half-parsed snapshot behind.
+### Generated WebVTT and CORS
 
-`createApp()` kicks off the first `get()` eagerly, which moves the startup scan off the first
-visitor's request. `POST /api/library/refresh` forces a rebuild regardless of the fingerprint; it is
-the escape hatch for media added over a network share whose mtimes do not reflect the change.
+Video.js reads chapters and timeline thumbnails from `<track>` elements. The client builds both
+files itself (`buildChaptersVtt()`, `trickplayVtt()`) and hands them over as `blob:` URLs, which are
+same-origin and need no CORS. The storyboard cues point at Jellyfin's trickplay sheets with `#xywh=`
+fragments.
 
-### Artwork cache
-
-`src/server/services/artworkCache.ts` stores each extracted cover under `cache/artwork/` as two
-files, so a cache hit never needs a directory scan:
-
-- `<key>.meta` — JSON `{ "mime": "image/jpeg" }`
-- `<key>.bin` — the raw image bytes
-
-The key is `sha1(trackId + ':' + artworkVersion)`, where `artworkVersion` is the media file's mtime
-in whole milliseconds. Re-tagging a file changes its mtime and therefore its key, which invalidates
-every cached copy of that cover without any explicit invalidation step.
-
-Files **without** a cover are cached too, as a negative entry (`{ "mime": null }`). Without this,
-every art-less track would re-parse its full media file on each request just to produce a 404.
-
-Stale entries are removed after every successful library rebuild: the index hands the cache the set
-of keys referenced by the fresh snapshot, and `prune()` deletes everything else.
-
-### Storyboards
-
-`src/server/services/storyboard.ts` renders timeline thumbnails for videos into
-`cache/storyboards/<key>/` as `0.jpg`, `1.jpg`, … sprite sheets of 10×10 tiles plus a `meta.json`.
-ffmpeg decodes keyframes only (`-skip_frame nokey`, then `fps=1/STORYBOARD_INTERVAL`, `scale`,
-`tile`), so a thumbnail may be one GOP off but long videos stay cheap. VR180 videos are cropped to
-one eye. The key hashes track id, mtime, interval, width and crop, so any change regenerates.
-
-A single background worker processes videos one at a time after every library build or restore;
-`GET /api/media/:id/storyboard.vtt` awaits the video's job and moves it to the front of the queue.
-The directory is built as `<key>.tmp` and renamed, so `meta.json` existing means complete. Undecodable
-videos get `sheets: 0` and are not retried until they change. `sync()` prunes keys no longer in the
-library.
-
-The client adds `storyboard.vtt` as `<track kind="metadata" label="thumbnails" default>` and
-`chapters.vtt` as `<track kind="chapters" default>`; Video.js renders both in the time-slider preview.
-
-### HTTP caching of `/api/artwork/:id`
-
-- The route always sends an `ETag` derived from the cache key, and answers a matching
-  `If-None-Match` with `304` before touching the cache or the media file.
-- `?v=<artworkVersion>` marks the response `public, max-age=31536000, immutable`, so repeat visits
-  skip the request entirely. The client appends this automatically via `artworkUrl()`.
-- Unversioned URLs fall back to `public, max-age=86400, must-revalidate`, where the ETag turns a
-  revalidation into a `304` instead of a re-send.
-
-`TrackInfo.artworkVersion` carries the mtime to the browser purely so the client can build those
-versioned URLs.
+Jellyfin is a different origin from HAPPY, so both `<video>` elements and the images drawn into the
+playlist collage use `crossorigin="anonymous"`. Without CORS mode the WebGL VR projection could not
+upload frames and `canvas.toDataURL()` would throw on a tainted canvas. Jellyfin answers with
+`Access-Control-Allow-Origin: *`; no cookies are involved.
 
 ## Gallery rendering with large libraries
 
@@ -314,28 +267,35 @@ Covers are requested lazily rather than eagerly:
   into rectangles while suppressing `aspect-ratio`.
 - `renderTrackArt()` is the single place that decides between a real URL and the inline
   `FALLBACK_ART_DATA_URI` placeholder. It emits a request only when `hasArtwork` is true, so
-  art-less media costs no round trip at all. Album covers point at `coverTrackId`, which the server
-  leaves `null` when no track in the album carries a cover.
+  art-less media costs no round trip at all. Album covers point at `coverTrackId`, which album
+  grouping leaves `null` when no track in the album carries a cover.
 
 This keeps a first render to the covers actually on screen. Client-side windowing of the grid itself
 is deliberately not implemented: the filtering logic depends on the full in-memory list, and the
-lazy images remove the dominant cost. Downscaling covers to thumbnail size server-side would cut
-bandwidth further, but needs a native image library (`sharp`) and is left out to keep the runtime
-image lean.
+lazy images remove the dominant cost. Covers are requested at most 1000 px on the long edge;
+Jellyfin scales them on the first request and caches the result.
 
 ## Authentication
 
-A single shared password guards the whole application. There is no user management.
+There are two independent gates:
 
-### Flow
+- **Jellyfin sign-in** (see [Jellyfin data layer](#jellyfin-data-layer)) controls access to media,
+  artwork and funscripts. Users and their library access are managed in Jellyfin; the plugin only
+  serves scripts of items the signed-in user can see.
+- **HAPPY's own password** (`PASSWORD`) optionally guards the HAPPY page itself. It is a single
+  shared password without user management, described below. Dropping it in favour of the Jellyfin
+  sign-in alone is planned.
+
+The logout button signs out of Jellyfin and, when `PASSWORD` is set, revokes HAPPY's token too.
+
+### Password flow
 
 1. `createApp()` mounts `/api/auth` and then `createAuthMiddleware()` **before** `express.static`,
    so `index.html`, `/js/app.js` and every `/api/*` route are unreachable without a token.
 2. `POST /api/auth/login` compares the submitted password against `PASSWORD` in constant time,
    issues a 256-bit opaque token and returns it in an `HttpOnly`, `SameSite=Lax` cookie.
-3. Subsequent requests are authorized by that cookie. A cookie is required rather than an
-   `Authorization` header because artwork and media are loaded through `<img src>` and
-   `<video src>`, which cannot send custom headers.
+3. Subsequent requests to the HAPPY server are authorized by that cookie, which the browser
+   sends with every asset request without any client code.
 4. Rejected requests get `401 { error }`, or a `302` to `/auth/` for browser navigations.
    The client logs the failure to the console before redirecting.
 
@@ -406,7 +366,7 @@ Buttplug device management lives in `src/client/components/haptic/buttplugClient
 - **Video.js** for audio/video playback UI
 - **Bootstrap 5** + **Bootstrap Icons** for layout/styling
 - **Buttplug** browser client for Intiface connectivity
-- **FFmpeg** (`ffprobe`/`ffmpeg`) for server-side metadata, chapter and cover extraction
+- **Jellyfin** for the library, metadata, artwork, trickplay, users and streaming; the HAPPY plugin is C# (.NET 10)
 
 ## Logging
 
@@ -424,36 +384,33 @@ What each level covers:
 
 | Level | Content |
 | --- | --- |
-| `error` | Unhandled request errors, failed initial library scan |
-| `warn` | Missing media directory, read-only config mount, failed logins, throttled clients, authentication disabled |
-| `info` | Listening address, library scan summary (counts per category, funscripts, ignored files), first request of a client, login/logout, redirect to the login page |
-| `debug` | One line per media file and per ignored file, every HTTP request with status and duration, cache hits and rebuilds |
-
-The startup summary is produced by `logLibrarySummary()` in `libraryService.ts` and is emitted by
-`createApp()` once the first `libraryIndex.get()` resolves. It walks the media directory itself
-(stat only, no metadata parsing), so the summary is identical whether the library was freshly
-scanned or restored from `cache/library.json`.
+| `error` | Unhandled request errors, failure to listen on the port |
+| `warn` | Missing `JELLYFIN_URL`, read-only config mount, failed logins, throttled clients, authentication disabled |
+| `info` | Listening address, first request of a client, login/logout, redirect to the login page |
+| `debug` | Every HTTP request with status and duration, the effective configuration |
 
 Connection logging lives in `src/server/middleware/requestLog.ts`. Logging every request at `info`
-would drown the log in artwork requests, so `info` is limited to a client (address + user agent)
+would drown the log in asset requests, so `info` is limited to a client (address + user agent)
 that has not been seen for `CLIENT_IDLE_MS`. The same map is swept on that rare path to keep it
 bounded.
 
 ## Directory structure
 
 ```text
-config/                 Runtime settings, tokens, and the derived cache/ subdirectory
+config/                 Runtime settings and tokens (local stand-in for the /config volume)
+jellyfin-plugin/        HAPPY plugin for Jellyfin (C#): funscript index and endpoints
 public/                 Built client assets and vendored frontend libraries
 scripts/                Build/helper scripts
 src/
   client/               Browser application
     components/         Playback, haptic, visualization, and device UI modules
       player/           Session (two slots), queue, controller, footer element
-    utils/              API and formatting helpers
+    jellyfin/           Jellyfin session, sign-in card, library loader, mapper, URL builders
+    utils/              Formatting and DOM helpers
     index.ts            Main SPA/controller
-  server/               Express app, routes, config, and library services
+  server/               Express app, routes, config, auth and the DG-Lab relay
   shared/               Shared types and utility logic used by client/server
-test/                   Existing tests
+test/                   Unit tests (server, client) and opt-in Jellyfin integration tests
 dist/                   Compiled server output
 ```
 
@@ -470,11 +427,10 @@ dist/                   Compiled server output
 - `src/client/components/settings/` and `components/haptic/dglab/pairingPanel.ts` wire the settings panel
 - `src/client/components/haptic/featureSettings.ts` and `emitter.ts` hold the per-backend assignment/strength storage and listener lists shared by both backends
 - `src/server/routes/` keeps each API concern separate
-- `src/server/services/libraryService.ts` performs the raw filesystem scan; it holds no state. `albums.ts`, `playlists.ts` and `funscripts.ts` build the albums, playlists and funscript/chapter data it assembles
-- `src/server/services/libraryIndex.ts` owns caching and staleness detection around that scan
-- `src/server/services/artworkCache.ts` owns the on-disk cover cache, including negative entries
+- `src/client/api.ts` is the single data facade; `src/client/jellyfin/connection.ts` owns the Jellyfin session, `library.ts` the requests, `mapper.ts` the pure DTO → `LibraryResponse` mapping and `urls.ts` the stream, image and trickplay URLs
+- `src/shared/albums.ts` and `src/shared/funscriptNames.ts` hold album grouping and funscript name/chapter parsing
 - `src/server/utils/logger.ts` owns the log level; every server module logs through `createLogger('[tag]')` instead of `console`
-- `src/shared/types.ts` provides shared contracts between server responses and client consumers
+- `src/shared/types.ts` provides the shared contracts: the client's library model and the `/api/config` payload
 
 ## Documentation
 

@@ -1,13 +1,13 @@
 # Documentation
 
 - [Installation](installation.md)
-  <br>Docker Compose, volumes, authentication, reverse proxy
+  <br>Docker Compose, Jellyfin server and the HAPPY plugin
 - [Configuration](configuration.md)
   <br>Description of available settings / environment variables
 - [Authentication](authentication.md)
-  <br>Explanation of simple token-based authentication system
+  <br>Jellyfin sign-in and the optional HAPPY password
 - [Media Library](library.md)
-  <br>File layout, funscripts, playlists, tags and descriptions
+  <br>Jellyfin libraries, funscripts, tags, descriptions, chapters and VR
 - [Intiface Central Integration](intiface.md)
   <br>Connecting haptic toys
 - [*(Experimental)* Dungeon Lab](dg-lab.md)

@@ -1,6 +1,6 @@
 # Jellyfin plugin
 
-HAPPY is moving to Jellyfin for the library, metadata, artwork, trickplay, chapters, authentication and streaming. Jellyfin has no idea what a funscript is, so a small companion plugin in [jellyfin-plugin/](../../jellyfin-plugin/) indexes `.funscript` files next to the media and serves them to signed-in users.
+HAPPY uses Jellyfin for the library, metadata, artwork, trickplay, chapters, users and streaming. Jellyfin has no idea what a funscript is, so a small companion plugin in [jellyfin-plugin/](../../jellyfin-plugin/) indexes `.funscript` files next to the media and serves them to signed-in users.
 
 The plugin is deliberately dumb. It only maps files to items and checks access. Parsing the script type and subcategory, funscript chapters and VR detection stay in the TypeScript client, where they are already tested.
 

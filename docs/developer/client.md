@@ -68,7 +68,8 @@ sequenceDiagram
   participant M as main()
   participant PS as PlaybackSession
   participant A as App
-  participant S as Server
+  participant S as HAPPY server
+  participant J as Jellyfin
 
   M->>PS: create([#player-slot-a, #player-slot-b])
   PS->>PS: await customElements.whenDefined('video-player')
@@ -76,16 +77,22 @@ sequenceDiagram
   Note over A: constructor: registry.add(buttplug),<br/>Intiface sync engine, DeviceStatus,<br/>Visualization, Library, PlaybackController
   M->>A: init()
   A->>S: GET /api/config
-  S-->>A: ClientSettings + mediaAccessToken
-  A->>A: setMediaAccessToken, interpolation method, seek step
+  S-->>A: ClientSettings incl. jellyfinUrl
+  A->>A: interpolation method, seek step
   A->>A: bind library, Intiface settings, toggles, zoom
   A->>A: mount Intiface DeviceAssignment, initHapticControls
   opt dglabEnabled
     A->>A: initDglab: new CoyoteBackend, sync engine,<br/>DeviceAssignment, bindPairingPanel
   end
   A->>A: playback.onActiveTrack(onActiveTrackChanged)
-  A->>S: GET /api/library
-  S-->>A: LibraryResponse
+  A->>A: connectJellyfin(): no jellyfinUrl → notice, stop
+  opt no stored Jellyfin session
+    A->>J: ensureSignedIn: sign-in card →<br/>POST /Users/AuthenticateByName
+    J-->>A: AccessToken, User
+  end
+  A->>A: useJellyfin(connection, suffixes, chapter priority)
+  A->>J: loadLibrary(): GET /Items, /Happy/Funscripts, playlists
+  J-->>A: items → buildLibrary() → LibraryResponse
   A->>A: router.start()
   Note over A: listeners: popstate → route,<br/>pagehide → haptics.stopAll()
 ```
@@ -97,6 +104,23 @@ The settings panel is wired by small modules instead of `App`: `components/setti
 Auto-reconnect: `happy-intiface-last-state` / `happy-dglab-last-state` become `connected` on a successful connection and `disconnected` only on an explicit Disconnect click. `happy-dglab-last-seen` is refreshed on every relay frame (heartbeats every 30 s) and on `pagehide`; DG-Lab reconnects only while it is younger than `DGLAB_DETACH_GRACE_MS` (`src/shared/dglab.ts`), otherwise the section stays *Disconnected*.
 
 Intiface drops are retried by `bindIntifaceSettings()` with backoff (1 s doubling to 15 s) and on `visibilitychange`, but only after a connection made in the same page session and while `happy-intiface-last-state` is `connected`. Intiface pings only after 10 s without traffic and drops the client after the next 10 s without a pong, which happens when Android Chrome freezes the tab with the screen off. `keepScreenOnWhilePlaying()` (`utils/wakeLock.ts`) therefore holds a screen wake lock while the active player is playing and the page is visible, unless the `happy-keep-screen-on` toggle is off.
+
+## Jellyfin data layer
+
+[api.ts](../../src/client/api.ts) is still the only module the rest of the client calls for data. `useJellyfin()` points it at a signed-in `JellyfinConnection`; everything behind it lives in [src/client/jellyfin/](../../src/client/jellyfin/):
+
+| File | Role |
+| --- | --- |
+| `connection.ts` | `JellyfinConnection`: sign-in, `localStorage` session keyed to the server URL, `MediaBrowser` authorization header with a stable `DeviceId`, `request()` that forgets the session and calls `onUnauthorized` (a reload) on `401`, sign-out via `POST /Sessions/Logout` |
+| `signIn.ts`, `signIn.html` | Full-screen sign-in card shown by `ensureSignedIn()` until a session exists; `showMissingServerNotice()` when `JELLYFIN_URL` is empty |
+| `library.ts` | `loadLibrary(api, options)`: one `/Items` request with `Fields=Path,Tags,Genres,Overview,Chapters,Trickplay`, `/Happy/Funscripts` (404 = plugin missing → no funscripts), playlists and their entries. Takes any `JellyfinApi` (`userId` + `request()`), so the integration tests drive it from Node |
+| `mapper.ts` | Pure DTO → `TrackInfo`/`LibraryResponse` mapping: `MediaType` decides audio/video, tags = Tags ∪ Genres, description = Overview, embedded chapters (when `embedded` is in the priority), trickplay resolution closest to 320 px, client-side albums (`shared/albums.ts`) |
+| `urls.ts` | `streamUrl()` (`static=true&api_key=`), `imageUrl()` (tag, max 1000 px, no token), `trickplaySheetUrl()`, `trickplayVtt()` |
+| `dto.ts` | The subset of Jellyfin's PascalCase shapes HAPPY reads |
+
+`chaptersVttUrl()` and `storyboardVttUrl()` build WebVTT in the browser (`shared/webvtt.ts`) and return `blob:` URLs, cached per chapter list and per track. Blob URLs are same-origin, so `<track>` needs no CORS. Media and canvas images are cross-origin, so both `<video>` elements in `public/index.html` and `loadImage()` (playlist collage) use `crossorigin="anonymous"`; WebGL (VR) and `canvas.toDataURL()` need it.
+
+The logout button (`bindLogout()`, bound after the sign-in) shows whenever there is a Jellyfin session or HAPPY's password is on; `logout()` signs out of Jellyfin and then of HAPPY when required.
 
 ## Routing
 
@@ -179,12 +203,16 @@ The detailed sequence is in [Browse and play a track](use-cases/browse-and-play.
 
 ### Funscripts on the client
 
-`App.fetchTrackScripts(track)` downloads each funscript listed in `track.funscripts` once and caches the promise per track id in `scriptCache`. The same raw `Funscript` objects then go to:
+`App.fetchTrackScripts(track)` downloads each funscript listed in `track.funscripts` once through the plugin (`fetchFunscript(track, info)` → `/Happy/Items/{id}/Funscripts/{key}`) and caches the promise per track id in `scriptCache`. The same raw `Funscript` objects then go to:
 
 - `Visualization.mount()` for the browsed track (timelines),
 - every `FunscriptSync.loadScripts()` for the active track (device output).
 
 Both call `prepareScript()` from [shared/interpolation.ts](../../src/shared/interpolation.ts) themselves. See [haptics.md](haptics.md#funscript-pipeline).
+
+The raw JSON also carries `metadata.chapters`. Once all scripts of a track are loaded, `applyFunscriptChapters()` merges them (`parseFunscriptChapters`, `mergeChapters`, `normalizeChapters`) and, unless embedded chapters exist and come first in `chapterSourcePriority`, replaces `track.chapters` and calls `PlaybackSession.updateChapters()`, which swaps the chapter `<track>` of every slot showing that track without reloading the media.
+
+The description on the track page is `track.description` (the Jellyfin overview), rendered with `Markdown.render`.
 
 ## Video.js integration
 
@@ -195,7 +223,7 @@ The `@/components/videojs/` folder holds the ejected Video.js skin and small fea
 | Loop (repeat one) | `features/loop.ts` | `PlaybackSession.setLoop` |
 | Repeat mode | `features/repeat.ts` | `PlaybackController.applyRepeat`, `advance` |
 | Skip prev/next | `features/skip.ts` | `PlaybackController` registers itself with `setSkipTarget` |
-| Chapters & thumbnails | `features/chapters.ts` | `PlaybackSession.loadSlot` → `setMediaChapters` / `setMediaStoryboard` replace default `<track kind="chapters">` and `<track kind="metadata" label="thumbnails">` elements pointing at the server's `chapters.vtt` / `storyboard.vtt`. `<media-time-slider-chapters>`, `<media-time-slider-chapter-title>` and `<media-slider-thumbnail>` render them natively; `ui/chapter-snap.ts` snaps slider presses to `chaptersCues` |
+| Chapters & thumbnails | `features/chapters.ts` | `PlaybackSession.loadSlot` → `setMediaChapters` / `setMediaStoryboard` replace default `<track kind="chapters">` and `<track kind="metadata" label="thumbnails">` elements pointing at the client-generated `blob:` WebVTT (chapters; trickplay thumbnails with `#xywh=` cues into Jellyfin's sheets). `<media-time-slider-chapters>`, `<media-time-slider-chapter-title>` and `<media-slider-thumbnail>` render them natively; `ui/chapter-snap.ts` snaps slider presses to `chaptersCues` |
 | VR180 view | `features/vr.ts`, `ui/vr-buttons.ts` | Reacts to `data-vr-format` set by `PlaybackSession.loadSlot` |
 
 ## VR180 playback
@@ -246,7 +274,7 @@ ffmpeg \
 | Settings panel | [components/settings/](../../src/client/components/settings/), [haptic/dglab/pairingPanel.ts](../../src/client/components/haptic/dglab/pairingPanel.ts), [utils/storedSetting.ts](../../src/client/utils/storedSetting.ts) |
 | Playback | [player/session.ts](../../src/client/components/player/session.ts), [player/controller.ts](../../src/client/components/player/controller.ts), [player/queue.ts](../../src/client/components/player/queue.ts), [player/footer.ts](../../src/client/components/player/footer.ts) |
 | Library UI | [components/library/index.ts](../../src/client/components/library/index.ts), [shared/libraryFiltering.ts](../../src/shared/libraryFiltering.ts) |
-| Server API calls | [api.ts](../../src/client/api.ts) |
+| Data facade, Jellyfin | [api.ts](../../src/client/api.ts), [jellyfin/](../../src/client/jellyfin/library.ts), [shared/albums.ts](../../src/shared/albums.ts), [shared/funscriptNames.ts](../../src/shared/funscriptNames.ts), [shared/webvtt.ts](../../src/shared/webvtt.ts) |
 | Timelines | [haptic/visualization/index.ts](../../src/client/components/haptic/visualization/index.ts) |
 | Video.js | [@/components/videojs/player.ts](../../@/components/videojs/player.ts), `@/components/videojs/features/` |
 | VR180 | [components/vr/](../../src/client/components/vr/), [shared/vrFormat.ts](../../src/shared/vrFormat.ts), `@/components/videojs/features/vr.ts` |

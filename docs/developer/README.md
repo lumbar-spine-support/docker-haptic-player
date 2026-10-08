@@ -11,8 +11,8 @@ These pages explain how HAPPY works inside: which modules exist, how they talk t
 | Page | What you learn |
 | --- | --- |
 | [architecture.md](architecture.md) | The big picture: processes, network connections, module layers, build and deployment |
-| [server.md](server.md) | Express pipeline, authentication, library indexing, artwork cache, configuration |
-| [client.md](client.md) | App bootstrap, routing, the two-player playback model |
+| [server.md](server.md) | Express pipeline, configuration, HAPPY's password gate, WebSocket upgrades, DG-Lab relay |
+| [client.md](client.md) | App bootstrap, Jellyfin data layer, routing, the two-player playback model |
 | [haptics.md](haptics.md) | Backends, channels and features, the funscript pipeline, the sync loop, the e-stim sandbox |
 | [jellyfin-plugin.md](jellyfin-plugin.md) | The Jellyfin companion plugin: funscript endpoints, matching, building, testing against a real Jellyfin |
 
@@ -22,8 +22,8 @@ Each use case follows one user action from start to finish, across client, serve
 
 | Use case | Covers |
 | --- | --- |
-| [Log in](use-cases/login.md) | Password login, token cookie, media access token, logout |
-| [Scan the library](use-cases/library-scan.md) | First start, cache hit, file changes, manual refresh |
+| [Log in](use-cases/login.md) | Jellyfin sign-in, HAPPY password and token cookie, logout |
+| [Load the library from Jellyfin](use-cases/library-load.md) | Items, funscript listing, playlists, client-side mapping, new files |
 | [Browse and play a track](use-cases/browse-and-play.md) | Opening a track, pressing play, player handoff, autoplay |
 | [Connect Intiface and a toy](use-cases/intiface-pairing.md) | Intiface connection, device discovery, disconnects |
 | [Assign a device feature](use-cases/assign-feature.md) | Mapping an actuator to a funscript channel, strength, stroker range |
@@ -33,8 +33,8 @@ Each use case follows one user action from start to finish, across client, serve
 
 | Term | Meaning |
 | --- | --- |
-| **Track** | One playable audio or video file. The id is the URL-safe base64 of its path relative to the media directory. |
-| **Funscript** | A JSON file with `actions: [{ at, pos }]` (ms, 0–100). It belongs to a track by filename stem. |
+| **Track** | One playable audio or video item. The id is the Jellyfin item id. |
+| **Funscript** | A JSON file with `actions: [{ at, pos }]` (ms, 0–100). It belongs to a track by filename stem; the HAPPY Jellyfin plugin serves it by an opaque key. |
 | **Channel** | Funscript type plus an optional subcategory, e.g. `estim` or `estim:nipples` (`HapticChannel`, `channelKey()`). |
 | **Backend** | One haptic transport behind the `HapticBackend` interface: Intiface (`ButtplugClientManager`) or DG-Lab (`CoyoteBackend`). |
 | **Feature** | One actuator of a device (vibrator, rotator, linear axis, e-stim channel). Features are assigned to channels. |
