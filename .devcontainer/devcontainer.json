@@ -19,8 +19,16 @@
       "label": "HAPPY"
     }
   },
+  // Mounts the repo at the same absolute path as on the host. Claude Code keys its sessions by
+  // working directory, so this lets `claude --resume` pick up sessions started on the host.
+  "workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind",
+  "workspaceFolder": "${localWorkspaceFolder}",
+  // Makes sure ~/.claude exists on the host, otherwise the bind mount below fails
+  "initializeCommand": "mkdir -p \"$HOME/.claude\"",
   "mounts": [
-    "type=bind,source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,readonly"
+    "type=bind,source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,readonly",
+    // Shares Claude Code sessions, credentials and settings with the host
+    "type=bind,source=${localEnv:HOME}/.claude,target=/home/node/.claude"
   ],
   "postCreateCommand": "sh .devcontainer/post-create.sh",
   "postStartCommand": "git lfs install && git lfs pull",
@@ -37,6 +45,7 @@
     },
     "ghcr.io/devcontainers/features/github-cli:1": {
       "installDirectlyFromGitHubRelease": false
-    }
+    },
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
   }
 }
