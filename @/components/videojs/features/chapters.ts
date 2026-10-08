@@ -1,22 +1,23 @@
-/** A named time span in seconds. */
-export interface PlayerChapter {
-    name: string;
-    start: number;
-    end: number;
+function replaceDefaultTrack(media: HTMLMediaElement, kind: 'chapters' | 'metadata', label: string, src: string | null): void {
+    media.querySelector(`track[kind="${kind}"][label="${label}"]`)?.remove();
+    if (!src) return;
+    const track = document.createElement('track');
+    track.kind = kind;
+    track.label = label;
+    // Non-default tracks stay disabled and never load their cues.
+    track.default = true;
+    track.src = src;
+    media.append(track);
 }
 
-const vttTime = (seconds: number): string => new Date(seconds * 1000).toISOString().slice(11, 23);
+/** Chapters WebVTT; the time slider renders segments and the preview title from it natively. */
+export function setMediaChapters(media: HTMLMediaElement, src: string | null): void {
+    replaceDefaultTrack(media, 'chapters', 'chapters', src);
+}
 
-/** Replaces the media's default `kind="chapters"` track, which the time slider renders natively. */
-export function setMediaChapters(media: HTMLMediaElement, chapters: readonly PlayerChapter[]): void {
-    media.querySelector('track[kind="chapters"]')?.remove();
-    if (chapters.length === 0) return;
-    const cues = chapters.map((c) => `${vttTime(c.start)} --> ${vttTime(c.end)}\n${c.name.replace(/\s+/g, ' ').replace(/-->/g, '->')}`);
-    const track = document.createElement('track');
-    track.kind = 'chapters';
-    track.default = true;
-    track.src = `data:text/vtt,${encodeURIComponent(`WEBVTT\n\n${cues.join('\n\n')}\n`)}`;
-    media.append(track);
+/** Storyboard WebVTT; Video.js picks it up as `thumbnailsTrack` for `<media-slider-thumbnail>`. */
+export function setMediaStoryboard(media: HTMLMediaElement, src: string | null): void {
+    replaceDefaultTrack(media, 'metadata', 'thumbnails', src);
 }
 
 /** Nearest chapter start within `thresholdSeconds` of `time`, otherwise `time` unchanged. */

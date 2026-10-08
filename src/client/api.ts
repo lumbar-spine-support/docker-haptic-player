@@ -4,6 +4,12 @@ const BASE = new URL('.', window.location.href).pathname;
 
 let redirectingToLogin = false;
 let mediaAccessToken: string | null = null;
+let storyboardsEnabled = false;
+
+/** Mirrors the server's storyboard setting so audio and disabled setups skip the request. */
+export function setStoryboardsEnabled(enabled: boolean): void {
+  storyboardsEnabled = enabled;
+}
 
 /** Sets the media-only token embedded in URLs handed to remote playback receivers. */
 export function setMediaAccessToken(token: string | null): void {
@@ -50,6 +56,14 @@ export async function fetchFunscript(trackId: string, filename: string): Promise
 export function mediaUrl(trackId: string): string {
   const url = `${BASE}api/media/${trackId}`;
   return mediaAccessToken ? `${url}?mediaToken=${encodeURIComponent(mediaAccessToken)}` : url;
+}
+
+export function chaptersVttUrl(track: TrackInfo): string | null {
+  return track.chapters?.length ? `${BASE}api/media/${track.id}/chapters.vtt` : null;
+}
+
+export function storyboardVttUrl(track: TrackInfo): string | null {
+  return storyboardsEnabled && track.type === 'video' ? `${BASE}api/media/${track.id}/storyboard.vtt` : null;
 }
 
 /** Fetches the optional markdown description companion file for a track. */

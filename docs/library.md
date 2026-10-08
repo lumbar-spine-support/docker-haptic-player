@@ -120,6 +120,16 @@ HAPPY reads chapters from two sources. `CHAPTER_SOURCE_PRIORITY` (`chapterSource
   ffmpeg -i input.mp4 -i chapters.txt -map 0 -map_metadata 0 -map_chapters 1 -codec copy output.mp4
   ```
 
+## Timeline thumbnails
+
+Hovering or dragging the progress bar of a video shows a preview frame together with the time and chapter name. HAPPY generates these storyboards with ffmpeg in the background after scanning the library, one video at a time; a video you open is moved to the front of the queue. Thumbnails appear once its storyboard is ready. They are cached in `cache/storyboards/` of the config directory.
+
+- `STORYBOARD_GENERATE`: set to `false` to disable thumbnails.
+- `STORYBOARD_INTERVAL`: seconds between thumbnails (default `10`).
+- `STORYBOARD_WIDTH`: thumbnail width in pixels (default `240`).
+
+Changing interval or width regenerates all storyboards. Only keyframes are decoded, so a thumbnail can be a few seconds off its position. VR180 videos show one eye. Audio files show only time and chapter.
+
 ## VR180 videos
 
 Videos whose filename marks them as VR180 open as a panorama you can look around in, like 360° videos on YouTube. Tokens are matched case-insensitively between `_`, `.`, `-` or spaces:

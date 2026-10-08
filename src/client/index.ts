@@ -1,4 +1,4 @@
-import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, setMediaAccessToken, logout, artworkUrl } from './api';
+import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, setMediaAccessToken, setStoryboardsEnabled, logout, artworkUrl } from './api';
 import { formatVersion } from './utils/formatVersion';
 import { qs } from './utils/html';
 import { storedSetting } from './utils/storedSetting';
@@ -45,6 +45,7 @@ const DGLAB_DELAY_KEY = 'happy-dglab-delay-ms';
 /** Used when the server config cannot be reached. */
 const FALLBACK_SETTINGS: ClientSettings = {
   videoSeekInterval: 10,
+  storyboards: false,
   blurContent: false,
   hapticFrequency: 30,
   hapticDelay: 0,
@@ -182,6 +183,7 @@ class App {
       console.warn('Falling back to built-in client settings:', err);
     }
     setMediaAccessToken(this.settings.mediaAccessToken);
+    setStoryboardsEnabled(this.settings.storyboards);
     this.applySeekInterval();
     this.library.setForceSquareArtwork(this.settings.cardViewForceSquareArtwork);
     this.library.setLargePortraitArtwork(this.settings.cardViewLargePortraitArtwork);

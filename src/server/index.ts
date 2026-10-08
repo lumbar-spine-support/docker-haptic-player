@@ -18,6 +18,7 @@ import { createTokenStore, type TokenStore } from './services/tokenStore';
 import { createArtworkCache } from './services/artworkCache';
 import { createArtworkResolver } from './services/artworkResolver';
 import { createLibraryIndex } from './services/libraryIndex';
+import { createStoryboardService, type StoryboardService } from './services/storyboard';
 import { DglabRelay } from './services/dglabRelay';
 import { logLibrarySummary } from './services/libraryService';
 import { isFfprobeAvailable } from './services/mediaProbe';
@@ -34,6 +35,7 @@ export interface HappyApp extends express.Express {
   /** Present only while the DG-Lab feature flag is on. */
   dglabRelay?: DglabRelay;
   tokenStore: TokenStore;
+  storyboards: StoryboardService;
   /** False when no password is set, so WebSocket upgrades need no cookie. */
   requireAuth: boolean;
 }
@@ -54,17 +56,19 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
   // Generation settings are part of the key, so changing them regenerates every frame.
   const artworkCache = createArtworkCache(config.configDir, config.videoArtworkGenerate ? `:${config.videoArtworkOffset}` : '');
   const artworkResolver = createArtworkResolver(config, artworkCache);
-  const libraryIndex = createLibraryIndex(config, artworkCache, artworkResolver);
+  const storyboards = createStoryboardService(config);
+  const libraryIndex = createLibraryIndex(config, artworkCache, artworkResolver, storyboards);
   app.tokenStore = tokenStore;
+  app.storyboards = storyboards;
   app.requireAuth = Boolean(config.password);
   app.use(createRequestLogger());
   app.use(compression());
   app.use('/api/auth', createAuthRouter(config, tokenStore));
   app.use(createAuthMiddleware(config, tokenStore, mediaAccessToken));
   app.use(express.static(path.join(__dirname, '..', '..', 'public')));
-  app.use('/api/config', createConfigRouter(client, mediaAccessToken));
+  app.use('/api/config', createConfigRouter(client, mediaAccessToken, config.storyboardGenerate));
   app.use('/api/library', createLibraryRouter(libraryIndex));
-  app.use('/api/media', createMediaRouter(config, libraryIndex));
+  app.use('/api/media', createMediaRouter(config, libraryIndex, storyboards));
   app.use('/api/artwork', createArtworkRouter(config, artworkCache, artworkResolver));
   app.use('/api/funscript', createFunscriptRouter(config));
   app.use('/api/version', createVersionRouter());

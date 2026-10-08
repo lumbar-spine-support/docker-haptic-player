@@ -153,6 +153,8 @@ export interface ClientSettings {
   cardViewLargePortraitArtwork: boolean;
   /** Process-local token allowing a remote playback receiver to fetch media only. */
   mediaAccessToken: string | null;
+  /** True when the server generates timeline thumbnails for videos. */
+  storyboards: boolean;
 }
 
 export type QueueSource =
@@ -173,6 +175,10 @@ export interface PlaybackRequest {
   /** False when `poster` is only the placeholder art, which the player must not show. */
   hasArtwork: boolean;
   chapters: Chapter[];
+  /** WebVTT chapters URL; null when the track has no chapters. */
+  chaptersSrc: string | null;
+  /** WebVTT storyboard URL; null for audio or when storyboards are disabled. */
+  storyboardSrc: string | null;
   /** VR180 projection detected from the filename; absent for flat media. */
   vr?: VrFormat | null;
 }

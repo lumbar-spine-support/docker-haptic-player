@@ -73,6 +73,7 @@ export async function startTestServer(
         ...Config.DEFAULT_SERVER_CONFIG,
         mediaDir: testMediaDir,
         configDir,
+        storyboardGenerate: false,
         ...overrides,
     };
     const clientConfig = {
@@ -114,6 +115,7 @@ export async function startTestServer(
         close: async () => {
             return new Promise((resolve) => {
                 app.dglabRelay?.close();
+                app.storyboards?.stop();
                 server.closeAllConnections?.();
                 server.close(() => {
                     fs.rmSync(testMediaDir, { recursive: true, force: true });

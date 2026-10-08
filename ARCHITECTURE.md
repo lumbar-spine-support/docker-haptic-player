@@ -218,6 +218,7 @@ reproducible data and is safe to delete at any time — the next request rebuild
   cache/
     library.json       library index snapshot
     artwork/           extracted cover images, two files per entry
+    storyboards/       timeline thumbnail sprite sheets, one directory per video
 ```
 
 All cache writes are best effort. A read-only or full `/config` mount logs a warning and degrades to
@@ -265,6 +266,23 @@ every art-less track would re-parse its full media file on each request just to 
 
 Stale entries are removed after every successful library rebuild: the index hands the cache the set
 of keys referenced by the fresh snapshot, and `prune()` deletes everything else.
+
+### Storyboards
+
+`src/server/services/storyboard.ts` renders timeline thumbnails for videos into
+`cache/storyboards/<key>/` as `0.jpg`, `1.jpg`, … sprite sheets of 10×10 tiles plus a `meta.json`.
+ffmpeg decodes keyframes only (`-skip_frame nokey`, then `fps=1/STORYBOARD_INTERVAL`, `scale`,
+`tile`), so a thumbnail may be one GOP off but long videos stay cheap. VR180 videos are cropped to
+one eye. The key hashes track id, mtime, interval, width and crop, so any change regenerates.
+
+A single background worker processes videos one at a time after every library build or restore;
+`GET /api/media/:id/storyboard.vtt` awaits the video's job and moves it to the front of the queue.
+The directory is built as `<key>.tmp` and renamed, so `meta.json` existing means complete. Undecodable
+videos get `sheets: 0` and are not retried until they change. `sync()` prunes keys no longer in the
+library.
+
+The client adds `storyboard.vtt` as `<track kind="metadata" label="thumbnails" default>` and
+`chapters.vtt` as `<track kind="chapters" default>`; Video.js renders both in the time-slider preview.
 
 ### HTTP caching of `/api/artwork/:id`
 

@@ -3,7 +3,7 @@ import type { PlaybackQueue } from './queue';
 import type { PlaybackSession } from './session';
 import type { PlaybackRequest, QueueSource, TrackInfo } from '../../../shared/types';
 import { parseVrFormat } from '../../../shared/vrFormat';
-import { artworkUrl, mediaUrl, FALLBACK_ART_DATA_URI } from '../../api';
+import { artworkUrl, chaptersVttUrl, mediaUrl, storyboardVttUrl, FALLBACK_ART_DATA_URI } from '../../api';
 import { notifySkipChanged, setSkipTarget } from '@/components/videojs/features/skip';
 import { getRepeatMode, subscribeRepeat } from '@/components/videojs/features/repeat';
 
@@ -137,6 +137,8 @@ export class PlaybackController {
             poster: track.hasArtwork ? artworkUrl(track.id, track.artworkVersion) : FALLBACK_ART_DATA_URI,
             hasArtwork: track.hasArtwork,
             chapters: track.chapters ?? [],
+            chaptersSrc: chaptersVttUrl(track),
+            storyboardSrc: storyboardVttUrl(track),
             vr: track.type === 'video' ? parseVrFormat(track.filename) : null,
         };
     }

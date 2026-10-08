@@ -1160,6 +1160,11 @@
       display: block;
     }
 
+    /* No storyboard (audio, still generating): show only time and chapter title. */
+    .media-slider-thumbnail[data-hidden] {
+      display: none;
+    }
+
     .media-time-slider {
       height: calc(var(--media-spacing) * 5);
       min-width: calc(var(--media-spacing) * 12);

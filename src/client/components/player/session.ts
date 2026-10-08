@@ -3,7 +3,7 @@ import type { VideoPlayerElement } from '@videojs/html/video';
 import type { PlaybackRequest } from '../../../shared/types';
 import { vrFormatToAttribute } from '../../../shared/vrFormat';
 import { selectLoop } from '@/components/videojs/features/loop';
-import { setMediaChapters } from '@/components/videojs/features/chapters';
+import { setMediaChapters, setMediaStoryboard } from '@/components/videojs/features/chapters';
 
 interface PlayerSlot {
     readonly el: VideoPlayerElement;
@@ -207,7 +207,10 @@ export class PlaybackSession {
         if (media) {
             if (!request.hasArtwork) media.removeAttribute('poster');
             media.disableRemotePlayback = request.type === 'audio';
-            if (slot.request?.id !== request.id) setMediaChapters(media, request.chapters);
+            if (slot.request?.id !== request.id) {
+                setMediaChapters(media, request.chaptersSrc);
+                setMediaStoryboard(media, request.storyboardSrc);
+            }
         }
         slot.request = request;
     }

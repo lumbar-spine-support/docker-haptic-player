@@ -42,6 +42,9 @@ export namespace Config {
     chapterSourcePriority: string[];
     videoArtworkGenerate: boolean;
     videoArtworkOffset: number;
+    storyboardGenerate: boolean;
+    storyboardInterval: number;
+    storyboardWidth: number;
   }
 
   /** Stores the client-side configuration. Can be loaded from YAML or environment variables. */
@@ -99,6 +102,13 @@ export namespace Config {
     return path.join(cacheDirPath(configDir), LIBRARY_CACHE_FILE_NAME);
   }
 
+  export const STORYBOARD_CACHE_DIR_NAME = 'storyboards';
+
+  /** Directory holding generated storyboards, one subdirectory per cache key. */
+  export function storyboardCacheDirPath(configDir: string): string {
+    return path.join(cacheDirPath(configDir), STORYBOARD_CACHE_DIR_NAME);
+  }
+
   /** Directory holding extracted cover images, one pair of files per cache key. */
   export function artworkCacheDirPath(configDir: string): string {
     return path.join(cacheDirPath(configDir), ARTWORK_CACHE_DIR_NAME);
@@ -121,6 +131,9 @@ export namespace Config {
     chapterSourcePriority: ['embedded', 'funscript'],
     videoArtworkGenerate: true,
     videoArtworkOffset: 10,
+    storyboardGenerate: true,
+    storyboardInterval: 10,
+    storyboardWidth: 240,
   };
 
   export const DEFAULT_CLIENT_CONFIG: ClientConfig = {
@@ -170,6 +183,9 @@ export namespace Config {
     chapterSourcePriority: `Chapter sources in order of precedence: ${CHAPTER_SOURCES.join(', ')}. The first source that provides chapters is used. Empty to disable chapters`,
     videoArtworkGenerate: 'Generate artwork from a video frame for videos without embedded cover art. Frames are extracted on startup and cached.',
     videoArtworkOffset: 'Position of the generated video artwork frame, in percent (0-100) of the video duration.',
+    storyboardGenerate: 'Generate storyboards (thumbnail sprite sheets) for timeline previews of videos. Generated in the background and cached.',
+    storyboardInterval: 'Seconds between two storyboard thumbnails (whole number, minimum 1). Changing it regenerates all storyboards.',
+    storyboardWidth: 'Width of one storyboard thumbnail in pixels (80-640). Changing it regenerates all storyboards.',
   };
 
   export const ENV_NAMES: Record<string, string> = {
@@ -201,6 +217,9 @@ export namespace Config {
     chapterSourcePriority: 'CHAPTER_SOURCE_PRIORITY',
     videoArtworkGenerate: 'VIDEO_ARTWORK_GENERATE',
     videoArtworkOffset: 'VIDEO_ARTWORK_OFFSET',
+    storyboardGenerate: 'STORYBOARD_GENERATE',
+    storyboardInterval: 'STORYBOARD_INTERVAL',
+    storyboardWidth: 'STORYBOARD_WIDTH',
   };
 
   // Infer which env vars belong to which config from the default config objects
@@ -420,6 +439,16 @@ export namespace Config {
     if (!Number.isFinite(offset) || offset < 0 || offset > 100) {
       log.warn(`Invalid ${ENV_NAMES.videoArtworkOffset} "${server.videoArtworkOffset}", expected 0-100; using ${DEFAULT_SERVER_CONFIG.videoArtworkOffset}.`);
       server.videoArtworkOffset = DEFAULT_SERVER_CONFIG.videoArtworkOffset;
+    }
+    const interval = Number(server.storyboardInterval);
+    if (!Number.isInteger(interval) || interval < 1) {
+      log.warn(`Invalid ${ENV_NAMES.storyboardInterval} "${server.storyboardInterval}", expected a whole number >= 1; using ${DEFAULT_SERVER_CONFIG.storyboardInterval}.`);
+      server.storyboardInterval = DEFAULT_SERVER_CONFIG.storyboardInterval;
+    }
+    const width = Number(server.storyboardWidth);
+    if (!Number.isInteger(width) || width < 80 || width > 640) {
+      log.warn(`Invalid ${ENV_NAMES.storyboardWidth} "${server.storyboardWidth}", expected 80-640; using ${DEFAULT_SERVER_CONFIG.storyboardWidth}.`);
+      server.storyboardWidth = DEFAULT_SERVER_CONFIG.storyboardWidth;
     }
     const client = envOverridden.client;
     if (!isInterpolationMethod(client.funscriptInterpolationMethod)) {

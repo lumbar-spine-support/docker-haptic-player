@@ -18,6 +18,7 @@ import { Config } from '../config';
 import { buildLibrary, computeMediaFingerprint } from './libraryService';
 import type { ArtworkCache } from './artworkCache';
 import type { ArtworkResolver } from './artworkResolver';
+import type { StoryboardService } from './storyboard';
 import { createLogger } from '../utils/logger';
 
 export const TAG = '[library-index]';
@@ -46,7 +47,7 @@ export interface LibraryIndex {
   refresh(): Promise<LibraryResponse>;
 }
 
-export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: ArtworkCache, artworkResolver?: ArtworkResolver): LibraryIndex {
+export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: ArtworkCache, artworkResolver?: ArtworkResolver, storyboards?: StoryboardService): LibraryIndex {
   const cacheFile = Config.libraryCacheFilePath(config.configDir);
 
   let snapshot: Snapshot | null = null;
@@ -134,6 +135,7 @@ export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: A
       lastValidatedAt = Date.now();
       writeCacheFile(snapshot);
       pruneArtwork(library);
+      storyboards?.sync(library.videos);
       const count = library.tracks.length + library.videos.length;
       log.debug(`Indexed ${count} media files in ${Date.now() - started}ms`);
       return library;
@@ -160,6 +162,7 @@ export function createLibraryIndex(config: Config.ServerConfig, artworkCache?: A
       const persisted = readCacheFile();
       if (persisted && persisted.fingerprint === current) {
         snapshot = persisted;
+        storyboards?.sync(persisted.library.videos);
         log.debug(`Restored library index from ${cacheFile}`);
         return persisted.library;
       }
