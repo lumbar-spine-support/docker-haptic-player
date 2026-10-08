@@ -34,7 +34,7 @@ test(`${TAG} unauthenticated request never yields the client bundle`, async () =
 });
 
 test(`${TAG} unauthenticated API request returns 401 JSON`, async () => {
-    const { status, body, headers } = await httpGet(server.port, '/api/library', { token: null });
+    const { status, body, headers } = await httpGet(server.port, '/api/config', { token: null });
     assert.equal(status, 401);
     assert.deepEqual(body, { error: 'Authentication required' });
     assert.equal(headers['cache-control'], 'no-store');
@@ -81,38 +81,26 @@ test(`${TAG} login with the correct password sets a hardened cookie`, async () =
 
     const token = tokenFromSetCookie(headers);
     assert.ok(token);
-    const library = await httpGet(server.port, '/api/library', { token });
-    assert.equal(library.status, 200);
+    const config = await httpGet(server.port, '/api/config', { token });
+    assert.equal(config.status, 200);
 });
 
 test(`${TAG} a forged token is rejected`, async () => {
-    const { status } = await httpGet(server.port, '/api/library', { token: 'not-a-real-token' });
+    const { status } = await httpGet(server.port, '/api/config', { token: 'not-a-real-token' });
     assert.equal(status, 401);
 });
 
 test(`${TAG} seeded token grants access to the API`, async () => {
-    const { status } = await httpGet(server.port, '/api/library');
+    const { status } = await httpGet(server.port, '/api/config');
     assert.equal(status, 200);
-});
-
-test(`${TAG} media access token grants media access only`, async () => {
-    const config = await httpGet(server.port, '/api/config');
-    const mediaAccessToken = (config.body as { mediaAccessToken: string }).mediaAccessToken;
-    assert.ok(mediaAccessToken);
-
-    const library = await httpGet(server.port, '/api/library');
-    const trackId = (library.body as { tracks: Array<{ id: string }> }).tracks[0].id;
-    const query = `mediaToken=${encodeURIComponent(mediaAccessToken)}`;
-    assert.equal((await httpGet(server.port, `/api/media/${trackId}?${query}`, { token: null })).status, 200);
-    assert.equal((await httpGet(server.port, `/api/library?${query}`, { token: null })).status, 401);
 });
 
 test(`${TAG} deleting the token file revokes sessions without a restart`, async () => {
     const isolated = await startTestServer();
     try {
-        assert.equal((await httpGet(isolated.port, '/api/library', { token: isolated.token })).status, 200);
+        assert.equal((await httpGet(isolated.port, '/api/config', { token: isolated.token })).status, 200);
         fs.rmSync(isolated.tokenFile, { force: true });
-        assert.equal((await httpGet(isolated.port, '/api/library', { token: isolated.token })).status, 401);
+        assert.equal((await httpGet(isolated.port, '/api/config', { token: isolated.token })).status, 401);
     } finally {
         await isolated.close();
     }
@@ -123,7 +111,7 @@ test(`${TAG} logout revokes the token and removes it from the file`, async () =>
     try {
         const logout = await httpPost(isolated.port, '/api/auth/logout', {}, { token: isolated.token });
         assert.equal(logout.status, 200);
-        assert.equal((await httpGet(isolated.port, '/api/library', { token: isolated.token })).status, 401);
+        assert.equal((await httpGet(isolated.port, '/api/config', { token: isolated.token })).status, 401);
         assert.doesNotMatch(fs.readFileSync(isolated.tokenFile, 'utf-8'), new RegExp(isolated.token));
     } finally {
         await isolated.close();
@@ -133,11 +121,9 @@ test(`${TAG} logout revokes the token and removes it from the file`, async () =>
 test(`${TAG} an empty password disables authentication`, async () => {
     const isolated = await startTestServer(cfg => createApp(cfg), { password: '' });
     try {
-        assert.equal((await httpGet(isolated.port, '/api/library', { token: null })).status, 200);
+        assert.equal((await httpGet(isolated.port, '/api/config', { token: null })).status, 200);
         const status = await httpGet(isolated.port, '/api/auth/status', { token: null });
         assert.deepEqual(status.body, { required: false, authenticated: true });
-        const clientConfig = await httpGet(isolated.port, '/api/config', { token: null });
-        assert.equal((clientConfig.body as { mediaAccessToken: null }).mediaAccessToken, null);
         assert.equal((await httpPost(isolated.port, '/api/auth/login', { password: null }, { token: null })).status, 200);
     } finally {
         await isolated.close();

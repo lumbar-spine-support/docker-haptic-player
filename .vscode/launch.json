@@ -45,7 +45,6 @@
       ],
       "env": {
         "CONFIG_PATH": "${workspaceFolder}/config",
-        "MEDIA_DIR": "${workspaceFolder}/test/fixtures/media/",
         "LOG_LEVEL": "debug"
       }
     },

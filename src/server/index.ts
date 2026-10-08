@@ -5,23 +5,13 @@ import path from 'path';
 import Stream from 'stream';
 import { Config } from './config';
 import { errorMiddleware } from './utils/errorHandler';
-import { createLibraryRouter } from './routes/library';
-import { createMediaRouter } from './routes/media';
-import { createArtworkRouter } from './routes/artwork';
-import { createFunscriptRouter } from './routes/funscript';
 import { createVersionRouter } from './routes/version';
 import { createAuthRouter } from './routes/auth';
 import { createConfigRouter } from './routes/config';
 import { createDocsRouter } from './routes/docs';
-import { createAuthMiddleware, createMediaAccessToken, COOKIE_NAME } from './middleware/auth';
+import { createAuthMiddleware, COOKIE_NAME } from './middleware/auth';
 import { createTokenStore, type TokenStore } from './services/tokenStore';
-import { createArtworkCache } from './services/artworkCache';
-import { createArtworkResolver } from './services/artworkResolver';
-import { createLibraryIndex } from './services/libraryIndex';
-import { createStoryboardService, type StoryboardService } from './services/storyboard';
 import { DglabRelay } from './services/dglabRelay';
-import { logLibrarySummary } from './services/libraryService';
-import { isFfprobeAvailable } from './services/mediaProbe';
 import { createRequestLogger } from './middleware/requestLog';
 import { createLogger } from './utils/logger';
 import { parseCookies } from './utils/cookies';
@@ -35,7 +25,6 @@ export interface HappyApp extends express.Express {
   /** Present only while the DG-Lab feature flag is on. */
   dglabRelay?: DglabRelay;
   tokenStore: TokenStore;
-  storyboards: StoryboardService;
   /** False when no password is set, so WebSocket upgrades need no cookie. */
   requireAuth: boolean;
 }
@@ -49,28 +38,17 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
   const config = serverConfig;
   const client = clientConfig ?? { ...Config.DEFAULT_CLIENT_CONFIG };
   const app = express() as HappyApp;
-  const mediaAccessToken = config.password ? createMediaAccessToken() : undefined;
   // Kept configurable so a direct LAN deployment cannot spoof X-Forwarded-* headers.
   app.set('trust proxy', config.trustProxy);
   const tokenStore = createTokenStore(Config.tokenFilePath(config.configDir));
-  // Generation settings are part of the key, so changing them regenerates every frame.
-  const artworkCache = createArtworkCache(config.configDir, config.videoArtworkGenerate ? `:${config.videoArtworkOffset}` : '');
-  const artworkResolver = createArtworkResolver(config, artworkCache);
-  const storyboards = createStoryboardService(config);
-  const libraryIndex = createLibraryIndex(config, artworkCache, artworkResolver, storyboards);
   app.tokenStore = tokenStore;
-  app.storyboards = storyboards;
   app.requireAuth = Boolean(config.password);
   app.use(createRequestLogger());
   app.use(compression());
   app.use('/api/auth', createAuthRouter(config, tokenStore));
-  app.use(createAuthMiddleware(config, tokenStore, mediaAccessToken));
+  app.use(createAuthMiddleware(config, tokenStore));
   app.use(express.static(path.join(__dirname, '..', '..', 'public')));
-  app.use('/api/config', createConfigRouter(client, mediaAccessToken, config.storyboardGenerate));
-  app.use('/api/library', createLibraryRouter(libraryIndex));
-  app.use('/api/media', createMediaRouter(config, libraryIndex, storyboards));
-  app.use('/api/artwork', createArtworkRouter(config, artworkCache, artworkResolver));
-  app.use('/api/funscript', createFunscriptRouter(config));
+  app.use('/api/config', createConfigRouter(client));
   app.use('/api/version', createVersionRouter());
   app.use('/api/docs', createDocsRouter(path.join(__dirname, '..', '..', 'docs')));
   // Relative redirects keep working when a reverse proxy serves HAPPY under a sub-path.
@@ -88,11 +66,6 @@ export function createApp(serverConfig: Config.ServerConfig, clientConfig?: Conf
     app.dglabRelay = new DglabRelay();
     log.info('DG-Lab relay enabled.');
   }
-
-  // Pay the scan cost at startup instead of on the first visitor's library request.
-  void libraryIndex.get()
-    .then((library) => logLibrarySummary(config, library))
-    .catch((err) => log.error('Initial library scan failed:', err));
 
   return app;
 }
@@ -158,9 +131,6 @@ function main() {
   const config = Config.load();
   log.info(`Log level is "${config.server.logLevel}"`);
   log.debug(`config: ${JSON.stringify(config, null, 2)}`);
-  void isFfprobeAvailable().then((ok) => {
-    if (!ok) log.error('ffprobe not found on PATH: media metadata, artwork and chapters are unavailable. Install ffmpeg.');
-  });
   const app = createApp(config.server, config.client);
   const port = config.server.port
   const server = app.listen(port, (err?: Error) => {

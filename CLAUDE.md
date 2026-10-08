@@ -22,13 +22,13 @@ npm run sandbox        # standalone e-stim waveform sandbox at :8100 (sandbox/)
 Single test file / single test:
 
 ```bash
-NODE_ENV=test node --import tsx --test test/server/library.test.ts
+NODE_ENV=test node --import tsx --test test/server/config.test.ts
 NODE_ENV=test node --import tsx --test --test-name-pattern="some name" test/client/skip.test.ts
 ```
 
 Type-check (no lint script exists): `npx tsc --noEmit -p tsconfig.json` (covers `src`, `@`, `test`, `scripts`). The client config additionally enables `noUnusedLocals`/`noUnusedParameters`: `npx tsc --noEmit -p tsconfig.client.json`.
 
-Server tests need `ffprobe`/`ffmpeg` on PATH (`scripts/install-system-deps.sh`). Test media fixtures live in `test/fixtures/media` (Git LFS). Server integration tests use `test/helpers/index.ts` (`withMediaFixtures`, `startTestServer`, which seeds an auth token cookie).
+Server integration tests use `test/helpers/index.ts` (`startTestServer`, which seeds an auth token cookie). Tests against a real Jellyfin live in `test/integration/jellyfin/` and run only via `npm run test:jellyfin` (see `docs/developer/jellyfin-plugin.md`).
 
 ## Layout and build
 

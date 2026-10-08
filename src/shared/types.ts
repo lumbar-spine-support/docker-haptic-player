@@ -151,10 +151,6 @@ export interface ClientSettings {
   funscriptColorGradient: boolean;
   cardViewForceSquareArtwork: boolean;
   cardViewLargePortraitArtwork: boolean;
-  /** Process-local token allowing a remote playback receiver to fetch media only. */
-  mediaAccessToken: string | null;
-  /** True when the server generates timeline thumbnails for videos. */
-  storyboards: boolean;
 }
 
 export type QueueSource =

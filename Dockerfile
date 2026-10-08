@@ -26,10 +26,6 @@ LABEL org.opencontainers.image.title="HAPPY" \
 
 WORKDIR /app
 
-# ffprobe reads metadata, chapters and cover art from the media files.
-COPY scripts/install-system-deps.sh /tmp/install-system-deps.sh
-RUN sh /tmp/install-system-deps.sh && rm /tmp/install-system-deps.sh
-
 COPY package*.json ./
 RUN npm ci --omit=dev
 
@@ -40,7 +36,7 @@ COPY --from=builder /app/public ./public
 
 COPY docs/ ./docs/
 
-VOLUME ["/media", "/config"]
+VOLUME ["/config"]
 
 EXPOSE 3000
 

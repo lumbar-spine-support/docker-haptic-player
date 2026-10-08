@@ -7,8 +7,6 @@ import http from 'http';
 import type { HappyApp } from '../../src/server/index';
 import { Config } from '../../src/server/config';
 
-const FIXTURES_DIR = path.resolve(__dirname, '../fixtures/media');
-
 // Token seeded by the most recent startTestServer(), attached to requests unless overridden.
 let defaultToken: string | null = null;
 
@@ -25,55 +23,18 @@ function requestHeaders(opts?: RequestOptions): Record<string, string> {
     return headers;
 }
 
-// Copy fixture files to a test directory, skipping metadata.
-export function copyFixtures(destDir: string): void {
-    if (!fs.existsSync(FIXTURES_DIR)) {
-        throw new Error(`Fixtures directory not found: ${FIXTURES_DIR}`);
-    }
-
-    const files = fs.readdirSync(FIXTURES_DIR);
-    for (const file of files) {
-        if (file === 'ATTRIBUTION.md') continue;
-        const src = path.join(FIXTURES_DIR, file);
-        const dest = path.join(destDir, file);
-        fs.copyFileSync(src, dest);
-    }
-}
-
-// Run a test with a temporary media directory populated with fixtures.
-export async function withMediaFixtures(
-    fn: (dir: string, config: Config.ServerConfig) => Promise<void>,
-): Promise<void> {
-    const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'media-test-'));
-    try {
-        copyFixtures(testDir);
-        const config: Config.ServerConfig = {
-            ...Config.DEFAULT_SERVER_CONFIG,
-            mediaDir: testDir,
-        };
-        await fn(testDir, config);
-    } finally {
-        fs.rmSync(testDir, { recursive: true, force: true });
-    }
-}
-
-// Start a test server with a temporary media directory and fixtures.
+// Start a test server with a temporary config directory.
 export async function startTestServer(
     createAppFn?: (config: Config.ServerConfig) => HappyApp,
     overrides?: Partial<Config.ServerConfig>,
     clientOverrides?: Partial<Config.ClientConfig>,
-): Promise<{ port: number; config: Config.ServerConfig; mediaDir: string; tokenFile: string; token: string; close: () => Promise<void> }> {
-    const testMediaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'server-test-'));
-    copyFixtures(testMediaDir);
-
+): Promise<{ port: number; config: Config.ServerConfig; tokenFile: string; token: string; close: () => Promise<void> }> {
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'server-config-'));
     const tokenFile = Config.tokenFilePath(configDir);
 
     const config: Config.ServerConfig = {
         ...Config.DEFAULT_SERVER_CONFIG,
-        mediaDir: testMediaDir,
         configDir,
-        storyboardGenerate: false,
         ...overrides,
     };
     const clientConfig = {
@@ -109,16 +70,13 @@ export async function startTestServer(
     return {
         port: addr.port,
         config,
-        mediaDir: testMediaDir,
         tokenFile,
         token,
         close: async () => {
             return new Promise((resolve) => {
                 app.dglabRelay?.close();
-                app.storyboards?.stop();
                 server.closeAllConnections?.();
                 server.close(() => {
-                    fs.rmSync(testMediaDir, { recursive: true, force: true });
                     fs.rmSync(path.dirname(tokenFile), { recursive: true, force: true });
                     resolve();
                 });
@@ -171,39 +129,6 @@ export async function httpGet(
     });
 }
 
-// Make an HTTP GET request and collect response as a Buffer.
-export async function httpGetBuffer(
-    port: number,
-    pathname: string,
-    opts?: RequestOptions,
-): Promise<{ status: number; headers: http.IncomingHttpHeaders; buffer: Buffer }> {
-    return new Promise((resolve, reject) => {
-        const options = {
-            hostname: 'localhost',
-            port,
-            path: pathname,
-            method: 'GET',
-            headers: requestHeaders(opts),
-        };
-
-        const req = http.request(options, (res) => {
-            const chunks: Buffer[] = [];
-            res.on('data', (chunk) => {
-                chunks.push(chunk as Buffer);
-            });
-            res.on('end', () => {
-                resolve({
-                    status: res.statusCode || 500,
-                    headers: res.headers,
-                    buffer: Buffer.concat(chunks),
-                });
-            });
-        });
-
-        req.on('error', reject);
-        req.end();
-    });
-}
 
 // Make an HTTP POST request with a JSON body.
 export async function httpPost(

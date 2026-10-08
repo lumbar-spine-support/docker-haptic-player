@@ -5,7 +5,7 @@ import { DEFAULT_INTERPOLATION_METHOD, isInterpolationMethod } from '../../share
 import { isLevelEnabled } from '../utils/logger';
 
 /** Exposes the server-configured defaults the client falls back to on first run. */
-export function createConfigRouter(clientConfig: Config.ClientConfig, mediaAccessToken?: string, storyboards = false): Router {
+export function createConfigRouter(clientConfig: Config.ClientConfig): Router {
   const router = Router();
   const settings: Omit<ClientSettings, 'debugLogging'> = {
     videoSeekInterval: Number(clientConfig.videoSeekInterval),
@@ -23,8 +23,6 @@ export function createConfigRouter(clientConfig: Config.ClientConfig, mediaAcces
     funscriptColorGradient: Boolean(clientConfig.funscriptColorGradient),
     cardViewForceSquareArtwork: Boolean(clientConfig.cardViewForceSquareArtwork),
     cardViewLargePortraitArtwork: Boolean(clientConfig.cardViewLargePortraitArtwork),
-    mediaAccessToken: mediaAccessToken ?? null,
-    storyboards,
   };
   router.get('/', (_req, res) => {
     res.json({ ...settings, debugLogging: isLevelEnabled('debug') });

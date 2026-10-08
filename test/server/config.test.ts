@@ -39,12 +39,12 @@ test(`${TAG} load writes a default settings.yaml and returns built-in defaults w
         assert.equal(config.server.port, DEFAULTS.port);
         assert.equal(config.server.password, DEFAULTS.password);
         assert.equal(config.client.videoSeekInterval, DEFAULTS.videoSeekInterval);
-        assert.deepEqual(config.server.ignoreExt, DEFAULTS.ignoreExt);
+        assert.deepEqual(config.server.chapterSourcePriority, DEFAULTS.chapterSourcePriority);
     });
 });
 
 test(`${TAG} a newly created settings.yaml is seeded with environment variable overrides`, async () => {
-    const env = { PORT: '8123', PASSWORD: 'envpass', DEFAULT_BLUR_CONTENT: 'true', IGNORE_EXT: 'txt, nfo' };
+    const env = { PORT: '8123', PASSWORD: 'envpass', DEFAULT_BLUR_CONTENT: 'true', CHAPTER_SOURCE_PRIORITY: 'funscript, embedded' };
     const original = Object.fromEntries(Object.keys(env).map(k => [k, process.env[k]]));
     Object.assign(process.env, env);
     try {
@@ -54,13 +54,13 @@ test(`${TAG} a newly created settings.yaml is seeded with environment variable o
             assert.equal(config.server.port, 8123);
             assert.equal(config.server.password, 'envpass');
             assert.equal(config.client.blurContent, true);
-            assert.deepEqual(config.server.ignoreExt, ['txt', 'nfo']);
+            assert.deepEqual(config.server.chapterSourcePriority, ['funscript', 'embedded']);
 
             const written = yaml.load(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
             assert.equal(written.PORT, 8123);
             assert.equal(written.PASSWORD, 'envpass');
             assert.equal(written.DEFAULT_BLUR_CONTENT, true);
-            assert.deepEqual(written.IGNORE_EXT, ['txt', 'nfo']);
+            assert.deepEqual(written.CHAPTER_SOURCE_PRIORITY, ['funscript', 'embedded']);
             assert.equal(written.DEFAULT_HAPTIC_FREQUENCY, DEFAULTS.hapticFrequency);
         });
     } finally {

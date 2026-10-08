@@ -12,9 +12,6 @@ export namespace Config {
 
   const log = createLogger(TAG);
 
-  export const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv'];
-  export const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'wav', 'flac'];
-
   /** Dungeon Lab WebSocket route for relay enabling communication between App and Controller. */
   export const DGLAB_WS_PATH = SHARED_DGLAB_WS_PATH;
 
@@ -27,8 +24,6 @@ export namespace Config {
   export interface ServerConfig {
     [key: string]: ConfigEntry;
     port: number;
-    mediaDir: string;
-    ignoreExt: string[];
     password: string;
     configDir: string;
     trustProxy: number;
@@ -40,11 +35,6 @@ export namespace Config {
     funscriptSuffixEstim: string;
     funscriptSuffixMachine: string;
     chapterSourcePriority: string[];
-    videoArtworkGenerate: boolean;
-    videoArtworkOffset: number;
-    storyboardGenerate: boolean;
-    storyboardInterval: number;
-    storyboardWidth: number;
   }
 
   /** Stores the client-side configuration. Can be loaded from YAML or environment variables. */
@@ -78,9 +68,7 @@ export namespace Config {
 
   export const CACHE_DIR_NAME = 'cache';
 
-  export const LIBRARY_CACHE_FILE_NAME = 'library.json';
 
-  export const ARTWORK_CACHE_DIR_NAME = 'artwork';
 
   /** Path of the settings file inside a config directory. */
   export function settingsFilePath(configDir: string): string {
@@ -97,27 +85,11 @@ export namespace Config {
     return path.join(configDir, CACHE_DIR_NAME);
   }
 
-  /** Path of the persisted library index snapshot. */
-  export function libraryCacheFilePath(configDir: string): string {
-    return path.join(cacheDirPath(configDir), LIBRARY_CACHE_FILE_NAME);
-  }
 
-  export const STORYBOARD_CACHE_DIR_NAME = 'storyboards';
 
-  /** Directory holding generated storyboards, one subdirectory per cache key. */
-  export function storyboardCacheDirPath(configDir: string): string {
-    return path.join(cacheDirPath(configDir), STORYBOARD_CACHE_DIR_NAME);
-  }
-
-  /** Directory holding extracted cover images, one pair of files per cache key. */
-  export function artworkCacheDirPath(configDir: string): string {
-    return path.join(cacheDirPath(configDir), ARTWORK_CACHE_DIR_NAME);
-  }
 
   export const DEFAULT_SERVER_CONFIG: ServerConfig = {
     port: 3000,
-    mediaDir: '/media',
-    ignoreExt: [],
     password: 'happy',
     configDir: DEFAULT_MOUNT,
     trustProxy: 0,
@@ -129,11 +101,6 @@ export namespace Config {
     funscriptSuffixEstim: 'estim',
     funscriptSuffixMachine: 'machine',
     chapterSourcePriority: ['embedded', 'funscript'],
-    videoArtworkGenerate: true,
-    videoArtworkOffset: 10,
-    storyboardGenerate: true,
-    storyboardInterval: 10,
-    storyboardWidth: 240,
   };
 
   export const DEFAULT_CLIENT_CONFIG: ClientConfig = {
@@ -156,8 +123,6 @@ export namespace Config {
 
   export const DESCRIPTIONS: Record<string, string> = {
     port: 'HTTP port of the web interface.',
-    mediaDir: 'Directory that contains media files (inside container).',
-    ignoreExt: 'File extensions to ignore (without leading dot)',
     password: 'Web interface access password. Leave empty to disable authentication',
     trustProxy: 'Number of reverse proxy hops to trust for X-Forwarded-* headers. 0 for direct LAN access, 1 behind nginx/Traefik',
     logLevel: `Verbosity of the console log: ${LOG_LEVELS.join(', ')}`,
@@ -181,17 +146,10 @@ export namespace Config {
     funscriptSuffixEstim: 'Suffix associated with estim funscript',
     funscriptSuffixMachine: 'Suffix associated with machine funscript',
     chapterSourcePriority: `Chapter sources in order of precedence: ${CHAPTER_SOURCES.join(', ')}. The first source that provides chapters is used. Empty to disable chapters`,
-    videoArtworkGenerate: 'Generate artwork from a video frame for videos without embedded cover art. Frames are extracted on startup and cached.',
-    videoArtworkOffset: 'Position of the generated video artwork frame, in percent (0-100) of the video duration.',
-    storyboardGenerate: 'Generate storyboards (thumbnail sprite sheets) for timeline previews of videos. Generated in the background and cached.',
-    storyboardInterval: 'Seconds between two storyboard thumbnails (whole number, minimum 1). Changing it regenerates all storyboards.',
-    storyboardWidth: 'Width of one storyboard thumbnail in pixels (80-640). Changing it regenerates all storyboards.',
   };
 
   export const ENV_NAMES: Record<string, string> = {
     port: 'PORT',
-    mediaDir: 'MEDIA_DIR',
-    ignoreExt: 'IGNORE_EXT',
     password: 'PASSWORD',
     trustProxy: 'TRUST_PROXY',
     logLevel: 'LOG_LEVEL',
@@ -215,11 +173,6 @@ export namespace Config {
     funscriptSuffixEstim: 'FUNSCRIPT_SUFFIX_ESTIM',
     funscriptSuffixMachine: 'FUNSCRIPT_SUFFIX_MACHINE',
     chapterSourcePriority: 'CHAPTER_SOURCE_PRIORITY',
-    videoArtworkGenerate: 'VIDEO_ARTWORK_GENERATE',
-    videoArtworkOffset: 'VIDEO_ARTWORK_OFFSET',
-    storyboardGenerate: 'STORYBOARD_GENERATE',
-    storyboardInterval: 'STORYBOARD_INTERVAL',
-    storyboardWidth: 'STORYBOARD_WIDTH',
   };
 
   // Infer which env vars belong to which config from the default config objects
@@ -435,21 +388,6 @@ export namespace Config {
     }
     server.logLevel = setLogLevel(String(server.logLevel));
     server.chapterSourcePriority = validateChapterSources(server.chapterSourcePriority);
-    const offset = Number(server.videoArtworkOffset);
-    if (!Number.isFinite(offset) || offset < 0 || offset > 100) {
-      log.warn(`Invalid ${ENV_NAMES.videoArtworkOffset} "${server.videoArtworkOffset}", expected 0-100; using ${DEFAULT_SERVER_CONFIG.videoArtworkOffset}.`);
-      server.videoArtworkOffset = DEFAULT_SERVER_CONFIG.videoArtworkOffset;
-    }
-    const interval = Number(server.storyboardInterval);
-    if (!Number.isInteger(interval) || interval < 1) {
-      log.warn(`Invalid ${ENV_NAMES.storyboardInterval} "${server.storyboardInterval}", expected a whole number >= 1; using ${DEFAULT_SERVER_CONFIG.storyboardInterval}.`);
-      server.storyboardInterval = DEFAULT_SERVER_CONFIG.storyboardInterval;
-    }
-    const width = Number(server.storyboardWidth);
-    if (!Number.isInteger(width) || width < 80 || width > 640) {
-      log.warn(`Invalid ${ENV_NAMES.storyboardWidth} "${server.storyboardWidth}", expected 80-640; using ${DEFAULT_SERVER_CONFIG.storyboardWidth}.`);
-      server.storyboardWidth = DEFAULT_SERVER_CONFIG.storyboardWidth;
-    }
     const client = envOverridden.client;
     if (!isInterpolationMethod(client.funscriptInterpolationMethod)) {
       log.warn(`Unknown ${ENV_NAMES.funscriptInterpolationMethod} "${client.funscriptInterpolationMethod}", falling back to "${DEFAULT_INTERPOLATION_METHOD}". Valid methods: ${INTERPOLATION_METHODS.join(', ')}`);
