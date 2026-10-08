@@ -15,10 +15,27 @@
       ]
     },
     {
+      "name": "Jellyfin Integration Tests",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "test:jellyfin"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+    },
+    {
       "name": "Client",
       "request": "launch",
       "type": "chrome",
       "url": "http://localhost:3000",
+      // In the devcontainer this opens Chrome on the host and debugs it through the forwarded port.
+      "browserLaunchLocation": "ui",
       "webRoot": "${workspaceFolder}/public",
       "sourceMaps": true,
       "sourceMapPathOverrides": {

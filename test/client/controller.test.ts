@@ -14,6 +14,11 @@ test.before(async () => {
     (globalThis as any).window = { location: { href: 'http://localhost/' } };
     (globalThis as any).document = { querySelector: () => null };
     ({ PlaybackController } = await import('../../src/client/components/player/controller'));
+    const api = await import('../../src/client/api');
+    api.useJellyfin({ endpoint: { serverUrl: 'https://jellyfin.example.com', token: 'token' } } as any, {
+        funscriptSuffixes: { separator: '.', stroker: 'stroker', buttplug: 'buttplug', vibrator: 'vibrator', estim: 'estim', machine: 'machine' },
+        chapterSourcePriority: ['embedded', 'funscript'],
+    });
 });
 
 // The repeat mode is process-wide, so every test starts from a known state.

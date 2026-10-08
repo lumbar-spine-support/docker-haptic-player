@@ -13,7 +13,7 @@ let pluginMissing: string | false = false;
 
 test.before(async () => {
     if (skip) return;
-    session = await login();
+    session = await login('plugin');
     const res = await session.request('/Happy/Info');
     if (res.status === 404) pluginMissing = 'HAPPY plugin is not installed on the Jellyfin server';
 });

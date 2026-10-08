@@ -14,13 +14,6 @@ Every YAML setting can also be set as an environment variable. Environment varia
 | `PASSWORD` | `happy` | Web interface access password. Leave empty to disable authentication |
 | `TRUST_PROXY` | `0` | Number of reverse proxy hops to trust for X-Forwarded-* headers. 0 for direct LAN access, 1 behind nginx/Traefik |
 | `LOG_LEVEL` | `info` | Verbosity of the console log: error, warn, info, debug |
-| `FUNSCRIPT_SUFFIX_SEPARATOR` | `.` | Single character that separates filename from funscript suffix |
-| `FUNSCRIPT_SUFFIX_STROKER` | `stroker` | Suffix associated with stroker funscript |
-| `FUNSCRIPT_SUFFIX_BUTTPLUG` | `buttplug` | Suffix associated with buttplug funscript |
-| `FUNSCRIPT_SUFFIX_VIBRATOR` | `vibrator` | Suffix associated with vibrator funscript |
-| `FUNSCRIPT_SUFFIX_ESTIM` | `estim` | Suffix associated with estim funscript |
-| `FUNSCRIPT_SUFFIX_MACHINE` | `machine` | Suffix associated with machine funscript |
-| `CHAPTER_SOURCE_PRIORITY` | `embedded,funscript` | Chapter sources in order of precedence: embedded, funscript. The first source that provides chapters is used. Empty to disable chapters |
 | `VIDEO_SEEK_INTERVAL` | `10` | Seek interval in seconds when double-tapping/clicking. |
 | `DEFAULT_BLUR_CONTENT` | `false` | Enable to blur images and videos. Can be toggled in web interface. |
 | `DEFAULT_HAPTIC_FREQUENCY` | `30` | Intiface Haptic update frequency in Hz. Smaller values are usually more stable but less precise. Can be changed in web interface. |
@@ -34,5 +27,13 @@ Every YAML setting can also be set as an environment variable. Environment varia
 | `FUNSCRIPT_COLOR_GRADIENT` | `false` | Colour the timeline graph on a heat scale by movement speed (blue = slow, red = fast). Can be toggled in web interface. |
 | `CARD_VIEW_FORCE_SQUARE_ARTWORK` | `false` | If true, the media's artwork is reduced to a square. This ensures a consistent layout. |
 | `CARD_VIEW_LARGE_PORTRAIT_ARTWORK` | `false` | If true, portrait artwork takes up two rows. |
+| `JELLYFIN_URL` | *(empty)* | Address of the Jellyfin server as reached from the browser, e.g. https://jellyfin.example.com. The HAPPY plugin must be installed there. |
+| `FUNSCRIPT_SUFFIX_SEPARATOR` | `.` | Single character that separates filename from funscript suffix |
+| `FUNSCRIPT_SUFFIX_STROKER` | `stroker` | Suffix associated with stroker funscript |
+| `FUNSCRIPT_SUFFIX_BUTTPLUG` | `buttplug` | Suffix associated with buttplug funscript |
+| `FUNSCRIPT_SUFFIX_VIBRATOR` | `vibrator` | Suffix associated with vibrator funscript |
+| `FUNSCRIPT_SUFFIX_ESTIM` | `estim` | Suffix associated with estim funscript |
+| `FUNSCRIPT_SUFFIX_MACHINE` | `machine` | Suffix associated with machine funscript |
+| `CHAPTER_SOURCE_PRIORITY` | `embedded,funscript` | Chapter sources in order of precedence: embedded, funscript. The first source that provides chapters is used. Empty to disable chapters |
 
 <!-- /ENV_OPTIONS -->

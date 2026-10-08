@@ -307,3 +307,32 @@
 tr {
   cursor: pointer;
 }
+// ============================================================================
+// Jellyfin sign-in overlay
+// ============================================================================
+// Covers the whole app until a Jellyfin session exists; mirrors the login page card.
+
+.jellyfin-sign-in {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bs-body-bg);
+
+  .login-card {
+    width: 24rem;
+    max-width: 92vw;
+  }
+
+  .login-brand-icon {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+    background-color: currentColor;
+    -webkit-mask: url('/icon.svg') no-repeat center / contain;
+    mask: url('/icon.svg') no-repeat center / contain;
+    vertical-align: middle;
+  }
+}

@@ -1,4 +1,6 @@
-import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, logout, artworkUrl } from './api';
+import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, logout, artworkUrl, chaptersVttUrl, useJellyfin } from './api';
+import { JellyfinConnection } from './jellyfin/connection';
+import { ensureSignedIn, showMissingServerNotice } from './jellyfin/signIn';
 import { formatVersion } from './utils/formatVersion';
 import { qs } from './utils/html';
 import { storedSetting } from './utils/storedSetting';
@@ -16,6 +18,8 @@ import { DglabSandbox } from './components/haptic/dglab/sandboxView';
 import { setLogLevel } from './utils/logger';
 import { FunscriptSync, type LoadedScript } from './components/funscriptSync';
 import { prepareScript } from '../shared/interpolation';
+import { mergeChapters, normalizeChapters, type RawChapter } from '../shared/chapters';
+import { DEFAULT_FUNSCRIPT_SUFFIXES, parseFunscriptChapters } from '../shared/funscriptNames';
 import { DeviceStatus } from './components/haptic/deviceStatus';
 import { DeviceAssignment } from './components/haptic/deviceAssignment';
 import type { HapticBackend } from './components/haptic/backend';
@@ -58,6 +62,9 @@ const FALLBACK_SETTINGS: ClientSettings = {
   funscriptColorGradient: false,
   cardViewForceSquareArtwork: false,
   cardViewLargePortraitArtwork: true,
+  jellyfinUrl: '',
+  funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES,
+  chapterSourcePriority: ['embedded', 'funscript'],
 };
 
 class App {
@@ -85,6 +92,7 @@ class App {
   private readonly haptics = new HapticBackendRegistry();
   /** Owns the two interchangeable players; one of them is always the playing one. */
   private readonly session: PlaybackSession;
+  private jellyfin: JellyfinConnection | null = null;
   private readonly queue = new PlaybackQueue();
   private readonly playback: PlaybackController;
   /** One engine per backend, so each can apply its own delay correction. */
@@ -193,7 +201,6 @@ class App {
     this.bindZoomControls();
     whenIdle(() => {
       void this.showVersion();
-      void this.bindLogout();
     });
     this.footer?.bind(this.session, this.playback, (trackId) => this.navigateTo(trackHref(trackId)));
 
@@ -210,6 +217,9 @@ class App {
     await this.initDglab();
     this.playback.onActiveTrack((track) => { void this.onActiveTrackChanged(track); });
 
+    if (!(await this.connectJellyfin())) return;
+    // Needs the Jellyfin session to decide whether there is anyone to sign out.
+    whenIdle(() => { void this.bindLogout(); });
     await yieldToMain();
     await this.library.load();
     await yieldToMain();
@@ -229,6 +239,22 @@ class App {
       event.preventDefault();
       this.navigateTo(link.href);
     });
+  }
+
+  /** Signs in to Jellyfin if needed; false when no server is configured and the app cannot load. */
+  private async connectJellyfin(): Promise<boolean> {
+    if (!this.settings.jellyfinUrl) {
+      showMissingServerNotice();
+      return false;
+    }
+    // A rejected token clears the session; reloading shows the sign-in card again.
+    this.jellyfin = new JellyfinConnection(this.settings.jellyfinUrl, () => window.location.reload());
+    await ensureSignedIn(this.jellyfin);
+    useJellyfin(this.jellyfin, {
+      funscriptSuffixes: this.settings.funscriptSuffixes,
+      chapterSourcePriority: this.settings.chapterSourcePriority,
+    });
+    return true;
   }
 
   private mountDeviceAssignment(backend: HapticBackend, containerSelector: string): void {
@@ -281,12 +307,15 @@ class App {
 
   private async bindLogout(): Promise<void> {
     if (!this.logoutBtn) return;
-    try {
-      const status = await fetchAuthStatus();
-      if (!status.required) return;
-    } catch {
-      return;
+    if (!this.jellyfin?.signedIn) {
+      try {
+        const status = await fetchAuthStatus();
+        if (!status.required) return;
+      } catch {
+        return;
+      }
     }
+    if (this.jellyfin?.userName) this.logoutBtn.title = `Sign out ${this.jellyfin.userName}`;
     this.logoutBtn.classList.remove('d-none');
     this.logoutBtn.addEventListener('click', () => {
       void logout();
@@ -563,14 +592,7 @@ class App {
       this.viz.redraw();
     }
     this.publishChannels(scripts);
-    if (track.descriptionFilename) {
-      try {
-        const description = await fetchTrackDescription(track.id);
-        if (this.currentTrackId === track.id) this.renderTrackDescription(description);
-      } catch (err) {
-        console.warn(`[player] Failed to load description for ${track.filename}:`, err);
-      }
-    }
+    this.renderTrackDescription(track.description);
   }
 
   /** Tell the status badges and the assignment UI which channels this track carries. */
@@ -584,25 +606,49 @@ class App {
   private fetchTrackScripts(track: TrackInfo): Promise<LoadedScript[]> {
     const cached = this.scriptCache.get(track.id);
     if (cached) return cached;
+    const chapterLists: RawChapter[][] = [];
     const pending = Promise.all(track.funscripts.map(async (fsInfo) => {
       try {
-        const funscript = await fetchFunscript(track.id, fsInfo.filename);
+        const funscript = await fetchFunscript(track, fsInfo);
+        chapterLists.push(parseFunscriptChapters(funscript));
         const channel: HapticChannel = { type: fsInfo.type, ...(fsInfo.sub ? { sub: fsInfo.sub } : {}) };
         return { channel, prepared: prepareScript(funscript.actions, this.settings.funscriptInterpolationMethod) };
       } catch (err) {
         console.warn(`[player] Failed to load funscript ${fsInfo.filename}:`, err);
         return null;
       }
-    })).then((loaded) => loaded.filter((script): script is LoadedScript => script !== null));
+    })).then((loaded) => {
+      this.applyFunscriptChapters(track, chapterLists);
+      return loaded.filter((script): script is LoadedScript => script !== null);
+    });
     this.scriptCache.set(track.id, pending);
     return pending;
+  }
+
+  /**
+   * Funscript chapters are only known once the scripts are loaded. They replace the track's
+   * chapters unless embedded chapters exist and come first in CHAPTER_SOURCE_PRIORITY.
+   */
+  private applyFunscriptChapters(track: TrackInfo, lists: RawChapter[][]): void {
+    const priority = this.settings.chapterSourcePriority;
+    const funscriptRank = priority.indexOf('funscript');
+    if (funscriptRank < 0) return;
+    if (track.chaptersSource === 'embedded' && priority.indexOf('embedded') < funscriptRank) return;
+    const found = lists.filter((list) => list.length > 0);
+    if (found.length === 0) return;
+    if (found.length > 1) console.warn(`[chapters] ${track.filename}: ${found.length} funscripts define chapters; merging them`);
+    const chapters = normalizeChapters(mergeChapters(found), track.durationSeconds);
+    if (chapters.length === 0) return;
+    track.chapters = chapters;
+    track.chaptersSource = 'funscript';
+    this.session.updateChapters(track.id, chapters, chaptersVttUrl(track));
   }
 
   /** OS-level media controls always describe the playing file, not the browsed one. */
   private applyMediaSessionMetadata(track: TrackInfo): void {
     if (!('mediaSession' in navigator)) return;
     const artwork: MediaImage[] = track.hasArtwork
-      ? [{ src: artworkUrl(track.id, track.artworkVersion), type: 'image/jpeg' }]
+      ? [{ src: artworkUrl(track.id, track.artworkTag), type: 'image/jpeg' }]
       : [];
     navigator.mediaSession.metadata = new MediaMetadata({
       title: track.title,

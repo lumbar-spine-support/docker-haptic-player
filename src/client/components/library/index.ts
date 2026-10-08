@@ -720,7 +720,6 @@ export class Library {
             const q = this.searchQuery.toLowerCase();
             playlists = playlists.filter((p) =>
                 p.name.toLowerCase().includes(q) ||
-                p.filename.toLowerCase().includes(q) ||
                 p.entries.some((entry) =>
                     entry.title.toLowerCase().includes(q) ||
                     entry.artist.toLowerCase().includes(q) ||

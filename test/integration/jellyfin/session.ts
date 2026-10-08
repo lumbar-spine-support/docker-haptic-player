@@ -19,16 +19,20 @@ export interface JellyfinSession {
     logout(): Promise<void>;
 }
 
-function authorization(token?: string): string {
-    const base = 'MediaBrowser Client="HAPPY", Device="integration-tests", DeviceId="happy-integration-tests", Version="0.0.0"';
+function authorization(device: string, token?: string): string {
+    const base = `MediaBrowser Client="HAPPY", Device="integration-tests", DeviceId="happy-integration-tests-${device}", Version="0.0.0"`;
     return token ? `${base}, Token="${token}"` : base;
 }
 
-export async function login(): Promise<JellyfinSession> {
+/**
+ * Signs in as the test user. Jellyfin revokes a device's previous token when it signs in again,
+ * so every test file that runs in parallel needs its own `device` name.
+ */
+export async function login(device: string): Promise<JellyfinSession> {
     const base = String(HAPPY_JELLYFIN_URL).replace(/\/+$/, '');
     const res = await fetch(`${base}/Users/AuthenticateByName`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: authorization() },
+        headers: { 'Content-Type': 'application/json', Authorization: authorization(device) },
         body: JSON.stringify({ Username: HAPPY_JELLYFIN_USER, Pw: HAPPY_JELLYFIN_PASSWORD ?? '' }),
     });
     if (!res.ok) throw new Error(`Jellyfin login failed with HTTP ${res.status}`);
@@ -37,7 +41,7 @@ export async function login(): Promise<JellyfinSession> {
     const request: JellyfinSession['request'] = (path, { anonymous, headers, ...init } = {}) =>
         fetch(`${base}${path}`, {
             ...init,
-            headers: { ...(anonymous ? {} : { Authorization: authorization(token) }), ...headers },
+            headers: { ...(anonymous ? {} : { Authorization: authorization(device, token) }), ...headers },
         });
 
     return {

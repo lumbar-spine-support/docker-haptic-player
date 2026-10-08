@@ -28,13 +28,6 @@ export namespace Config {
     configDir: string;
     trustProxy: number;
     logLevel: string;
-    funscriptSuffixSeparator: string;
-    funscriptSuffixStroker: string;
-    funscriptSuffixButtplug: string;
-    funscriptSuffixVibrator: string;
-    funscriptSuffixEstim: string;
-    funscriptSuffixMachine: string;
-    chapterSourcePriority: string[];
   }
 
   /** Stores the client-side configuration. Can be loaded from YAML or environment variables. */
@@ -53,6 +46,14 @@ export namespace Config {
     funscriptColorGradient: boolean;
     cardViewForceSquareArtwork: boolean;
     cardViewLargePortraitArtwork: boolean;
+    jellyfinUrl: string;
+    funscriptSuffixSeparator: string;
+    funscriptSuffixStroker: string;
+    funscriptSuffixButtplug: string;
+    funscriptSuffixVibrator: string;
+    funscriptSuffixEstim: string;
+    funscriptSuffixMachine: string;
+    chapterSourcePriority: string[];
   }
 
   export interface Config {
@@ -94,13 +95,6 @@ export namespace Config {
     configDir: DEFAULT_MOUNT,
     trustProxy: 0,
     logLevel: DEFAULT_LOG_LEVEL,
-    funscriptSuffixSeparator: '.',
-    funscriptSuffixStroker: 'stroker',
-    funscriptSuffixButtplug: 'buttplug',
-    funscriptSuffixVibrator: 'vibrator',
-    funscriptSuffixEstim: 'estim',
-    funscriptSuffixMachine: 'machine',
-    chapterSourcePriority: ['embedded', 'funscript'],
   };
 
   export const DEFAULT_CLIENT_CONFIG: ClientConfig = {
@@ -117,6 +111,14 @@ export namespace Config {
     funscriptColorGradient: false,
     cardViewForceSquareArtwork: false,
     cardViewLargePortraitArtwork: false,
+    jellyfinUrl: '',
+    funscriptSuffixSeparator: '.',
+    funscriptSuffixStroker: 'stroker',
+    funscriptSuffixButtplug: 'buttplug',
+    funscriptSuffixVibrator: 'vibrator',
+    funscriptSuffixEstim: 'estim',
+    funscriptSuffixMachine: 'machine',
+    chapterSourcePriority: ['embedded', 'funscript'],
   };
 
   export const DEFAULTS = { ...DEFAULT_SERVER_CONFIG, ...DEFAULT_CLIENT_CONFIG };
@@ -139,6 +141,7 @@ export namespace Config {
     funscriptColorGradient: 'Colour the timeline graph on a heat scale by movement speed (blue = slow, red = fast). Can be toggled in web interface.',
     cardViewForceSquareArtwork: "If true, the media's artwork is reduced to a square. This ensures a consistent layout.",
     cardViewLargePortraitArtwork: 'If true, portrait artwork takes up two rows.',
+    jellyfinUrl: 'Address of the Jellyfin server as reached from the browser, e.g. https://jellyfin.example.com. The HAPPY plugin must be installed there.',
     funscriptSuffixSeparator: 'Single character that separates filename from funscript suffix',
     funscriptSuffixStroker: 'Suffix associated with stroker funscript',
     funscriptSuffixButtplug: 'Suffix associated with buttplug funscript',
@@ -166,6 +169,7 @@ export namespace Config {
     funscriptColorGradient: 'FUNSCRIPT_COLOR_GRADIENT',
     cardViewForceSquareArtwork: 'CARD_VIEW_FORCE_SQUARE_ARTWORK',
     cardViewLargePortraitArtwork: 'CARD_VIEW_LARGE_PORTRAIT_ARTWORK',
+    jellyfinUrl: 'JELLYFIN_URL',
     funscriptSuffixSeparator: 'FUNSCRIPT_SUFFIX_SEPARATOR',
     funscriptSuffixStroker: 'FUNSCRIPT_SUFFIX_STROKER',
     funscriptSuffixButtplug: 'FUNSCRIPT_SUFFIX_BUTTPLUG',
@@ -387,8 +391,10 @@ export namespace Config {
       server.logLevel = DEFAULT_LOG_LEVEL;
     }
     server.logLevel = setLogLevel(String(server.logLevel));
-    server.chapterSourcePriority = validateChapterSources(server.chapterSourcePriority);
     const client = envOverridden.client;
+    client.chapterSourcePriority = validateChapterSources(client.chapterSourcePriority);
+    client.jellyfinUrl = String(client.jellyfinUrl).trim().replace(/\/+$/, '');
+    if (!client.jellyfinUrl) log.warn(`${ENV_NAMES.jellyfinUrl} is not set; HAPPY needs a Jellyfin server for its library.`);
     if (!isInterpolationMethod(client.funscriptInterpolationMethod)) {
       log.warn(`Unknown ${ENV_NAMES.funscriptInterpolationMethod} "${client.funscriptInterpolationMethod}", falling back to "${DEFAULT_INTERPOLATION_METHOD}". Valid methods: ${INTERPOLATION_METHODS.join(', ')}`);
       client.funscriptInterpolationMethod = DEFAULT_INTERPOLATION_METHOD;

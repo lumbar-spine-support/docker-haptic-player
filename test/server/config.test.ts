@@ -39,7 +39,7 @@ test(`${TAG} load writes a default settings.yaml and returns built-in defaults w
         assert.equal(config.server.port, DEFAULTS.port);
         assert.equal(config.server.password, DEFAULTS.password);
         assert.equal(config.client.videoSeekInterval, DEFAULTS.videoSeekInterval);
-        assert.deepEqual(config.server.chapterSourcePriority, DEFAULTS.chapterSourcePriority);
+        assert.deepEqual(config.client.chapterSourcePriority, DEFAULTS.chapterSourcePriority);
     });
 });
 
@@ -54,7 +54,7 @@ test(`${TAG} a newly created settings.yaml is seeded with environment variable o
             assert.equal(config.server.port, 8123);
             assert.equal(config.server.password, 'envpass');
             assert.equal(config.client.blurContent, true);
-            assert.deepEqual(config.server.chapterSourcePriority, ['funscript', 'embedded']);
+            assert.deepEqual(config.client.chapterSourcePriority, ['funscript', 'embedded']);
 
             const written = yaml.load(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
             assert.equal(written.PORT, 8123);

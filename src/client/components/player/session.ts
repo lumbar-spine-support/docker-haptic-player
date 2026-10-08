@@ -1,6 +1,6 @@
 import type { VideoPlayerStore } from '@videojs/html';
 import type { VideoPlayerElement } from '@videojs/html/video';
-import type { PlaybackRequest } from '../../../shared/types';
+import type { Chapter, PlaybackRequest } from '../../../shared/types';
 import { vrFormatToAttribute } from '../../../shared/vrFormat';
 import { selectLoop } from '@/components/videojs/features/loop';
 import { setMediaChapters, setMediaStoryboard } from '@/components/videojs/features/chapters';
@@ -213,6 +213,19 @@ export class PlaybackSession {
             }
         }
         slot.request = request;
+    }
+
+    /**
+     * Chapters that only become known after the track was loaded (funscript metadata) replace the
+     * chapter track of every slot showing that track, without reloading the media.
+     */
+    updateChapters(trackId: string, chapters: Chapter[], chaptersSrc: string | null): void {
+        for (const slot of this.slots) {
+            if (slot.request?.id !== trackId) continue;
+            const media = slot.host.querySelector('video');
+            if (media) setMediaChapters(media, chaptersSrc);
+            slot.request = { ...slot.request, chapters, chaptersSrc };
+        }
     }
 
     private applyVisibility(): void {

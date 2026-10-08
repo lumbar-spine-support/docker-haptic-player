@@ -1,0 +1,22 @@
+<div id="jellyfin-sign-in" class="jellyfin-sign-in">
+  <main class="login-card">
+    <div class="card bg-dark border-secondary shadow">
+      <div class="card-body p-4">
+        <h1 class="h4 text-center mb-1 fw-bold">
+          <span class="login-brand-icon me-2" aria-hidden="true"></span>HAPPY
+        </h1>
+        <p class="text-center text-secondary small mb-4">Sign in with your Jellyfin account<br /><span class="text-break">{{server}}</span></p>
+
+        <div id="jellyfin-sign-in-error" class="alert alert-danger py-2 d-none" role="alert"></div>
+
+        <form id="jellyfin-sign-in-form" novalidate>
+          <input type="text" class="form-control mb-2" id="jellyfin-user" name="username"
+            autocomplete="username" autocapitalize="none" required placeholder="User name" />
+          <input type="password" class="form-control mb-3" id="jellyfin-password" name="password"
+            autocomplete="current-password" placeholder="Password" />
+          <button type="submit" id="jellyfin-sign-in-submit" class="btn btn-primary w-100">Sign in</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>

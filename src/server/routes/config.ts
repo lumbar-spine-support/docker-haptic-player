@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import type { Config } from '../config';
-import type { ClientSettings } from '../../shared/types';
+import { CHAPTER_SOURCES, type ChapterSource, type ClientSettings } from '../../shared/types';
 import { DEFAULT_INTERPOLATION_METHOD, isInterpolationMethod } from '../../shared/interpolation';
 import { isLevelEnabled } from '../utils/logger';
+
+const isChapterSource = (value: string): value is ChapterSource => (CHAPTER_SOURCES as readonly string[]).includes(value);
 
 /** Exposes the server-configured defaults the client falls back to on first run. */
 export function createConfigRouter(clientConfig: Config.ClientConfig): Router {
@@ -23,6 +25,16 @@ export function createConfigRouter(clientConfig: Config.ClientConfig): Router {
     funscriptColorGradient: Boolean(clientConfig.funscriptColorGradient),
     cardViewForceSquareArtwork: Boolean(clientConfig.cardViewForceSquareArtwork),
     cardViewLargePortraitArtwork: Boolean(clientConfig.cardViewLargePortraitArtwork),
+    jellyfinUrl: String(clientConfig.jellyfinUrl),
+    funscriptSuffixes: {
+      separator: String(clientConfig.funscriptSuffixSeparator),
+      stroker: String(clientConfig.funscriptSuffixStroker),
+      buttplug: String(clientConfig.funscriptSuffixButtplug),
+      vibrator: String(clientConfig.funscriptSuffixVibrator),
+      estim: String(clientConfig.funscriptSuffixEstim),
+      machine: String(clientConfig.funscriptSuffixMachine),
+    },
+    chapterSourcePriority: (clientConfig.chapterSourcePriority as string[]).filter(isChapterSource),
   };
   router.get('/', (_req, res) => {
     res.json({ ...settings, debugLogging: isLevelEnabled('debug') });

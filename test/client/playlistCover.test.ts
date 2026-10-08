@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { TrackInfo } from '../../src/shared/types';
+import type { JellyfinConnection } from '../../src/client/jellyfin/connection';
+import { DEFAULT_FUNSCRIPT_SUFFIXES } from '../../src/shared/funscriptNames';
 
 const TAG = '[client:playlistCover]';
 
@@ -41,7 +43,7 @@ function fakeCanvas() {
 }
 
 function track(id: string, hasArtwork = true): TrackInfo {
-    return { id, hasArtwork, artworkVersion: 1 } as TrackInfo;
+    return { id, hasArtwork, artworkTag: 'tag' } as unknown as TrackInfo;
 }
 
 test.before(async () => {
@@ -55,6 +57,10 @@ test.before(async () => {
     };
     (globalThis as any).Image = FakeImage;
     artwork = await import('../../src/client/api');
+    artwork.useJellyfin({ serverUrl: 'https://jellyfin.example.com' } as JellyfinConnection, {
+        funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES,
+        chapterSourcePriority: ['embedded', 'funscript'],
+    });
 });
 
 test.beforeEach(() => {

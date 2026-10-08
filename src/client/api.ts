@@ -1,4 +1,10 @@
-import type { LibraryResponse, Funscript, VersionInfo, ClientSettings, TrackInfo } from '../shared/types';
+import type { Chapter, ClientSettings, Funscript, FunscriptInfo, LibraryResponse, TrackInfo, VersionInfo } from '../shared/types';
+import { DEFAULT_FUNSCRIPT_SUFFIXES } from '../shared/funscriptNames';
+import { buildChaptersVtt } from '../shared/webvtt';
+import type { JellyfinConnection } from './jellyfin/connection';
+import { loadLibrary } from './jellyfin/library';
+import type { MapOptions } from './jellyfin/mapper';
+import { imageUrl, streamUrl, trickplayVtt } from './jellyfin/urls';
 
 const BASE = new URL('.', window.location.href).pathname;
 
@@ -16,51 +22,65 @@ function handleUnauthorized(res: Response, what: string): void {
   window.location.replace(`${BASE}auth/?returnTo=${returnTo}`);
 }
 
-/**
- * Fetches the full track library from the server.
- *
- * @returns The complete library response payload.
- */
-export async function fetchLibrary(): Promise<LibraryResponse> {
-  const res = await fetch(`${BASE}api/library`);
-  if (!res.ok) {
-    handleUnauthorized(res, 'Library fetch');
-    throw new Error(`Library fetch failed: ${res.status}`);
-  }
-  return res.json() as Promise<LibraryResponse>;
+/** The signed-in Jellyfin session the library, streams and funscripts come from. */
+let jellyfin: JellyfinConnection | null = null;
+let mapOptions: MapOptions = { funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES, chapterSourcePriority: ['embedded', 'funscript'] };
+
+/** Points every media call at a Jellyfin connection; call once the user is signed in. */
+export function useJellyfin(connection: JellyfinConnection, options: MapOptions): void {
+  jellyfin = connection;
+  mapOptions = options;
 }
 
-/** Fetches a parsed Funscript payload for the given track/file pair. */
-export async function fetchFunscript(trackId: string, filename: string): Promise<Funscript> {
-  const res = await fetch(`${BASE}api/funscript/${trackId}/${encodeURIComponent(filename)}`);
-  if (!res.ok) {
-    handleUnauthorized(res, 'Funscript fetch');
-    throw new Error(`Funscript fetch failed: ${res.status}`);
-  }
-  return res.json() as Promise<Funscript>;
+function requireJellyfin(): JellyfinConnection {
+  if (!jellyfin) throw new Error('No Jellyfin connection; call useJellyfin() first.');
+  return jellyfin;
+}
+
+/** Loads the whole library from Jellyfin into the client's in-memory model. */
+export function fetchLibrary(): Promise<LibraryResponse> {
+  return loadLibrary(requireJellyfin(), mapOptions);
+}
+
+/** Fetches one funscript through the HAPPY Jellyfin plugin. The raw JSON also carries chapter metadata. */
+export async function fetchFunscript(track: TrackInfo, funscript: FunscriptInfo): Promise<Funscript & { metadata?: unknown }> {
+  const res = await requireJellyfin().request(
+    `/Happy/Items/${encodeURIComponent(track.id)}/Funscripts/${encodeURIComponent(funscript.key)}`);
+  if (!res.ok) throw new Error(`Funscript fetch failed: ${res.status}`);
+  return res.json() as Promise<Funscript & { metadata?: unknown }>;
 }
 
 /** Builds the media-stream URL for a track or video. */
-export function mediaUrl(trackId: string): string {
-  return `${BASE}api/media/${trackId}`;
+export function mediaUrl(track: Pick<TrackInfo, 'id' | 'type'>): string {
+  return streamUrl(requireJellyfin().endpoint, track);
+}
+
+// Generated WebVTT lives in blob: URLs, which are same-origin and so need no CORS for <track>.
+const chapterVtts = new WeakMap<Chapter[], string>();
+const storyboardVtts = new Map<string, string | null>();
+
+function vttBlobUrl(vtt: string): string {
+  return URL.createObjectURL(new Blob([vtt], { type: 'text/vtt' }));
 }
 
 export function chaptersVttUrl(track: TrackInfo): string | null {
-  return track.chapters?.length ? `${BASE}api/media/${track.id}/chapters.vtt` : null;
-}
-
-export function storyboardVttUrl(_track: TrackInfo): string | null {
-  return null;
-}
-
-/** Fetches the optional markdown description companion file for a track. */
-export async function fetchTrackDescription(trackId: string): Promise<string> {
-  const res = await fetch(`${BASE}api/media/${trackId}/description`);
-  if (!res.ok) {
-    handleUnauthorized(res, 'Description fetch');
-    throw new Error(`Description fetch failed: ${res.status}`);
+  const chapters = track.chapters;
+  if (!chapters?.length) return null;
+  let url = chapterVtts.get(chapters);
+  if (!url) {
+    url = vttBlobUrl(buildChaptersVtt(chapters));
+    chapterVtts.set(chapters, url);
   }
-  return res.text();
+  return url;
+}
+
+export function storyboardVttUrl(track: TrackInfo): string | null {
+  if (track.type !== 'video' || !track.trickplay) return null;
+  if (!storyboardVtts.has(track.id)) {
+    const vtt = trickplayVtt(requireJellyfin().endpoint, track);
+    storyboardVtts.set(track.id, vtt ? vttBlobUrl(vtt) : null);
+  }
+  return storyboardVtts.get(track.id) ?? null;
 }
 
 /** Fetches a documentation page as raw markdown. */
@@ -78,15 +98,9 @@ export function docAssetUrl(relativePath: string): string {
   return `${BASE}api/docs/assets/${relativePath.split('/').map(encodeURIComponent).join('/')}`;
 }
 
-/**
- * Builds the artwork URL for a track's embedded cover image.
- *
- * Passing the track's `artworkVersion` lets the server mark the response `immutable`, so repeat
- * visits skip the request entirely instead of revalidating.
- */
-export function artworkUrl(trackId: string, artworkVersion?: number): string {
-  const base = `${BASE}api/artwork/${trackId}`;
-  return artworkVersion ? `${base}?v=${artworkVersion}` : base;
+/** Cover image URL of a Jellyfin item; the tag changes whenever the image does, so it caches well. */
+export function artworkUrl(trackId: string, artworkTag?: string | null): string {
+  return imageUrl(requireJellyfin().serverUrl, trackId, artworkTag);
 }
 
 /** Fetches the running server/app version info. */
@@ -106,8 +120,19 @@ export async function fetchAuthStatus(): Promise<{ required: boolean; authentica
   return res.json() as Promise<{ required: boolean; authenticated: boolean }>;
 }
 
-/** Revokes the current access token and returns to the login page. */
+/** Signs out of Jellyfin and, when HAPPY's own password is enabled, revokes that token too. */
 export async function logout(): Promise<void> {
+  await jellyfin?.signOut();
+  let happyAuth = false;
+  try {
+    happyAuth = (await fetchAuthStatus()).required;
+  } catch {
+    // Unknown: fall through to a reload, which shows whichever sign-in is still missing.
+  }
+  if (!happyAuth) {
+    window.location.reload();
+    return;
+  }
   try {
     await fetch(`${BASE}api/auth/logout`, { method: 'POST' });
   } catch (err) {
@@ -132,7 +157,7 @@ export const FALLBACK_ART_DATA_URI = `data:image/svg+xml,${encodeURIComponent(FA
 
 /** Cover URL for a track, or the inline placeholder when there is nothing to fetch. */
 export function renderTrackArt(track: TrackInfo | null | undefined): string {
-    return track?.hasArtwork ? artworkUrl(track.id, track.artworkVersion) : FALLBACK_ART_DATA_URI;
+    return track?.hasArtwork ? artworkUrl(track.id, track.artworkTag) : FALLBACK_ART_DATA_URI;
 }
 
 const COLLAGE_SIZE = 400;
@@ -141,6 +166,8 @@ const collageCache = new Map<string, Promise<string>>();
 function loadImage(src: string): Promise<HTMLImageElement | null> {
     return new Promise((resolve) => {
         const img = new Image();
+        // Jellyfin is another origin; without CORS mode the canvas would be tainted and toDataURL would throw.
+        img.crossOrigin = 'anonymous';
         img.onload = () => resolve(img);
         img.onerror = () => resolve(null);
         img.src = src;
