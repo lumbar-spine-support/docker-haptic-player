@@ -422,7 +422,7 @@ test(`${TAG} an empty favorites-only result says the filters hide everything`, (
     assert.match(grid.innerHTML, /No media files found/);
 });
 
-test(`${TAG} track and playlist rows end with a favorite heart, album rows with an empty cell`, () => {
+test(`${TAG} rows end with the queue menu, after a favorite heart for tracks and playlists`, () => {
     const library = new Library(makeCallbacks());
     const tracksById = new Map<string, TrackInfo>();
 
@@ -430,31 +430,35 @@ test(`${TAG} track and playlist rows end with a favorite heart, album rows with 
     const trackCell = lastChild(trackRow);
     assert.equal(trackCell.tagName, 'TD');
     assert.equal(trackCell.classList.contains('favorite-cell'), true);
-    const heart = trackCell.children[0];
+    const [heart, trackMenu] = trackCell.children[0].children;
     assert.equal(heart.tagName, 'BUTTON');
+    assert.equal(trackMenu.classList.contains('queue-menu'), true);
     assert.equal(heart.dataset.favoriteId, 't1');
     assert.equal(heart.getAttribute('aria-pressed'), 'true');
 
     const playlistRow = (library as any).createPlaylistRow(makePlaylist({ id: 'p1', isFavorite: false }), tracksById) as FakeElement;
-    const playlistHeart = lastChild(playlistRow).children[0];
+    const playlistHeart = lastChild(playlistRow).children[0].children[0];
     assert.equal(playlistHeart.dataset.favoriteId, 'p1');
     assert.equal(playlistHeart.getAttribute('aria-pressed'), 'false');
 
     const albumRow = (library as any).createAlbumRow(makeAlbum({ id: 'a1' }), tracksById) as FakeElement;
     const albumCell = lastChild(albumRow);
     assert.equal(albumCell.classList.contains('favorite-cell'), true);
-    assert.deepEqual(albumCell.children, [], 'client-side albums are not Jellyfin items and have no heart');
+    const albumActions = albumCell.children[0].children;
+    assert.equal(albumActions.length, 1, 'client-side albums are not Jellyfin items and have no heart');
+    assert.equal(albumActions[0].classList.contains('queue-menu'), true);
 });
 
-test(`${TAG} track and playlist cards put a favorite heart in the card actions`, () => {
+test(`${TAG} track and playlist cards put a favorite heart and the queue menu in the card actions`, () => {
     const library = new Library(makeCallbacks());
     const trackCard = (library as any).createTrackCard(makeTrack({ id: 't1', isFavorite: false })) as FakeElement;
-    const trackHeart = trackCard.querySelector('[data-card-actions]')!.children[0];
+    const [trackHeart, trackMenu] = trackCard.querySelector('[data-card-actions]')!.children[0].children;
     assert.equal(trackHeart.dataset.favoriteId, 't1');
+    assert.equal(trackMenu.classList.contains('queue-menu'), true);
     assert.equal(trackHeart.title, 'Add to favorites');
 
     const playlistCard = (library as any).createPlaylistCard(makePlaylist({ id: 'p1', isFavorite: true }), new Map()) as FakeElement;
-    const playlistHeart = playlistCard.querySelector('[data-card-actions]')!.children[0];
+    const playlistHeart = playlistCard.querySelector('[data-card-actions]')!.children[0].children[0];
     assert.equal(playlistHeart.dataset.favoriteId, 'p1');
     assert.equal(playlistHeart.title, 'Remove from favorites');
 });

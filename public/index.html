@@ -162,13 +162,22 @@
                 <th scope="col" class="d-none d-md-table-cell">Artist</th>
                 <th scope="col" class="d-none d-md-table-cell">Album</th>
                 <th scope="col" class="d-none d-md-table-cell">Haptics</th>
+                <th scope="col"><span class="visually-hidden">Queue</span></th>
               </tr>
             </thead>
             <tbody id="detail-list"></tbody>
           </table>
-          <div class="d-flex justify-content-center mt-3">
-            <button id="btn-detail-play" class="btn btn-primary">
+          <div class="d-flex justify-content-center gap-2 mt-3">
+            <button id="btn-detail-play" class="btn btn-primary" type="button" title="Play" aria-label="Play">
               <i class="bi bi-play-fill" aria-hidden="true"></i>
+            </button>
+            <button id="btn-detail-shuffle" class="btn btn-outline-primary" type="button" title="Shuffle"
+              aria-label="Shuffle">
+              <i class="bi bi-shuffle" aria-hidden="true"></i>
+            </button>
+            <button id="btn-detail-enqueue" class="btn btn-outline-primary" type="button" title="Add to queue"
+              aria-label="Add to queue">
+              <i class="bi bi-plus-lg" aria-hidden="true"></i>
             </button>
           </div>
         </div>

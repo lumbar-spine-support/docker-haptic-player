@@ -3,6 +3,7 @@ import { detailRowHtml } from '../../templates';
 import { qs } from '../../utils/html';
 import { renderHapticIcons } from '../haptic/icons';
 import { bindFavoriteButton } from './favorites';
+import { createQueueMenu } from './queueMenu';
 import type { AlbumInfo, FunscriptInfo, PlaylistInfo, QueueSource, TrackInfo } from '../../../shared/types';
 
 type DetailContext =
@@ -15,28 +16,39 @@ interface DetailRow {
     artist: string;
     album: string;
     funscripts?: FunscriptInfo[];
+    trackId: string;
     onClick: () => void;
 }
 
 export interface DetailViewOptions {
     allMedia(): TrackInfo[];
-    openTrack(trackId: string, source: QueueSource, autoplay: boolean): void;
+    /** `index` is the row's position in `source`, so a playlist holding a track twice starts at that row. */
+    openTrack(trackId: string, source: QueueSource, autoplay: boolean, index: number): void;
+    playCollection(source: QueueSource, shuffle: boolean): void;
+    enqueue(trackIds: string[]): void;
 }
 
-/** Header, track rows and play button of the playlist/album page. */
+/** Header, track rows and play/shuffle/queue buttons of the playlist/album page. */
 export class DetailView {
     private readonly list = qs<HTMLElement>('#detail-list');
     private readonly title = qs<HTMLElement>('#detail-title');
     private readonly subtitle = qs<HTMLElement>('#detail-subtitle');
     private readonly typeLabel = qs<HTMLElement>('#detail-type-label');
     private readonly playBtn = qs<HTMLButtonElement>('#btn-detail-play');
+    private readonly shuffleBtn = qs<HTMLButtonElement>('#btn-detail-shuffle');
+    private readonly enqueueBtn = qs<HTMLButtonElement>('#btn-detail-enqueue');
     private readonly cover = qs<HTMLImageElement>('#detail-cover');
     private readonly meta = qs<HTMLElement>('#detail-meta');
     private readonly favoriteBtn = qs<HTMLButtonElement>('#btn-detail-favorite');
     private context: DetailContext | null = null;
 
     constructor(private readonly options: DetailViewOptions) {
-        this.playBtn?.addEventListener('click', () => this.playFirst());
+        this.playBtn?.addEventListener('click', () => this.play(false));
+        this.shuffleBtn?.addEventListener('click', () => this.play(true));
+        this.enqueueBtn?.addEventListener('click', () => {
+            const ids = this.trackIds();
+            if (ids.length) this.options.enqueue(ids);
+        });
     }
 
     clear(): void {
@@ -54,14 +66,15 @@ export class DetailView {
             `${playlist.entries.length} media`,
             playlist.entries.map((entry) => entry.trackId),
         );
-        this.renderRows(playlist.entries.map((entry) => ({
+        this.renderRows(playlist.entries.map((entry, index) => ({
             order: entry.order,
             title: entry.title,
             artist: entry.artist,
             album: entry.album,
-            onClick: () => this.options.openTrack(entry.trackId, source, true),
+            trackId: entry.trackId,
+            onClick: () => this.options.openTrack(entry.trackId, source, true, index),
         })));
-        if (this.playBtn) this.playBtn.disabled = !playlist.entries[0]?.trackId;
+        this.setButtonsEnabled(playlist.entries.length > 0);
         if (this.favoriteBtn) bindFavoriteButton(this.favoriteBtn, playlist);
     }
 
@@ -78,23 +91,37 @@ export class DetailView {
                 artist: track?.artist ?? '',
                 album: track?.album ?? '',
                 funscripts: track?.funscripts ?? [],
-                onClick: () => this.options.openTrack(trackId, source, false),
+                trackId,
+                onClick: () => this.options.openTrack(trackId, source, false, index),
             };
         }));
-        if (this.playBtn) this.playBtn.disabled = !album.trackIds[0];
+        this.setButtonsEnabled(album.trackIds.length > 0);
         // Albums are grouped client-side; Jellyfin has no item to mark.
         if (this.favoriteBtn) bindFavoriteButton(this.favoriteBtn, null);
     }
 
-    private playFirst(): void {
+    private get source(): QueueSource | null {
         const context = this.context;
-        if (!context) return;
-        if (context.type === 'playlist') {
-            const firstTrackId = context.playlist.entries[0]?.trackId;
-            if (firstTrackId) this.options.openTrack(firstTrackId, { type: 'playlist', id: context.playlist.id }, true);
-        } else {
-            const firstTrackId = context.album.trackIds[0];
-            if (firstTrackId) this.options.openTrack(firstTrackId, { type: 'album', id: context.album.id }, true);
+        if (!context) return null;
+        return context.type === 'playlist'
+            ? { type: 'playlist', id: context.playlist.id }
+            : { type: 'album', id: context.album.id };
+    }
+
+    private trackIds(): string[] {
+        const context = this.context;
+        if (!context) return [];
+        return context.type === 'playlist' ? context.playlist.entries.map((entry) => entry.trackId) : [...context.album.trackIds];
+    }
+
+    private play(shuffle: boolean): void {
+        const source = this.source;
+        if (source) this.options.playCollection(source, shuffle);
+    }
+
+    private setButtonsEnabled(enabled: boolean): void {
+        for (const button of [this.playBtn, this.shuffleBtn, this.enqueueBtn]) {
+            if (button) button.disabled = !enabled;
         }
     }
 
@@ -123,6 +150,10 @@ export class DetailView {
                 album: row.album,
                 hapticIcons: row.funscripts?.length ? renderHapticIcons(row.funscripts.map((f) => f.type)) : '',
             });
+            const actions = document.createElement('td');
+            actions.className = 'align-middle text-end pe-2 favorite-cell';
+            actions.appendChild(createQueueMenu(() => [row.trackId], row.title));
+            tr.appendChild(actions);
             tr.addEventListener('click', row.onClick);
             this.list.appendChild(tr);
         }

@@ -360,4 +360,37 @@ tr {
 
 .favorite-cell {
   width: 1%;
+  white-space: nowrap;
+}
+
+.queue-menu {
+  display: inline-block;
+
+  .queue-menu-toggle {
+    --bs-btn-color: var(--bs-secondary-color);
+    --bs-btn-hover-color: var(--bs-body-color);
+  }
+}
+
+.happy-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(5rem + env(safe-area-inset-bottom));
+  z-index: 1090;
+  max-width: calc(100vw - 2rem);
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: var(--bs-dark);
+  color: var(--bs-light);
+  font-size: 0.875rem;
+  box-shadow: var(--bs-box-shadow);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 0.5rem);
+  transition: opacity 0.2s, transform 0.2s;
+
+  &.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }

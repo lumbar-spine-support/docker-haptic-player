@@ -29,6 +29,8 @@ import { Markdown } from './components/markdown';
 import { Library } from './components/library';
 import { DetailView } from './components/library/detail';
 import { toggleFavorite } from './components/library/favorites';
+import { setQueueActions } from './components/library/queueMenu';
+import { showToast } from './utils/toast';
 import { setFavoriteTarget } from '@/components/videojs/features/favorite';
 import { bindIntifaceSettings } from './components/settings/intiface';
 import { bindDelaySlider, bindUpdateRateSlider } from './components/settings/haptics';
@@ -167,9 +169,18 @@ class App {
     });
     this.detail = new DetailView({
       allMedia: () => this.allMedia(),
-      openTrack: (id, source, autoplay) => { void this.openTrack(id, true, source, autoplay); },
+      openTrack: (id, source, autoplay, index) => { void this.openTrack(id, true, source, autoplay, index); },
+      playCollection: (source, shuffle) => { void this.playCollection(source, shuffle); },
+      enqueue: (ids) => this.enqueue(ids),
     });
     this.playback = new PlaybackController(this.library, this.queue, session);
+    setQueueActions({
+      playNext: (ids) => {
+        this.playback.playNext(ids);
+        showToast(`${this.queuedLabel(ids)} will play next`);
+      },
+      enqueue: (ids) => this.enqueue(ids),
+    });
     // The heart in each player's control bar asks about the track that player holds.
     setFavoriteTarget({
       isFavorite: (id) => this.library.getTrack(id)?.isFavorite ?? null,
@@ -553,7 +564,25 @@ class App {
     document.title = `${album.title} — HAPPY`;
   }
 
-  private async openTrack(trackId: string, pushState: boolean, source?: QueueSource, autoplay = false): Promise<void> {
+  private enqueue(trackIds: string[]): void {
+    this.playback.enqueue(trackIds);
+    showToast(`${this.queuedLabel(trackIds)} added to queue · ${this.queue.upcoming.length} up next`);
+  }
+
+  /** "Title" for one track, "3 tracks" for more. */
+  private queuedLabel(trackIds: string[]): string {
+    if (trackIds.length !== 1) return `${trackIds.length} tracks`;
+    return `“${this.library.getTrack(trackIds[0])?.title ?? 'Track'}”`;
+  }
+
+  /** Play/Shuffle on an album or playlist page: the queue is replaced and its first track's page opens. */
+  private async playCollection(source: QueueSource, shuffle: boolean): Promise<void> {
+    await this.playback.playCollection(source, { shuffle });
+    const id = this.queue.currentId;
+    if (id) await this.openTrack(id, true);
+  }
+
+  private async openTrack(trackId: string, pushState: boolean, source?: QueueSource, autoplay = false, index?: number): Promise<void> {
     resetScrollPosition();
     const track = this.allMedia().find((item) => item.id === trackId);
     if (!track) {
@@ -571,11 +600,11 @@ class App {
     this.renderPlayerTags(track);
     // Browsing only previews: the footer, queue and haptics stay with whatever
     // is playing until the user presses play on this page's player.
-    this.playback.browse(track.id, source);
+    this.playback.browse(track.id, source, index);
 
     await this.loadTrackAssets(track);
     if (this.currentTrackId !== track.id) return;
-    if (autoplay) await this.playback.activate(track.id, source);
+    if (autoplay) await this.playback.activate(track.id, source, index);
   }
 
   /** Another file took over playback: repoint haptics and the OS media controls. */
@@ -587,7 +616,7 @@ class App {
     // A queue step swaps the media under the file page, so the page (URL, tags,
     // description) has to follow it. Only when a file page is what's on screen.
     if (this.currentTrackId && this.currentTrackId !== track.id) {
-      await this.openTrack(track.id, true, this.queue.source);
+      await this.openTrack(track.id, true);
     }
     const scripts = await this.fetchTrackScripts(track);
     if (this.session.activeTrackId !== track.id) return;

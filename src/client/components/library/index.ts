@@ -31,6 +31,7 @@ import {
     tagChipArtistActiveHtml,
 } from './templates';
 import { createFavoriteButton, type FavoriteItem } from './favorites';
+import { createQueueMenu } from './queueMenu';
 
 type LibraryViewMode = 'grid' | 'list' | 'tags';
 
@@ -838,6 +839,7 @@ export class Library {
             event.preventDefault();
             this.callbacks.openAlbum(album.id);
         });
+        this.addCardActions(col, null, () => [...album.trackIds], album.title);
         this.applyCardAspect(col);
         return col;
     }
@@ -861,7 +863,7 @@ export class Library {
             event.preventDefault();
             this.callbacks.openTrack(track.id);
         });
-        this.addCardFavoriteButton(col, track);
+        this.addCardActions(col, track, () => [track.id], track.title);
         this.applyCardAspect(col);
         return col;
     }
@@ -903,20 +905,28 @@ export class Library {
             event.preventDefault();
             this.callbacks.openPlaylist(playlist.id);
         });
-        this.addCardFavoriteButton(col, playlist);
+        this.addCardActions(col, playlist, () => playlist.entries.map((entry) => entry.trackId), playlist.name);
         return col;
     }
 
-    /** Heart next to the card's meta line. */
-    private addCardFavoriteButton(col: HTMLElement, item: FavoriteItem): void {
-        col.querySelector('[data-card-actions]')?.appendChild(createFavoriteButton(item));
+    /** Heart (for Jellyfin items) and queue menu next to the card's meta line. */
+    private addCardActions(col: HTMLElement, item: FavoriteItem | null, trackIds: () => string[], label: string): void {
+        const group = document.createElement('span');
+        group.className = 'd-flex align-items-center gap-2 flex-shrink-0';
+        if (item) group.appendChild(createFavoriteButton(item));
+        group.appendChild(createQueueMenu(trackIds, label));
+        col.querySelector('[data-card-actions]')?.appendChild(group);
     }
 
-    /** Last cell of a list row: a heart for Jellyfin items, empty for client-side albums. */
-    private appendRowFavoriteCell(tr: HTMLElement, item: FavoriteItem | null): void {
+    /** Last cell of a list row: a heart for Jellyfin items (not client-side albums) and the queue menu. */
+    private appendRowActionsCell(tr: HTMLElement, item: FavoriteItem | null, trackIds: () => string[], label: string): void {
         const td = document.createElement('td');
         td.className = 'align-middle text-end pe-2 favorite-cell';
-        if (item) td.appendChild(createFavoriteButton(item));
+        const group = document.createElement('span');
+        group.className = 'd-inline-flex align-items-center gap-3';
+        if (item) group.appendChild(createFavoriteButton(item));
+        group.appendChild(createQueueMenu(trackIds, label));
+        td.appendChild(group);
         tr.appendChild(td);
     }
 
@@ -934,7 +944,7 @@ export class Library {
             duration: formatHoursMinutes(album.durationSeconds),
             hapticIcons: renderHapticIcons(this.albumFunscriptTypes(album, tracksById)),
         });
-        this.appendRowFavoriteCell(tr, null);
+        this.appendRowActionsCell(tr, null, () => [...album.trackIds], album.title);
         return tr;
     }
 
@@ -955,7 +965,7 @@ export class Library {
             hapticIcons: renderHapticIcons(this.playlistFunscriptTypes(playlist, tracksById)),
         });
         applyPlaylistCover(tr.querySelector('img'), playlist.entries.map((entry) => tracksById.get(entry.trackId)));
-        this.appendRowFavoriteCell(tr, playlist);
+        this.appendRowActionsCell(tr, playlist, () => playlist.entries.map((entry) => entry.trackId), playlist.name);
         return tr;
     }
 
@@ -974,7 +984,7 @@ export class Library {
             duration: formatHoursMinutes(track.durationSeconds),
             hapticIcons: renderHapticIcons(track.funscripts.map((f) => f.type)),
         });
-        this.appendRowFavoriteCell(tr, track);
+        this.appendRowActionsCell(tr, track, () => [track.id], track.title);
         return tr;
     }
 
