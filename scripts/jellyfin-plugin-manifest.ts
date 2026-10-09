@@ -43,6 +43,8 @@ export interface PluginInfo {
     category: string;
     version: string;
     targetAbi: string;
+    /** Card image in Jellyfin's plugin catalog; optional. */
+    imageUrl?: string;
 }
 
 export function readPluginInfo(buildYaml: string): PluginInfo {
@@ -61,6 +63,7 @@ export function readPluginInfo(buildYaml: string): PluginInfo {
         category: field('category'),
         version: field('version'),
         targetAbi: field('targetAbi'),
+        ...(typeof doc?.imageUrl === 'string' && doc.imageUrl.trim() ? { imageUrl: doc.imageUrl.trim() } : {}),
     };
 }
 
@@ -77,8 +80,8 @@ export function compareVersions(a: string, b: string): number {
 
 /**
  * Returns the manifest with `entry` added for `info`, replacing an existing entry of the same
- * version (a re-run of the release job). Package metadata is refreshed from `info`; other
- * packages and versions are kept. Versions are sorted newest first, as Jellyfin lists them.
+ * version (a re-run of the release job). Package metadata is refreshed from `info` (the
+ * manifest's `imageUrl` is kept when `info` has none); other packages and versions are kept. Versions are sorted newest first, as Jellyfin lists them.
  */
 export function upsertVersion(manifest: ManifestPackage[], info: PluginInfo, entry: ManifestVersion): ManifestPackage[] {
     const existing = manifest.find(p => p.guid.toLowerCase() === info.guid.toLowerCase());
@@ -89,7 +92,7 @@ export function upsertVersion(manifest: ManifestPackage[], info: PluginInfo, ent
         overview: info.overview,
         owner: info.owner,
         category: info.category,
-        ...(existing?.imageUrl ? { imageUrl: existing.imageUrl } : {}),
+        ...(info.imageUrl || existing?.imageUrl ? { imageUrl: info.imageUrl || existing?.imageUrl } : {}),
         versions: [...(existing?.versions ?? []).filter(v => v.version !== entry.version), entry]
             .sort((a, b) => compareVersions(b.version, a.version)),
     };
