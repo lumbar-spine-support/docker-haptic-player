@@ -1,8 +1,7 @@
 # HAPPY ⸺ Jellyfin Haptic Player
 
-![GitHub package.json version](https://img.shields.io/github/package-json/v/lumbar-spine-support/jellyfin-haptic-player?label=stable)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/jellyfin-haptic-player/.github%2Fworkflows%2Frelease.yml?branch=main&logo=docker&label=build)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/jellyfin-haptic-player/.github%2Fworkflows%2Ftest.yml?branch=main&logo=github&label=Tests)
+![GitHub package.json version](https://img.shields.io/github/package-json/v/lumbar-spine-support/jellyfin-haptic-player?label=release)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/jellyfin-haptic-player/.github%2Fworkflows%2Ftest.yml?branch=main&logo=github&label=tests)
 [![npm audit](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/jellyfin-haptic-player/npm-audit.yml?label=npm%20audit)](https://github.com/lumbar-spine-support/jellyfin-haptic-player/actions/workflows/npm-audit.yml)
 ![Codecov](https://img.shields.io/codecov/c/github/lumbar-spine-support/jellyfin-haptic-player)
 
