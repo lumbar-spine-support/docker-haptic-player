@@ -1,0 +1,6 @@
+{
+  "recommendations": [
+    // TypeScript 7 language server; VS Code's built-in TypeScript cannot load typescript@7.
+    "TypeScriptTeam.native-preview"
+  ]
+}

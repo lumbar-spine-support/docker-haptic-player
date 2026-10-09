@@ -145,10 +145,13 @@ HAPPY and the plugin share one version (plugin `x.y.z.0`). Each release attaches
 | --- | --- |
 | `npm run build` | `build:client` (sass + esbuild) → `build:vendor`; a Release plugin build needs this first |
 | `npm run dev:client` / `npm run dev:css` | esbuild / sass in watch mode |
+| `npm run typecheck` | TypeScript 7 `tsc` over `tsconfig.json` (everything), `tsconfig.client.json` (client, with unused-code checks) and `sandbox/tsconfig.json`; nothing is emitted. CI runs it before the tests. |
 | `npm test` | `node --test` with `tsx` over `test/client`, `test/scripts` and `dglab-relay/test` |
 | `npm run test:plugin` | `dotnet test` of the plugin in the .NET SDK container |
 | `npm run dev:jellyfin` | Local Jellyfin with the fixtures and the working-tree plugin (see [local-jellyfin.md](local-jellyfin.md)) |
 | `npm run test:jellyfin` | Integration tests against a real Jellyfin (see [jellyfin-plugin.md](jellyfin-plugin.md#testing-against-a-real-jellyfin)) |
+
+**Editor.** TypeScript 7 is the native compiler, which VS Code's built-in TypeScript support cannot load. The workspace recommends the *TypeScript 7* extension (`TypeScriptTeam.native-preview`, preinstalled in the devcontainer). `.vscode/settings.json` turns it on (`js/ts.experimental.useTsgo`) and points it at the workspace package (`js/ts.tsdk.path`), so the editor reports the same errors as `npm run typecheck`. The *npm: typecheck* task puts all errors of the project in the Problems panel. There is no ESLint.
 
 ## Code map
 

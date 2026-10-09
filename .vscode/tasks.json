@@ -14,6 +14,13 @@
 		},
 		{
 			"type": "npm",
+			"script": "typecheck",
+			"problemMatcher": "$tsc",
+			"label": "npm: typecheck",
+			"detail": "tsc over all tsconfigs; errors go to the Problems panel"
+		},
+		{
+			"type": "npm",
 			"script": "build:client",
 			"problemMatcher": [],
 			"label": "npm: build:client"

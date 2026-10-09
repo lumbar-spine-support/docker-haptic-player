@@ -1,11 +1,12 @@
 {
+  // Type-checking only: esbuild bundles the client and the relay, tsx runs tests and scripts.
   "compilerOptions": {
+    "noEmit": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "noFallthroughCasesInSwitch": true,
-    "sourceMap": true,
     "paths": {
       "@/*": [
         "./@/*"

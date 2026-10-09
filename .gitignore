@@ -1,11 +1,8 @@
 node_modules/
-dist/
 public/js/
 public/vendor/
 public/css/*.css
 public/css/themes/*.css
-public/auth/*.css
-public/auth/login.js*
 *.log
 coverage/
 .env

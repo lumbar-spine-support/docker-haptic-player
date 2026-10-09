@@ -23,7 +23,8 @@
   "postStartCommand": "git lfs install && git lfs pull",
   "customizations": {
     "vscode": {
-      "extensions": []
+      // TypeScript 7 language server, configured in .vscode/settings.json
+      "extensions": ["TypeScriptTeam.native-preview"]
     }
   },
   "updateRemoteUserUID": true,

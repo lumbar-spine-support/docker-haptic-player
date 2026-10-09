@@ -6,11 +6,12 @@
   "scripts": {
     "build:client": "npm run build:css && NODE_ENV=production node scripts/build-client.js --minify --sourcemap",
     "dev:client": "node scripts/build-client.js --sourcemap --watch",
-    "dev:css": "npx sass public/css/app.scss:public/css/app.css public/css/themes:public/css/themes --watch --quiet-deps --silence-deprecation=import,global-builtin,if-function,color-functions",
+    "dev:css": "sass public/css/app.scss:public/css/app.css public/css/themes:public/css/themes --watch --quiet-deps --silence-deprecation=import,global-builtin,if-function,color-functions",
     "build:vendor": "node scripts/copy-vendor-assets.js",
     "build": "npm run build:client && npm run build:vendor",
-    "clean": "rm -rf dist public/js public/vendor public/css/*.css public/css/themes/*.css",
-    "build:css": "npx sass public/css/app.scss:public/css/app.css public/css/themes:public/css/themes --style=compressed --quiet-deps --silence-deprecation=import,global-builtin,if-function,color-functions",
+    "clean": "rm -rf public/js public/vendor public/css/*.css public/css/themes/*.css",
+    "build:css": "sass public/css/app.scss:public/css/app.css public/css/themes:public/css/themes --style=compressed --quiet-deps --silence-deprecation=import,global-builtin,if-function,color-functions",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.client.json && tsc -p sandbox/tsconfig.json",
     "test": "NODE_ENV=test node --import tsx --test $(find test/client test/scripts dglab-relay/test -name '*.test.ts')",
     "test:coverage": "mkdir -p coverage && NODE_ENV=test node --import tsx --test --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-include='dglab-relay/src/**' --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info $(find test/client test/scripts dglab-relay/test -name '*.test.ts')",
     "test:jellyfin": "NODE_ENV=test node --env-file-if-exists=config/test.env --import tsx --test test/integration/jellyfin/*.test.ts",
@@ -39,18 +40,15 @@
     "bootstrap-icons": "^1.11.3",
     "buttplug": "^5.0.2",
     "esbuild": "^0.28.2",
-    "esbuild-plugin-tsconfig-paths": "^1.0.2",
     "js-yaml": "^5.4.2",
-    "nodemon": "^3.0.3",
     "playwright": "^1.63.0",
     "sass": "^1.105.1",
-    "ts-node": "^10.9.2",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "ws": "^8.21.3"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.9"
   },
   "allowScripts": {
     "esbuild": true,

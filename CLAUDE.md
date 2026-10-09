@@ -12,12 +12,13 @@ HAPPY is a self-hosted haptic player for audio/video files: a browser client (`s
 npm run build          # client (sass + esbuild) + vendor assets into public/
 npm run dev:client     # esbuild watch for the client bundle (no CSS)
 npm run dev:css        # sass watch for public/css (build:css compiles once)
+npm run typecheck      # tsc (TypeScript 7) over all tsconfigs, no emit
 npm test               # all tests: node:test via tsx over test/client, test/scripts and dglab-relay/test
 npm run test:plugin    # dotnet test of the plugin in the .NET SDK container
 npm run test:jellyfin  # opt-in integration tests against a real Jellyfin (reads gitignored config/test.env)
 npm run dev:jellyfin   # local Jellyfin in Docker (:8097) with the fixtures + plugin from the working tree (docs/developer/local-jellyfin.md)
 npm run test:jellyfin:dev  # integration tests against that local Jellyfin
-npm run test:coverage  # what CI runs (Node 26)
+npm run test:coverage  # what CI runs after typecheck (Node 26)
 npm run sandbox        # standalone e-stim waveform sandbox at :8100 (sandbox/)
 ```
 
@@ -28,7 +29,7 @@ NODE_ENV=test node --import tsx --test test/client/library.test.ts
 NODE_ENV=test node --import tsx --test --test-name-pattern="some name" test/client/skip.test.ts
 ```
 
-Type-check (no lint script exists): `npx tsc --noEmit -p tsconfig.json` (covers `src`, `@`, `test`, `scripts`, `dglab-relay`). The client config additionally enables `noUnusedLocals`/`noUnusedParameters`: `npx tsc --noEmit -p tsconfig.client.json`.
+Type-check (no lint script exists): `npm run typecheck` runs TypeScript 7's `tsc` over `tsconfig.json` (covers `src`, `@`, `test`, `scripts`, `dglab-relay`), `tsconfig.client.json` (adds `noUnusedLocals`/`noUnusedParameters`) and `sandbox/tsconfig.json`. All configs are `noEmit`; esbuild builds and tsx runs. TypeScript 7 has no JS compiler API, so don't add tools that `require('typescript')`.
 
 Tests against a real Jellyfin live in `test/integration/jellyfin/` and run only via `npm run test:jellyfin` or `test:jellyfin:dev` (see `docs/developer/jellyfin-plugin.md`). Plugin tests (xUnit) are in `jellyfin-plugin/Jellyfin.Plugin.Happy.Tests/`.
 
@@ -56,7 +57,7 @@ Tests against a real Jellyfin live in `test/integration/jellyfin/` and run only 
 
 ## Conventions
 
-- After edits: ensure no TypeScript errors and run `npm test`.
+- After edits: run `npm run typecheck` and `npm test`.
 - User-facing changes → update user docs in `docs/`. Implementation/architecture/refactoring changes → update `docs/developer/` (and ARCHITECTURE.md where rules change).
 - Conventional Commits (`feat(scope):`, `fix:`, `refactor:`, `chore:`, `docs:`); release-please generates the changelog and releases from them. PRs are rebased, not merged, and kept narrow in scope.
 - VR180/WebXR work: follow the staged plan in `.github/instructions/webxr-vr180.instructions.md` (capability-based detection, no auto-entering immersive mode).
