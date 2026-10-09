@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.15.0...v1.0.0) (2026-10-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* make HAPPY a Jellyfin plugin instead of a standalone Docker container
+
+### Features
+
+* make HAPPY a Jellyfin plugin instead of a standalone Docker container ([0abfa0e](https://github.com/lumbar-spine-support/docker-haptic-player/commit/0abfa0e0286fa56694ce8250587cad92fc1fd951))
+* **plugin:** user can configure which libraries to share with HAPPY ([8872e4e](https://github.com/lumbar-spine-support/docker-haptic-player/commit/8872e4edc62eaad2c8830b7ffa94ffff596483b3))
+* **storyboards:** show preview on thumbnail when dragging the timeline ([3c94712](https://github.com/lumbar-spine-support/docker-haptic-player/commit/3c9471272c5e159ba285b4da1a684c0abdee3c55))
+
 ## [0.15.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.14.0...v0.15.0) (2026-10-05)
 
 
