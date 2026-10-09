@@ -1,0 +1,25 @@
+// Jellyfin: the near-black greys and blue accent of Jellyfin's default "Dark" theme,
+// so HAPPY feels like part of the server it is served from.
+@use 'theme';
+
+:root {
+  @include theme.tokens((
+    bg: #101010,
+    surface: #1c1c1c,
+    surface-raised: #262626,
+    input-bg: #292929,
+    menu-bg: #252525,
+    text: #e0e0e0,
+    accent: #00a4dc,
+    accent-on: #fff,
+    secondary: #3a3a3a,
+    divider: #3a3a3a,
+    secondary-bg: #303030,
+    tertiary-bg: #292929,
+    select-indicator: #a0a0a0,
+    code-bg: #242424,
+    code-text: #d4d4d4,
+    font: ("Noto Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif),
+    radius: 0.25rem,
+  ));
+}

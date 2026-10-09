@@ -61,6 +61,10 @@ All colours come from `--happy-*` custom properties ("tokens"):
 - Text and scrims over video and artwork use the theme-independent `$scrim`/`$on-media` constants in `_variables.scss`.
 - Canvases read their colours from CSS (`getComputedStyle`), except signal colours that carry meaning.
 
+Themes are `public/css/themes/<name>.scss` files that only call `tokens()` with a palette; `npm run build:css` compiles them next to their sources. index.html links `theme.css` after `css/app.css`. The plugin answers it with the theme chosen in its settings, so the page has the right colours before any script runs, even on the sign-in card. Without the plugin, the request fails and the OLED defaults in `app.css` apply. The client mirrors the theme on `<html data-theme>` and copies `--happy-bg` into `<meta name="theme-color">`.
+
+To add a theme: add `public/css/themes/<name>.scss`, add the name to `THEMES` (`src/shared/types.ts`) and `ClientSettings.Themes` (C#), add an `<option>` to `configPage.html` and describe it in `docs/configuration.md`. The theme test checks that these lists agree.
+
 `test/scripts/themeColors.test.ts` fails on literal colours in `public/css/scss/` (outside `_variables.scss` and the Bootstrap theme) and on `bg-dark`/`bg-black`/`btn-dark` in the HTML.
 
 ### Player

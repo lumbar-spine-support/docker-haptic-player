@@ -67,4 +67,23 @@ public class ClientSettingsTests
     [InlineData("", new string[0])]
     public void ParsesChapterSources(string value, string[] expected)
         => Assert.Equal(expected, ClientSettings.ParseChapterSources(value));
+
+    [Theory]
+    [InlineData(null, "oled")]
+    [InlineData("", "oled")]
+    [InlineData(" Jellyfin ", "jellyfin")]
+    [InlineData("oled", "oled")]
+    [InlineData("../app", "oled")]
+    public void ParsesThemes(string? value, string expected)
+    {
+        Assert.Equal(expected, ClientSettings.ParseTheme(value));
+        Assert.Equal(expected, ClientSettings.From(new PluginConfiguration { Theme = value! }).Theme);
+    }
+
+    [Fact]
+    public void SerializesTheOledThemeByDefault()
+    {
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(ClientSettings.From(new PluginConfiguration())));
+        Assert.Equal("oled", doc.RootElement.GetProperty("theme").GetString());
+    }
 }

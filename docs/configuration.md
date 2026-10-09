@@ -36,6 +36,12 @@ Settings marked *(user)* are only starting values: each user can change them in 
 
 The relay itself is configured with environment variables, see [DG-Lab Coyote 3.0](dg-lab.md#the-relay).
 
+## Appearance
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| Theme | OLED | The look of HAPPY for everyone. *OLED (pure black)* is black with white accents, which saves power on OLED screens. *Jellyfin* uses the dark greys and blue accent of Jellyfin's default theme. Open HAPPY tabs show the new theme after a reload. |
+
 ## Library
 
 | Setting | Default | Description |

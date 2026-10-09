@@ -278,7 +278,9 @@ same-origin. Both `<video>` elements and the images drawn into the playlist coll
 - Colours come only from the `--happy-*` tokens (`public/css/themes/_theme.scss`). App styles never
   hardcode a colour; `_bridge.scss` points Bootstrap's compiled-in colours at the tokens. A theme
   changes tokens only. `test/scripts/themeColors.test.ts` enforces this for `public/css/scss/` and
-  the HTML. Details in [docs/developer/client.md](docs/developer/client.md#theming).
+  the HTML.
+- The theme is a server-wide plugin setting. The plugin serves it as `/Happy/Web/theme.css`
+  (anonymous), linked after `app.css`, so no script decides colours and nothing flashes. Details in [docs/developer/client.md](docs/developer/client.md#theming).
 
 ## Gallery rendering with large libraries
 

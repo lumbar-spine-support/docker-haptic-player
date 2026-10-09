@@ -66,6 +66,7 @@ const FALLBACK_SETTINGS: ClientSettings = {
   funscriptColorGradient: false,
   cardViewForceSquareArtwork: false,
   cardViewLargePortraitArtwork: true,
+  theme: 'oled',
   jellyfinUrl: '',
   funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES,
   chapterSourcePriority: ['embedded', 'funscript'],
@@ -184,6 +185,13 @@ class App {
   }
 
   /** The seek indicator shows whatever step the triggering hotkey/gesture carries, so the interval goes there. */
+  private applyTheme(): void {
+    document.documentElement.dataset.theme = this.settings.theme;
+    // The browser chrome (mobile address bar, installed app) follows the theme's background.
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--happy-bg').trim();
+    if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
+  }
+
   private applySeekInterval(): void {
     const step = this.settings.videoSeekInterval;
     document.querySelectorAll<HTMLElement>('media-hotkey[action="seekStep"], media-gesture[action="seekStep"]').forEach((el) => {
@@ -208,6 +216,7 @@ class App {
         chapterSourcePriority: this.settings.chapterSourcePriority,
       });
     }
+    this.applyTheme();
     this.applySeekInterval();
     this.library.setForceSquareArtwork(this.settings.cardViewForceSquareArtwork);
     this.library.setLargePortraitArtwork(this.settings.cardViewLargePortraitArtwork);

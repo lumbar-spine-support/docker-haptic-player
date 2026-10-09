@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { THEMES } from '../../../src/shared/types';
 import { login, skip, type JellyfinSession } from './session';
 
 interface FunscriptDto {
@@ -36,6 +37,16 @@ test('[jellyfin-plugin] requires a signed-in user', { skip }, async (t) => {
         const res = await session.request(path, { anonymous: true });
         assert.equal(res.status, 401, path);
     }
+});
+
+test('[jellyfin-plugin] serves the chosen theme without sign-in', { skip }, async (t) => {
+    if (pluginMissing) return t.skip(pluginMissing);
+    const config = (await (await session.request('/Happy/Config')).json()) as { theme: string };
+    assert.ok((THEMES as readonly string[]).includes(config.theme), config.theme);
+    const res = await session.request('/Happy/Web/theme.css', { anonymous: true });
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type') ?? '', /^text\/css/);
+    assert.match(await res.text(), /--happy-bg:/);
 });
 
 test('[jellyfin-plugin] lists funscripts by item id and serves them by key', { skip }, async (t) => {

@@ -43,7 +43,7 @@
     <WebRoot>$(MSBuildThisFileDirectory)../../public/</WebRoot>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="$(WebRoot)index.html;$(WebRoot)manifest.webmanifest;$(WebRoot)icon.svg;$(WebRoot)img/**/*.svg;$(WebRoot)css/app.css;$(WebRoot)js/app.js;$(WebRoot)js/app.css;$(WebRoot)vendor/bootstrap/*.js;$(WebRoot)vendor/bootstrap-icons/**/*"
+    <EmbeddedResource Include="$(WebRoot)index.html;$(WebRoot)manifest.webmanifest;$(WebRoot)icon.svg;$(WebRoot)img/**/*.svg;$(WebRoot)css/app.css;$(WebRoot)css/themes/*.css;$(WebRoot)js/app.js;$(WebRoot)js/app.css;$(WebRoot)vendor/bootstrap/*.js;$(WebRoot)vendor/bootstrap-icons/**/*"
                       Exclude="$(WebRoot)**/*.map"
                       LogicalName="web/$([System.IO.Path]::GetRelativePath('$(WebRoot)', '%(FullPath)').Replace('\', '/'))" />
   </ItemGroup>

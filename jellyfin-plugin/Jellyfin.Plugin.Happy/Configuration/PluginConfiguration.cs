@@ -80,6 +80,11 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool CardViewLargePortraitArtwork { get; set; }
 
     /// <summary>
+    /// Gets or sets the look of HAPPY: oled (pure black) or jellyfin (Jellyfin's dark theme).
+    /// </summary>
+    public string Theme { get; set; } = "oled";
+
+    /// <summary>
     /// Gets or sets the separator between the media stem and script suffixes, as in
     /// <c>&lt;stem&gt;.&lt;type&gt;.funscript</c>. Used for matching here and for parsing in HAPPY.
     /// </summary>

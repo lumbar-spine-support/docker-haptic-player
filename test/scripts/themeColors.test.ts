@@ -1,7 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { THEMES } from '../../src/shared/types';
 
 // Themes only swap the --happy-* tokens, so colours must not be hardcoded elsewhere.
 // _variables.scss holds the theme-independent constants (scrims over video), the
@@ -29,6 +30,23 @@ describe('theme colours', () => {
                 .map((line, i) => ({ where: `${name}:${i + 1}`, line: line.trim() }))
                 .filter(({ line }) => LITERAL_COLOUR.test(line)));
         assert.deepEqual(offenders, [], 'use a --happy-* token (or a constant in _variables.scss)');
+    });
+
+    it('ships a stylesheet for every theme the plugin offers', () => {
+        const plugin = readFileSync('jellyfin-plugin/Jellyfin.Plugin.Happy/Configuration/ClientSettings.cs', 'utf8');
+        const pluginThemes = /Themes = \[([^\]]*)\]/.exec(plugin)?.[1].match(/"[^"]+"/g)?.map((s) => s.slice(1, -1));
+        assert.deepEqual(pluginThemes, [...THEMES]);
+        const configPage = readFileSync('jellyfin-plugin/Jellyfin.Plugin.Happy/Configuration/configPage.html', 'utf8');
+        for (const theme of THEMES) {
+            assert.ok(existsSync(`public/css/themes/${theme}.scss`), `public/css/themes/${theme}.scss`);
+            assert.ok(configPage.includes(`<option value="${theme}">`), `configPage.html offers ${theme}`);
+        }
+    });
+
+    it('loads the chosen theme after the app stylesheet', () => {
+        const index = readFileSync('public/index.html', 'utf8');
+        const app = index.indexOf('href="css/app.css"');
+        assert.ok(app > 0 && index.indexOf('href="theme.css"') > app);
     });
 
     it('uses the theme surfaces instead of fixed Bootstrap backgrounds', () => {

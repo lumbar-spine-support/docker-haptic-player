@@ -21,7 +21,14 @@ public sealed record ClientSettings
     /// </summary>
     public static readonly IReadOnlyList<string> ChapterSources = ["embedded", "funscript"];
 
+    /// <summary>
+    /// Themes HAPPY ships (<c>THEMES</c> in <c>src/shared/types.ts</c>, <c>public/css/themes/</c>).
+    /// </summary>
+    public static readonly IReadOnlyList<string> Themes = ["oled", "jellyfin"];
+
     private const string DefaultInterpolationMethod = "pchip";
+
+    private const string DefaultTheme = "oled";
 
     /// <summary>Gets the seek interval in seconds.</summary>
     [JsonPropertyName("videoSeekInterval")]
@@ -83,6 +90,10 @@ public sealed record ClientSettings
     [JsonPropertyName("cardViewLargePortraitArtwork")]
     public bool CardViewLargePortraitArtwork { get; init; }
 
+    /// <summary>Gets the theme, one of <see cref="Themes"/>.</summary>
+    [JsonPropertyName("theme")]
+    public string Theme { get; init; } = DefaultTheme;
+
     /// <summary>Gets the Jellyfin address; always empty, since the page served by the plugin knows it.</summary>
     [JsonPropertyName("jellyfinUrl")]
     public string JellyfinUrl { get; init; } = string.Empty;
@@ -97,7 +108,7 @@ public sealed record ClientSettings
 
     /// <summary>
     /// Builds the client settings from the plugin configuration, repairing values the client could
-    /// not use (unknown interpolation methods and chapter sources, empty suffixes, negative ranges).
+    /// not use (unknown interpolation methods, themes and chapter sources, empty suffixes, negative ranges).
     /// </summary>
     /// <param name="config">The plugin configuration.</param>
     /// <returns>The client settings.</returns>
@@ -122,6 +133,7 @@ public sealed record ClientSettings
             FunscriptColorGradient = config.FunscriptColorGradient,
             CardViewForceSquareArtwork = config.CardViewForceSquareArtwork,
             CardViewLargePortraitArtwork = config.CardViewLargePortraitArtwork,
+            Theme = ParseTheme(config.Theme),
             FunscriptSuffixes = new FunscriptSuffixes
             {
                 Separator = OrDefault(config.FunscriptSeparator, "."),
@@ -147,6 +159,17 @@ public sealed record ClientSettings
             .Where(source => ChapterSources.Contains(source))
             .Distinct()
             .ToArray();
+
+    /// <summary>
+    /// Normalizes a configured theme name, falling back to the default for unknown ones.
+    /// </summary>
+    /// <param name="value">The configured theme.</param>
+    /// <returns>One of <see cref="Themes"/>.</returns>
+    internal static string ParseTheme(string? value)
+    {
+        var theme = value?.Trim().ToLowerInvariant() ?? string.Empty;
+        return Themes.Contains(theme) ? theme : DefaultTheme;
+    }
 
     private static string OrDefault(string? value, string fallback)
         => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();

@@ -98,6 +98,16 @@
                         <label class="emby-checkbox-label"><input id="AutoReconnectDglab" type="checkbox" is="emby-checkbox" /><span>Reconnect to the relay on page load</span></label>
                     </div>
 
+                    <h3>Appearance</h3>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="Theme">Theme</label>
+                        <select id="Theme" is="emby-select">
+                            <option value="oled">OLED (pure black)</option>
+                            <option value="jellyfin">Jellyfin</option>
+                        </select>
+                        <div class="fieldDescription">Reload open HAPPY tabs to see a new theme.</div>
+                    </div>
+
                     <h3>Library</h3>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label"><input id="CardViewForceSquareArtwork" type="checkbox" is="emby-checkbox" /><span>Crop artwork to squares</span></label>
@@ -152,7 +162,7 @@
                     'AutoReconnectDglab', 'CardViewForceSquareArtwork', 'CardViewLargePortraitArtwork', 'DebugLogging', 'ShowInJellyfinMenu'];
                 var texts = ['ChapterSourcePriority', 'FunscriptInterpolationMethod', 'DglabRelayUrl', 'FunscriptSeparator',
                     'FunscriptSuffixStroker', 'FunscriptSuffixButtplug', 'FunscriptSuffixVibrator', 'FunscriptSuffixEstim',
-                    'FunscriptSuffixMachine', 'JellyfinMenuName', 'JellyfinMenuIcon'];
+                    'FunscriptSuffixMachine', 'JellyfinMenuName', 'JellyfinMenuIcon', 'Theme'];
                 var field = function (key) { return page.querySelector('#' + key); };
 
                 page.addEventListener('pageshow', function () {

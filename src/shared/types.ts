@@ -37,6 +37,11 @@ export type ChapterSource = 'embedded' | 'funscript';
 
 export const CHAPTER_SOURCES: readonly ChapterSource[] = ['embedded', 'funscript'];
 
+/** Look of the app, chosen in the plugin settings; each has a stylesheet in `public/css/themes/`. */
+export type ThemeName = 'oled' | 'jellyfin';
+
+export const THEMES: readonly ThemeName[] = ['oled', 'jellyfin'];
+
 /** A named time span of a media file, in seconds. */
 export interface Chapter {
   name: string;
@@ -174,6 +179,8 @@ export interface ClientSettings {
   funscriptColorGradient: boolean;
   cardViewForceSquareArtwork: boolean;
   cardViewLargePortraitArtwork: boolean;
+  /** Served as `theme.css` by the plugin; the client only mirrors it on `<html data-theme>`. */
+  theme: ThemeName;
   /** Unused since the plugin serves HAPPY (the page knows its Jellyfin); always empty. */
   jellyfinUrl: string;
   funscriptSuffixes: FunscriptSuffixes;

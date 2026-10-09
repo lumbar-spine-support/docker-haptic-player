@@ -121,10 +121,11 @@ $oled: (
   --happy-radius: #{map.get($t, radius)};
 
   @include role(accent, $accent, $accent-on);
-  // Chips and links: a gentle step from the accent, darker on light accents.
+  // Chips and links: a step away from the accent, darker on light accents, lighter on dark ones.
   --happy-accent-hover: #{if($accent-on == #000, shade($accent, 10%), tint($accent, 10%))};
-  --happy-link-hover: #{shade($accent, 20%)};
-  --happy-link-hover-rgb: #{rgb-list(shade($accent, 20%))};
+  $link-hover: if($accent-on == #000, shade($accent, 20%), tint($accent, 20%));
+  --happy-link-hover: #{$link-hover};
+  --happy-link-hover-rgb: #{rgb-list($link-hover)};
   --happy-accent-focus-border: #{tint($accent, 50%)};
   --happy-accent-range-active: #{tint($accent, 70%)};
   @include role(secondary, map.get($t, secondary));
