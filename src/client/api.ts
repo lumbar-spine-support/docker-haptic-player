@@ -97,10 +97,18 @@ export async function fetchVersion(): Promise<VersionInfo> {
   return versionFromPluginInfo(await res.json() as PluginInfo);
 }
 
-/** Signs out of Jellyfin; the reload then shows the sign-in card. */
+/** Jellyfin's own web client, next to `/Happy/Web/` (a Jellyfin base URL included). */
+export const JELLYFIN_WEB_URL = '../../web/';
+
+/**
+ * Signs out of Jellyfin; the reload then shows the sign-in card. A session borrowed from Jellyfin's
+ * web client is only left: back to Jellyfin, which stays signed in.
+ */
 export async function logout(): Promise<void> {
+  const borrowed = jellyfin?.borrowed ?? false;
   await jellyfin?.signOut();
-  window.location.reload();
+  if (borrowed) window.location.assign(JELLYFIN_WEB_URL);
+  else window.location.reload();
 }
 
 /** Fetches the defaults for client-side settings, configured on the plugin's dashboard page. */

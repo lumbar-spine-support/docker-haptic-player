@@ -6,8 +6,8 @@ import type { JellyfinConnection } from './connection';
  * Shows the Jellyfin sign-in card over the app and resolves once the connection holds a valid
  * session. Resolves immediately when already signed in.
  */
-export function ensureSignedIn(connection: JellyfinConnection): Promise<void> {
-    if (connection.signedIn) return Promise.resolve();
+export async function ensureSignedIn(connection: JellyfinConnection): Promise<void> {
+    if (connection.signedIn || await connection.adoptJellyfinWebSession()) return;
 
     const host = document.createElement('div');
     host.innerHTML = renderTemplate(signInTemplate, { server: connection.serverUrl });

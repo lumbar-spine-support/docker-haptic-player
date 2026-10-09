@@ -318,7 +318,11 @@ class App {
 
   private bindLogout(): void {
     if (!this.logoutBtn || !this.jellyfin?.signedIn) return;
-    if (this.jellyfin.userName) this.logoutBtn.title = `Sign out ${this.jellyfin.userName}`;
+    if (this.jellyfin.borrowed) {
+      // Jellyfin's web client owns this sign-in; HAPPY only steps out of it.
+      this.logoutBtn.title = 'Leave HAPPY (back to Jellyfin)';
+      this.logoutBtn.setAttribute('aria-label', this.logoutBtn.title);
+    } else if (this.jellyfin.userName) this.logoutBtn.title = `Sign out ${this.jellyfin.userName}`;
     this.logoutBtn.classList.remove('d-none');
     this.logoutBtn.addEventListener('click', () => {
       void logout();
