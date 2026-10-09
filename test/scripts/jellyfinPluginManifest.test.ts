@@ -34,6 +34,18 @@ describe('jellyfin plugin manifest', () => {
         assert.match(info.targetAbi, /^\d+\.\d+\.\d+\.\d+$/);
         assert.equal(info.name, 'HAPPY');
         assert.ok(!info.description.endsWith('\n'));
+        assert.match(info.imageUrl ?? '', /^https:\/\/raw\.githubusercontent\.com\/.+\/main\/jellyfin-plugin\/thumb\.png$/);
+    });
+
+    it('commits the catalog image as a real PNG', () => {
+        // In LFS, raw.githubusercontent.com would serve the pointer file instead of the image.
+        assert.equal(readFileSync('jellyfin-plugin/thumb.png').subarray(1, 4).toString(), 'PNG');
+    });
+
+    it('takes imageUrl from build.yaml over the one in the manifest', () => {
+        const old: ManifestPackage = { ...INFO, imageUrl: 'https://example.com/old.png', versions: [] };
+        const [pkg] = upsertVersion([old], { ...INFO, imageUrl: 'https://example.com/new.png' }, entry('0.2.0.0'));
+        assert.equal(pkg.imageUrl, 'https://example.com/new.png');
     });
 
     it('lets the release PR bump build.yaml through its marker, not as YAML', () => {

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Jellyfin plugin card image (16:9), rendered to thumb.png. Glyph from public/icon.svg (the Jellyfin menu icon). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101010"/>
+      <stop offset="1" stop-color="#1c1c1c"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#aa5cc3"/>
+      <stop offset="1" stop-color="#00a4dc"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.25" cy="0.5" r="0.55">
+      <stop offset="0" stop-color="#00a4dc" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#00a4dc" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect width="1280" height="720" fill="url(#glow)"/>
+  <circle cx="320" cy="360" r="210" fill="url(#accent)"/>
+  <g transform="translate(184 224) scale(21.417)" fill="none" stroke="#ffffff" stroke-linecap="round">
+    <g transform="matrix(0.94895178,0,0,0.94895178,0.32415618,0.29485022)">
+      <g transform="matrix(-0.65714519,-2.4524992,-2.4524992,0.65714519,34.082167,22.019362)" stroke-width="0.5">
+        <path d="M 9.443626,8.2601909 C 9.6752173,8.6186583 9.7973218,9.005817 9.7973218,9.4004555 v 0 c -1e-7,0.4063884 -0.126845,0.7937305 -0.3564661,1.1465485"/>
+        <path d="m 8.7986838,8.4330041 c 0.1975123,0.3051963 0.3016737,0.634934 0.3016737,0.9710734 v 0 c -10e-8,0.3442388 -0.1070164,0.6723975 -0.3008092,0.9714495"/>
+        <path d="m 8.1532778,8.6057785 c 0.1626294,0.2508788 0.2483936,0.5219588 0.2483936,0.798299 v 0 c 0,0.2828586 -0.088027,0.5524996 -0.2474271,0.7982135"/>
+      </g>
+      <g transform="translate(1.224397,0.84630686)" fill="#ffffff">
+        <ellipse cx="5.703701" cy="9.4040775" rx="2.0073352" ry="0.99679369" stroke-width="1.33656"/>
+        <path d="m 7.8793164,9.4573961 c 0,-2.9855348 0,-5.9713331 0,-8.9573961" stroke-width="1"/>
+        <path d="M 7.8793164,0.5 C 8.4469778,0.97713942 9.0143421,1.4540291 9.5303981,1.7074937 10.046454,1.9609583 10.511165,1.9911985 10.975603,2.0214208" fill="none" stroke-width="1"/>
+      </g>
+    </g>
+  </g>
+  <g font-family="'Noto Sans', 'DejaVu Sans', Arial, sans-serif" fill="#ffffff">
+    <text x="606" y="355" font-size="136" font-weight="800" letter-spacing="4">HAPPY</text>
+    <text x="616" y="430" font-size="44" font-weight="500" fill="#e0e0e0">Haptic player for Jellyfin</text>
+    <text x="616" y="486" font-size="28" fill="#a0a0a0">Funscripts · VR · Intiface · DG-Lab Coyote</text>
+  </g>
+</svg>

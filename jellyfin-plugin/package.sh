@@ -18,15 +18,16 @@ rm -rf "$out" "artifacts/publish"
 dotnet publish Jellyfin.Plugin.Happy/Jellyfin.Plugin.Happy.csproj -c "$configuration" -o "artifacts/publish" --nologo -v quiet \
   "-p:HappyCommit=${HAPPY_COMMIT:-}" "-p:HappyBuiltAt=${HAPPY_BUILT_AT:-}"
 mkdir -p "$out"
-cp artifacts/publish/Jellyfin.Plugin.Happy.dll "$out/"
+cp artifacts/publish/Jellyfin.Plugin.Happy.dll thumb.png "$out/"
 if [ "$configuration" = Debug ]; then cp artifacts/publish/Jellyfin.Plugin.Happy.pdb "$out/"; fi
 
 # Jellyfin keeps a bundled meta.json's autoUpdate when it installs from a repository, so it must stay true.
+# imagePath shows thumb.png on zip installs; a repository install replaces it with the downloaded imageUrl.
 cat > "$out/meta.json" <<JSON
 {
   "category": "$(field category)",
   "changelog": "",
-  "description": "Indexes .funscript files next to library media and serves them to the HAPPY haptic player.",
+  "description": "$(field description)",
   "guid": "$(field guid)",
   "name": "$(field name)",
   "overview": "$(field overview)",
@@ -36,6 +37,7 @@ cat > "$out/meta.json" <<JSON
   "version": "${version}",
   "status": "Active",
   "autoUpdate": true,
+  "imagePath": "thumb.png",
   "assemblies": ["Jellyfin.Plugin.Happy.dll"]
 }
 JSON
