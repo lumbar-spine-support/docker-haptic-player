@@ -30,10 +30,18 @@ function writeStorage(key: string, value: string | null): void {
 }
 
 /** Jellyfin lists every sign-in under Dashboard → Devices; a stable id keeps that to one entry per browser. */
+/**
+ * A random device id. `crypto.randomUUID` only exists in secure contexts, and Jellyfin (which serves
+ * HAPPY) is often reached over plain HTTP on a LAN address; `getRandomValues` works everywhere.
+ */
+export function randomDeviceId(): string {
+    return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 function deviceId(): string {
     let id = readStorage(DEVICE_ID_KEY);
     if (!id) {
-        id = crypto.randomUUID();
+        id = randomDeviceId();
         writeStorage(DEVICE_ID_KEY, id);
     }
     return id;

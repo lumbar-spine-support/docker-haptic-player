@@ -23,12 +23,22 @@ flowchart LR
 | Command | What it does |
 | --- | --- |
 | `npm run dev:jellyfin` | Build the plugin (Debug), start Jellyfin, and on first run complete the setup wizard, create the libraries and users and scan. Safe to run again. |
-| `npm run dev:jellyfin:plugin` | Rebuild the plugin and restart Jellyfin to load it |
+| `npm run dev:jellyfin:plugin` | Rebuild the plugin and recreate the Jellyfin container to load it |
+| `npm run test:plugin` | `dotnet test` of the plugin in the .NET SDK container |
+| `npm run dev:client` / `npm run dev:css` | Rebuild `public/js` and `public/css` on every change; reload the page to see it |
 | `npm run dev:jellyfin:down` | Stop Jellyfin and keep its data |
 | `npm run dev:jellyfin:reset` | Stop Jellyfin and delete its data. The next `dev:jellyfin` starts from the setup wizard. |
 | `npm run test:jellyfin:dev` | The integration tests in `test/integration/jellyfin/`, run against this Jellyfin |
 
-VS Code: the compound **Debug (local Jellyfin)** runs `dev:jellyfin` first, then starts the HAPPY server against it and Chrome. **Local Jellyfin Integration Tests** runs the integration tests. The tasks `npm: dev:jellyfin:plugin` and `npm: dev:jellyfin:down` are in *Run Task*.
+## Working on the client
+
+Open **http://localhost:8097/Happy/Web/** and sign in as `happy-user`. The plugin serves the client straight from your working tree: compose sets `HAPPY_DEV_WEB_ROOT` and `HAPPY_DEV_DOCS_ROOT`, which point at the read-only mounts of `public/` and `docs/`, and it serves without caching. So a client change needs only `npm run dev:client` (and `dev:css` for SCSS) and a page reload, with no plugin rebuild and no Jellyfin restart.
+
+To test what a release serves instead, start with the variables empty: `HAPPY_DEV_WEB_ROOT= HAPPY_DEV_DOCS_ROOT= npm run dev:jellyfin:plugin`. The plugin then serves the copies embedded in the DLL, with ETags and without source maps. Run `npm run build:client` and `build:vendor` first, since the DLL embeds whatever `public/` holds at build time.
+
+VS Code:
+- **HAPPY in local Jellyfin** starts the local Jellyfin, builds the vendor assets and CSS, starts the JS and CSS watches, and opens Chrome at `/Happy/Web/` with breakpoints in the TypeScript sources.
+- The compound **Debug (local Jellyfin)** runs `dev:jellyfin` first, then starts the HAPPY server against it and Chrome. **Local Jellyfin Integration Tests** runs the integration tests. The tasks `npm: dev:jellyfin:plugin` and `npm: dev:jellyfin:down` are in *Run Task*.
 
 ## What gets set up
 

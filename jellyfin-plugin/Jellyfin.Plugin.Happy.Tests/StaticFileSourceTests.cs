@@ -55,6 +55,26 @@ public sealed class StaticFileSourceTests : IDisposable
     }
 
     [Fact]
+    public void EmbedsTheBuiltClientWhenThereIsOne()
+    {
+        // public/ is only there after `npm run build:client`; CI builds it before testing the plugin.
+        var publicDir = Path.Combine(AppContext.BaseDirectory, "../../../../../public");
+        if (!File.Exists(Path.Combine(publicDir, "js", "app.js")))
+        {
+            return;
+        }
+
+        var source = StaticFileSource.FromAssembly(typeof(StaticFileSource).Assembly, "web");
+        foreach (var file in new[] { "index.html", "manifest.webmanifest", "js/app.js", "css/app.css", "vendor/bootstrap/bootstrap.bundle.min.js", "vendor/bootstrap-icons/bootstrap-icons.min.css" })
+        {
+            using var stream = source.Open(file);
+            Assert.True(stream is not null, file);
+        }
+
+        Assert.Null(source.Open("js/app.js.map"));
+    }
+
+    [Fact]
     public void ServesTheEmbeddedDocs()
     {
         var source = StaticFileSource.FromAssembly(typeof(StaticFileSource).Assembly, "docs");

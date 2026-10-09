@@ -6,6 +6,7 @@ import type { JellyfinConnection } from './jellyfin/connection';
 import { loadLibrary } from './jellyfin/library';
 import type { MapOptions } from './jellyfin/mapper';
 import { imageUrl, streamUrl, trickplayVtt } from './jellyfin/urls';
+import { versionFromPluginInfo, type PluginInfo } from './utils/formatVersion';
 
 const BASE = new URL('.', window.location.href).pathname;
 
@@ -70,9 +71,9 @@ export function storyboardVttUrl(track: TrackInfo): string | null {
   return storyboardVtts.get(track.id) ?? null;
 }
 
-/** Fetches a documentation page as raw markdown. */
+/** Fetches a documentation page as raw markdown (served by the plugin, without sign-in). */
 export async function fetchDoc(page: string): Promise<string> {
-  const res = await fetch(`${BASE}api/docs/${encodeURIComponent(page)}`);
+  const res = await fetch(`${requireJellyfin().serverUrl}/Happy/Docs/${encodeURIComponent(page)}`);
   if (!res.ok) {
     throw new Error(`Docs fetch failed: ${res.status}`);
   }
@@ -81,7 +82,7 @@ export async function fetchDoc(page: string): Promise<string> {
 
 /** Builds the URL of an image referenced from a documentation page. */
 export function docAssetUrl(relativePath: string): string {
-  return `${BASE}api/docs/assets/${relativePath.split('/').map(encodeURIComponent).join('/')}`;
+  return `${requireJellyfin().serverUrl}/Happy/Docs/assets/${relativePath.split('/').map(encodeURIComponent).join('/')}`;
 }
 
 /** Cover image URL of a Jellyfin item; the tag changes whenever the image does, so it caches well. */
@@ -89,13 +90,13 @@ export function artworkUrl(trackId: string, artworkTag?: string | null): string 
   return imageUrl(requireJellyfin().serverUrl, trackId, artworkTag);
 }
 
-/** Fetches the running server/app version info. */
+/** Fetches HAPPY's version, which is the version of the Jellyfin plugin serving it. */
 export async function fetchVersion(): Promise<VersionInfo> {
-  const res = await fetch(`${BASE}api/version`);
+  const res = await requireJellyfin().request('/Happy/Info');
   if (!res.ok) {
     throw new Error(`Version fetch failed: ${res.status}`);
   }
-  return res.json() as Promise<VersionInfo>;
+  return versionFromPluginInfo(await res.json() as PluginInfo);
 }
 
 /** Signs out of Jellyfin; the reload then shows the sign-in card. */
@@ -104,13 +105,28 @@ export async function logout(): Promise<void> {
   window.location.reload();
 }
 
-/** Fetches the server-configured defaults for client-side settings. */
+/** Fetches the defaults for client-side settings, configured on the plugin's dashboard page. */
 export async function fetchClientSettings(): Promise<ClientSettings> {
-  const res = await fetch(`${BASE}api/config`);
+  const res = await requireJellyfin().request('/Happy/Config');
   if (!res.ok) {
     throw new Error(`Config fetch failed: ${res.status}`);
   }
   return res.json() as Promise<ClientSettings>;
+}
+
+/**
+ * Jellyfin address configured on a HAPPY Node server (`JELLYFIN_URL`), for pages it serves.
+ * Pages served by the plugin derive the address from their own URL instead.
+ */
+export async function fetchConfiguredJellyfinUrl(): Promise<string> {
+  try {
+    const res = await fetch(`${BASE}api/config`);
+    if (!res.ok) return '';
+    const { jellyfinUrl } = await res.json() as Partial<ClientSettings>;
+    return typeof jellyfinUrl === 'string' ? jellyfinUrl : '';
+  } catch {
+    return '';
+  }
 }
 
 

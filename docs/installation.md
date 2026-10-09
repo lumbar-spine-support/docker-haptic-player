@@ -41,6 +41,8 @@ The HAPPY server itself only contacts Jellyfin to check sign-ins for the DG-Lab 
 
 The plugin indexes `.funscript` files that sit next to your media and serves them to signed-in Jellyfin users. Without it HAPPY still plays your media, but without haptics.
 
+The plugin also serves HAPPY itself at `<your Jellyfin address>/Happy/Web/` (the plugin's settings page has an *Open HAPPY* button), and HAPPY's settings move to that settings page. The HAPPY container is no longer needed for this.
+
 ### From the HAPPY plugin repository (recommended)
 
 Add HAPPY's plugin repository to Jellyfin once. After that Jellyfin installs the plugin from its catalog and keeps it up to date like any official plugin.

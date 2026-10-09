@@ -1,7 +1,7 @@
-import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchClientSettings, logout, artworkUrl, chaptersVttUrl, useJellyfin } from './api';
+import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchClientSettings, fetchConfiguredJellyfinUrl, logout, artworkUrl, chaptersVttUrl, useJellyfin } from './api';
 import { JellyfinConnection } from './jellyfin/connection';
 import { ensureSignedIn, showMissingServerNotice } from './jellyfin/signIn';
-import { resolveJellyfinUrl } from './jellyfin/serverUrl';
+import { jellyfinUrlFromPage } from './jellyfin/serverUrl';
 import { formatVersion } from './utils/formatVersion';
 import { qs } from './utils/html';
 import { storedSetting } from './utils/storedSetting';
@@ -47,7 +47,7 @@ import '@/components/videojs/video/element';
 const INTIFACE_DELAY_KEY = 'happy-haptic-delay-ms';
 const DGLAB_DELAY_KEY = 'happy-dglab-delay-ms';
 
-/** Used when the server config cannot be reached. */
+/** Used when the plugin's settings cannot be fetched. */
 const FALLBACK_SETTINGS: ClientSettings = {
   videoSeekInterval: 10,
   blurContent: false,
@@ -185,10 +185,18 @@ class App {
   }
 
   async init(): Promise<void> {
+    // The settings come from the plugin and need a signed-in user, so signing in comes first.
+    if (!(await this.connectJellyfin())) return;
     try {
       this.settings = await fetchClientSettings();
     } catch (err) {
       console.warn('Falling back to built-in client settings:', err);
+    }
+    if (this.jellyfin) {
+      useJellyfin(this.jellyfin, {
+        funscriptSuffixes: this.settings.funscriptSuffixes,
+        chapterSourcePriority: this.settings.chapterSourcePriority,
+      });
     }
     this.applySeekInterval();
     this.library.setForceSquareArtwork(this.settings.cardViewForceSquareArtwork);
@@ -216,7 +224,6 @@ class App {
     }
 
     this.initHapticControls();
-    if (!(await this.connectJellyfin())) return;
     // The relay only accepts signed-in tabs, so DG-Lab (and its auto-reconnect) waits for the session.
     await this.initDglab();
     this.playback.onActiveTrack((track) => { void this.onActiveTrackChanged(track); });
@@ -244,9 +251,10 @@ class App {
     });
   }
 
-  /** Signs in to Jellyfin if needed; false when no server is configured and the app cannot load. */
+  /** Signs in to Jellyfin if needed; false when there is no Jellyfin to sign in to and the app cannot load. */
   private async connectJellyfin(): Promise<boolean> {
-    const serverUrl = resolveJellyfinUrl(this.settings.jellyfinUrl, window.location.href);
+    const serverUrl = jellyfinUrlFromPage(window.location.href)
+      ?? (await fetchConfiguredJellyfinUrl()).trim().replace(/\/+$/, '');
     if (!serverUrl) {
       showMissingServerNotice();
       return false;

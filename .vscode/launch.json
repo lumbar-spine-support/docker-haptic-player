@@ -66,6 +66,23 @@
       }
     },
     {
+      // HAPPY as the plugin serves it, from the local dev Jellyfin (docs/developer/local-jellyfin.md).
+      // The client is served straight from public/, so the watch tasks make edits live after a reload.
+      "name": "HAPPY in local Jellyfin",
+      "request": "launch",
+      "type": "chrome",
+      "url": "http://localhost:8097/Happy/Web/",
+      // In the devcontainer this opens Chrome on the host and debugs it through the published port.
+      "browserLaunchLocation": "ui",
+      "webRoot": "${workspaceFolder}/public",
+      "sourceMaps": true,
+      // The map's sources are relative to public/js/ (../../src/…), so they resolve to /Happy/src/…, /Happy/@/… etc.
+      "sourceMapPathOverrides": {
+        "http://localhost:8097/Happy/*": "${workspaceFolder}/*"
+      },
+      "preLaunchTask": "Local Jellyfin: start with client watch"
+    },
+    {
       // The HAPPY server against the local dev Jellyfin (npm run dev:jellyfin writes config/dev-jellyfin.env).
       "name": "Server (local Jellyfin)",
       "request": "launch",

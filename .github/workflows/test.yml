@@ -49,6 +49,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: npm
+
+      # The plugin embeds the built client and the docs (with their LFS images).
+      - name: Build the client
+        run: |
+          npm ci
+          npm run build:client
+          npm run build:vendor
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5

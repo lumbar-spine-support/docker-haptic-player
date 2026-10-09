@@ -159,6 +159,21 @@ async function waitForStartup(base) {
     fail('Jellyfin did not finish starting within 2 minutes (docker compose -f dev/jellyfin/compose.yaml logs jellyfin).');
 }
 
+/** Waits until the (re)started Jellyfin serves the plugin's anonymous docs index. */
+async function waitForPlugin(base) {
+    await waitForStartup(base);
+    for (let attempt = 0; attempt < 120; attempt++) {
+        try {
+            const res = await fetch(`${base}/Happy/Docs`);
+            if (res.ok) return;
+        } catch {
+            // still starting
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    fail('The HAPPY plugin did not come up (docker compose -f dev/jellyfin/compose.yaml logs jellyfin).');
+}
+
 async function login(base, name, password) {
     const res = await fetch(`${base}/Users/AuthenticateByName`, {
         method: 'POST',
@@ -290,8 +305,10 @@ async function main() {
             break;
         case 'plugin':
             buildPlugin();
-            compose('restart', 'jellyfin');
-            await waitForStartup(await resolveBase());
+            // Recreate rather than restart, so a changed HAPPY_DEV_* environment takes effect too.
+            ensureMountSources();
+            compose('up', '-d', '--force-recreate', 'jellyfin');
+            await waitForPlugin(await resolveBase());
             log('Plugin reloaded.');
             break;
         case 'test-plugin':

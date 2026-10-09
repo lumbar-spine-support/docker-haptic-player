@@ -8,6 +8,7 @@
     "build:server": "tsc --project tsconfig.server.json",
     "build:client": "npm run build:css && NODE_ENV=production node scripts/build-client.js --minify --sourcemap",
     "dev:client": "node scripts/build-client.js --sourcemap --watch",
+    "dev:css": "npx sass public/css/app.scss:public/css/app.css --watch --quiet-deps --silence-deprecation=import,global-builtin,if-function,color-functions",
     "build:vendor": "node scripts/copy-vendor-assets.js",
     "build": "npm run build:server && npm run build:client && npm run build:vendor",
     "start": "node dist/server/index.js",

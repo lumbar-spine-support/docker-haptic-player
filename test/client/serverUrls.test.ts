@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { jellyfinUrlFromPage, resolveJellyfinUrl } from '../../src/client/jellyfin/serverUrl';
+import { jellyfinUrlFromPage } from '../../src/client/jellyfin/serverUrl';
 import { relayEndpoint, relayPairingUrl } from '../../src/client/components/haptic/dglab/coyoteBackend';
 
 test('Jellyfin address: derived from a page the plugin serves', () => {
@@ -15,12 +15,6 @@ test('Jellyfin address: not derived from other pages', () => {
     assert.equal(jellyfinUrlFromPage('http://localhost:3000/'), null);
     assert.equal(jellyfinUrlFromPage('http://localhost:3000/?view=docs&id=happy-web'), null);
     assert.equal(jellyfinUrlFromPage('https://example.com/Happy/Website/'), null);
-});
-
-test('Jellyfin address: the page wins over the configured address', () => {
-    assert.equal(resolveJellyfinUrl('https://other.example.com', 'https://jf.example.com/Happy/Web/'), 'https://jf.example.com');
-    assert.equal(resolveJellyfinUrl(' https://jf.example.com/ ', 'http://localhost:3000/'), 'https://jf.example.com');
-    assert.equal(resolveJellyfinUrl('', 'http://localhost:3000/'), '');
 });
 
 const page = { protocol: 'https:', host: 'happy.example.com' };

@@ -20,8 +20,9 @@ services:
       - "${HAPPY_DEV_JELLYFIN_PORT:-8097}:8096"
     environment:
       # Read by the plugin's dev-only file serving (client and docs straight from the working tree).
-      HAPPY_DEV_WEB_ROOT: /happy/web
-      HAPPY_DEV_DOCS_ROOT: /happy/docs
+      # Set them to empty (HAPPY_DEV_WEB_ROOT= npm run dev:jellyfin) to test the copies embedded in the DLL.
+      HAPPY_DEV_WEB_ROOT: ${HAPPY_DEV_WEB_ROOT-/happy/web}
+      HAPPY_DEV_DOCS_ROOT: ${HAPPY_DEV_DOCS_ROOT-/happy/docs}
     volumes:
       - config:/config
       - cache:/cache

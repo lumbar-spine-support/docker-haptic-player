@@ -8,8 +8,3 @@ export function jellyfinUrlFromPage(href: string): string | null {
     const match = url.pathname.match(/^(.*?)\/happy\/web(?:\/|$)/i);
     return match ? `${url.origin}${match[1]}` : null;
 }
-
-/** The page decides when the plugin serves it; otherwise the configured address (empty when there is none). */
-export function resolveJellyfinUrl(configured: string, href: string): string {
-    return jellyfinUrlFromPage(href) ?? configured.trim().replace(/\/+$/, '');
-}
