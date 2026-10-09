@@ -8,6 +8,10 @@
             "include-component-in-tag": false,
             "pull-request-title-pattern": "chore: release HAPPY v${version}",
             "changelog-path": "CHANGELOG.md",
+            "extra-files": [
+                "jellyfin-plugin/build.yaml",
+                "jellyfin-plugin/Directory.Build.props"
+            ],
             "changelog-sections": [
                 {
                     "type": "feat",

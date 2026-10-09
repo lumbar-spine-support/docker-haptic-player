@@ -41,14 +41,26 @@ The HAPPY server itself only contacts Jellyfin to check sign-ins for the DG-Lab 
 
 The plugin indexes `.funscript` files that sit next to your media and serves them to signed-in Jellyfin users. Without it HAPPY still plays your media, but without haptics.
 
-To install it by hand:
+### From the HAPPY plugin repository (recommended)
 
-1. Get the plugin folder `HAPPY_<version>` (it contains `Jellyfin.Plugin.Happy.dll` and `meta.json`). Each CI build uploads it as the `jellyfin-plugin-happy` artifact; to build it yourself, run `sh jellyfin-plugin/package.sh` with the .NET 10 SDK, which writes `jellyfin-plugin/artifacts/HAPPY_<version>/`.
-2. Copy that folder into the `plugins` directory of Jellyfin's data directory (for the official Docker image that is `/config/plugins/` inside Jellyfin's config volume).
+Add HAPPY's plugin repository to Jellyfin once. After that Jellyfin installs the plugin from its catalog and keeps it up to date like any official plugin.
+
+1. In Jellyfin, open *Dashboard → Plugins → Repositories* and add a repository:
+   - Name: `HAPPY`
+   - URL: `https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/jellyfin-plugin-repository/manifest.json`
+2. Open the plugin *Catalog*, select **HAPPY** (category *General*) and install it.
 3. Restart Jellyfin. *Dashboard → Plugins* now lists **HAPPY**.
 4. Run a library scan, or just open HAPPY; the funscript index is built on first use and refreshed after every scan.
 
-The plugin is built for one Jellyfin version (currently 12.1). After a Jellyfin upgrade, install the matching plugin version.
+Jellyfin checks its repositories for updates every day (the *Update Plugins* scheduled task) and installs new versions automatically; restart Jellyfin to load an update. You can turn automatic updates off on the plugin's page. Jellyfin only offers plugin versions built for its own version or an older one.
+
+### By hand
+
+1. Download `happy_<version>.zip` from a [HAPPY release](https://github.com/lumbar-spine-support/docker-haptic-player/releases) and unzip it into a new folder `HAPPY_<version>` (it contains `Jellyfin.Plugin.Happy.dll` and `meta.json`). Each CI build also uploads the folder as the `jellyfin-plugin-happy` artifact; to build it yourself, run `sh jellyfin-plugin/package.sh` with the .NET 10 SDK, which writes `jellyfin-plugin/artifacts/HAPPY_<version>/`.
+2. Copy that folder into the `plugins` directory of Jellyfin's data directory (for the official Docker image that is `/config/plugins/` inside Jellyfin's config volume).
+3. Restart Jellyfin and continue with step 4 above.
+
+The plugin is built for one Jellyfin version (currently 12.1). After a Jellyfin upgrade, install the matching plugin version; with the repository added, Jellyfin does that for you once a matching version is released.
 
 ## Running without Docker
 

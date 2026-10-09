@@ -13,7 +13,7 @@ npm run build          # server (tsc) + client (sass + esbuild) + vendor assets
 npm start              # node dist/server/index.js (needs a build first)
 npm run dev:client     # esbuild watch for the client bundle (no CSS; run build:css separately)
 npm run build:css      # compile public/css/*.scss
-npm test               # all tests: node:test via tsx over test/server and test/client
+npm test               # all tests: node:test via tsx over test/server, test/client and test/scripts
 npm run test:jellyfin  # opt-in integration tests against a real Jellyfin (reads gitignored config/test.env)
 npm run test:coverage  # what CI runs (Node 26)
 npm run docs:env       # regenerate the env-var tables in README/docs from Config.DEFAULTS/ENV_NAMES/DESCRIPTIONS

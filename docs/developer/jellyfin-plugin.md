@@ -21,7 +21,7 @@ All routes require a Jellyfin token (`Authorization: MediaBrowser … Token="…
 
 | Route | Returns |
 | --- | --- |
-| `GET /Happy/Info` | `{ "Version": "0.1.0.0" }` for compatibility checks |
+| `GET /Happy/Info` | `{ "Version": "0.15.0.0" }` for compatibility checks |
 | `GET /Happy/Funscripts` | `{ "<itemId>": [{ "Key": "<16 hex>", "FileName": "clip.stroker.funscript" }] }`. Only items the user can see, and only items that have scripts. |
 | `GET /Happy/Items/{itemId}/Funscripts/{key}` | The raw funscript JSON. Returns 404 for unknown, hidden or script-less items and for unknown keys alike. |
 
@@ -52,12 +52,23 @@ The plugin targets the Jellyfin version it is built against (`targetAbi` in [bui
 ```bash
 # With the .NET 10 SDK installed, or inside mcr.microsoft.com/dotnet/sdk:10.0:
 dotnet test jellyfin-plugin/Jellyfin.Plugin.Happy.slnx
-sh jellyfin-plugin/package.sh        # → jellyfin-plugin/artifacts/HAPPY_<version>/
+sh jellyfin-plugin/package.sh        # → jellyfin-plugin/artifacts/HAPPY_<version>/ and happy_<version>.zip (needs zip)
 ```
 
 To install by hand, copy the `HAPPY_<version>` folder into Jellyfin's `plugins/` directory (inside the Jellyfin config/data volume) and restart Jellyfin. Afterwards, *Dashboard → Plugins* lists **HAPPY**.
 
 CI runs the tests and uploads the packaged folder as a build artifact (`jellyfin-plugin` job in `.github/workflows/test.yml`).
+
+## Releases and the plugin repository
+
+The plugin is released together with HAPPY and shares its version.
+
+- **Versioning.** The release PR bumps the `x-release-please-version` markers in `build.yaml` and `Directory.Build.props` (`extra-files` of the root package in `release-please-config.json`). Jellyfin uses four-part versions, so HAPPY `x.y.z` is plugin `x.y.z.0`.
+- **Publishing.** For every HAPPY release, the `publish-jellyfin-plugin` job in `.github/workflows/release.yml` tests and packages the plugin, attaches `happy_<x.y.z.0>.zip` to the GitHub release `v<x.y.z>`, and adds the version to `manifest.json` on the orphan branch `jellyfin-plugin-repository` (created on the first release). `scripts/jellyfin-plugin-manifest.ts` writes the entry: package fields from `build.yaml`, the release notes as changelog, the download URL and the zip's MD5 (Jellyfin verifies it).
+- **Repository URL** (what users add in Jellyfin): `https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/jellyfin-plugin-repository/manifest.json`. Older versions stay in the manifest, so a Jellyfin that is not yet on the newest `targetAbi` keeps getting the last version built for it.
+- **Auto-update.** Jellyfin copies `autoUpdate` from a bundled `meta.json` when it installs from a repository, so `package.sh` writes `"autoUpdate": true`. With `false`, repository installs would never update.
+
+To re-publish a version (for example after a failed job), re-run the job: the zip is uploaded with `--clobber` and the manifest entry of the same version is replaced.
 
 ## Testing against a real Jellyfin
 
@@ -96,4 +107,5 @@ The audio tags are written by `node scripts/tag-fixture-audio.mjs`. It keeps the
 | Index and matching | [Funscripts/FunscriptIndex.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptIndex.cs), [Funscripts/FunscriptMatcher.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptMatcher.cs), [Funscripts/FunscriptPostScanTask.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptPostScanTask.cs) |
 | Tests | [Jellyfin.Plugin.Happy.Tests/](../../jellyfin-plugin/Jellyfin.Plugin.Happy.Tests/), [test/integration/jellyfin/](../../test/integration/jellyfin/) |
 | Packaging | [build.yaml](../../jellyfin-plugin/build.yaml), [package.sh](../../jellyfin-plugin/package.sh) |
+| Releases, plugin repository | [release-please-config.json](../../release-please-config.json), [.github/workflows/release.yml](../../.github/workflows/release.yml) (`publish-jellyfin-plugin`), [scripts/jellyfin-plugin-manifest.ts](../../scripts/jellyfin-plugin-manifest.ts) |
 | Demo library | [test/fixtures/media/](../../test/fixtures/media/), [scripts/tag-fixture-audio.mjs](../../scripts/tag-fixture-audio.mjs) |
