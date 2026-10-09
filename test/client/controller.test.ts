@@ -177,3 +177,78 @@ test(`${TAG} loading the next track does not advance the queue a second time`, a
     await settle();
     assert.equal(queue.currentId, 't2');
 });
+
+test(`${TAG} playing a track on its own keeps a queue that is already there`, async () => {
+    const { queue, controller } = setup();
+    await controller.activate('t1', { type: 'album', id: ALBUM.id });
+    await controller.activate('t3');
+    // t3 is still up next, so the queue jumps there instead of adding it again.
+    assert.deepEqual(queue.trackIds, ['t1', 't2', 't3']);
+    assert.equal(queue.currentId, 't3');
+
+    await controller.activate('t2');
+    assert.deepEqual(queue.trackIds, ['t1', 't2', 't3', 't2']);
+    assert.equal(queue.currentIndex, 3);
+});
+
+test(`${TAG} pressing play on a browsed page applies where that page was opened from`, async () => {
+    const { queue, controller, session } = setup();
+    await controller.activate('t2');
+    session.activeTrackId = 't2';
+    session.emit();
+    controller.browse('t1', { type: 'playlist', id: PLAYLIST.id }, 0);
+    session.activeTrackId = 't1';
+    session.emit();
+    assert.deepEqual(queue.trackIds, ['t1', 't3']);
+    assert.deepEqual(queue.source, { type: 'playlist', id: PLAYLIST.id });
+});
+
+test(`${TAG} pressing play on a browsed single track keeps the queue`, async () => {
+    const { queue, controller, session } = setup();
+    await controller.activate('t1', { type: 'album', id: ALBUM.id });
+    session.activeTrackId = 't1';
+    session.emit();
+    controller.browse('t3');
+    session.activeTrackId = 't3';
+    session.emit();
+    assert.deepEqual(queue.trackIds, ['t1', 't2', 't3']);
+    assert.equal(queue.currentId, 't3');
+    assert.deepEqual(queue.source, { type: 'album', id: ALBUM.id });
+});
+
+test(`${TAG} a playlist holding a track twice starts at the chosen row`, async () => {
+    const { queue, controller } = setup();
+    PLAYLIST.entries.push({ trackId: 't1' } as PlaylistInfo['entries'][number]);
+    try {
+        await controller.activate('t1', { type: 'playlist', id: PLAYLIST.id }, 2);
+        assert.equal(queue.currentIndex, 2);
+    } finally {
+        PLAYLIST.entries.pop();
+    }
+});
+
+test(`${TAG} shuffle play loads the whole collection in a new order`, async () => {
+    const { queue, controller } = setup();
+    await controller.playCollection({ type: 'album', id: ALBUM.id }, { shuffle: true });
+    assert.deepEqual([...queue.trackIds].sort(), ['t1', 't2', 't3']);
+    assert.equal(queue.currentIndex, 0);
+    assert.equal(queue.edited, false);
+});
+
+test(`${TAG} queueing skips ids the library does not know`, async () => {
+    const { queue, controller } = setup();
+    await controller.activate('t1');
+    controller.enqueue(['t2', 'missing']);
+    controller.playNext(['t3']);
+    assert.deepEqual(queue.trackIds, ['t1', 't3', 't2']);
+});
+
+test(`${TAG} jumping to an entry plays it`, async () => {
+    const { queue, controller, session } = setup();
+    const started: string[] = [];
+    session.start = async (request: { id: string }) => { started.push(request.id); };
+    await controller.activate('t1', { type: 'album', id: ALBUM.id });
+    await controller.jumpTo(queue.entries[2].uid);
+    assert.equal(queue.currentId, 't3');
+    assert.deepEqual(started, ['t1', 't3']);
+});

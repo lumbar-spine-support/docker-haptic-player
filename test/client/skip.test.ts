@@ -77,7 +77,7 @@ test(`${TAG} a queue-backed target gates both directions at the edges`, () => {
         get canStep() { return { prev: queue.hasPrev, next: queue.hasNext }; },
         step(direction) { queue.step(direction); },
     };
-    queue.load(['a', 'b', 'c'], 'a', { type: 'album', id: 'album-1' });
+    queue.replace(['a', 'b', 'c'], 0, { type: 'album', id: 'album-1' });
 
     assert.equal(canSkip(target, -1), false, 'first track has no previous');
     assert.equal(canSkip(target, 1), true);
@@ -98,7 +98,7 @@ test(`${TAG} a queue-backed target gates both directions at the edges`, () => {
 
 test(`${TAG} a single-track queue disables both directions`, () => {
     const queue = new PlaybackQueue();
-    queue.load(['only'], 'only', { type: 'single' });
+    queue.replace(['only'], 0, { type: 'single' });
     const target: SkipTarget = {
         canStep: { prev: queue.hasPrev, next: queue.hasNext },
         step() { },
