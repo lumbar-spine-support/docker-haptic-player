@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { JellyfinItemDto } from '../../src/client/jellyfin/dto';
-import { buildLibrary, toTrack, type MapOptions } from '../../src/client/jellyfin/mapper';
+import { buildLibrary, toTrack, trickplayOf, type MapOptions } from '../../src/client/jellyfin/mapper';
 import { setFavorite, type JellyfinApi } from '../../src/client/jellyfin/library';
 import { imageUrl, streamUrl, trickplayVtt } from '../../src/client/jellyfin/urls';
 import { DEFAULT_FUNSCRIPT_SUFFIXES } from '../../src/shared/funscriptNames';
@@ -235,4 +235,94 @@ test(`${TAG} VR180 storyboards show one eye of each tile`, () => {
     assert.deepEqual(fragments({ fov: 180, layout: 'sbs' }).slice(0, 2), ['xywh=0,0,160,180', 'xywh=320,0,160,180']);
     assert.deepEqual(fragments({ fov: 180, layout: 'tb' }).slice(0, 2), ['xywh=0,0,320,90', 'xywh=320,0,320,90']);
     assert.deepEqual(fragments(null).slice(0, 2), ['xywh=0,0,320,180', 'xywh=320,0,320,180']);
+});
+
+test(`${TAG} sparse items fall back to the file stem, the id and empty metadata`, () => {
+    const track = toTrack({ Id: 'ffffffffffffffffffffffffffffff01', Type: 'Audio', MediaType: 'Audio', Path: 'C:\\media\\Some Song.flac', Name: '  ' }, undefined, OPTIONS);
+    assert.ok(track);
+    assert.equal(track.filename, 'Some Song.flac', 'Windows paths are split at backslashes');
+    assert.equal(track.title, 'Some Song');
+    assert.equal(track.description, '');
+    assert.equal(track.artist, '');
+    assert.equal(track.album, '');
+    assert.equal(track.year, '');
+    assert.equal(track.trackNumber, null);
+    assert.equal(track.durationSeconds, 0);
+    assert.equal(track.hasArtwork, false);
+    assert.equal(track.artworkTag, null);
+    assert.deepEqual(track.tags, []);
+    assert.equal(track.chapters, undefined);
+
+    const bare = toTrack({ Id: 'ffffffffffffffffffffffffffffff02', Type: 'Audio', MediaType: 'Audio' }, undefined, OPTIONS);
+    assert.equal(bare?.filename, '');
+    assert.equal(bare?.title, 'ffffffffffffffffffffffffffffff02', 'no name and no path: the id');
+
+    const dotfile = toTrack({ Id: 'ffffffffffffffffffffffffffffff03', Type: 'Audio', MediaType: 'Audio', Path: '/m/.hidden' }, undefined, OPTIONS);
+    assert.equal(dotfile?.title, '.hidden', 'a leading dot is not an extension');
+});
+
+test(`${TAG} artists are joined when there is no album artist; names and tags are trimmed`, () => {
+    const track = toTrack({
+        ...SECOND_AUDIO,
+        Name: '  Spaced  ',
+        AlbumArtist: '   ',
+        Artists: ['One', 'Two'],
+        Album: '  Collection ',
+        Tags: [' Calm ', ''],
+        Genres: ['  ', 'CALM', 'Night'],
+    }, undefined, OPTIONS);
+    assert.equal(track?.title, 'Spaced');
+    assert.equal(track?.artist, 'One, Two');
+    assert.equal(track?.album, 'Collection');
+    assert.deepEqual(track?.tags, ['Calm', 'Night']);
+});
+
+test(`${TAG} chapters that fall outside the media are dropped entirely`, () => {
+    const track = toTrack({ ...SECOND_AUDIO, Chapters: [{ StartPositionTicks: 120 * 10_000_000 }] }, undefined, OPTIONS);
+    assert.equal(track?.chapters, undefined);
+    assert.equal(track?.chaptersSource, undefined);
+    assert.equal(toTrack({ ...SECOND_AUDIO, Chapters: [] }, undefined, OPTIONS)?.chapters, undefined);
+});
+
+test(`${TAG} files that are not funscripts are left out of the listing`, () => {
+    const track = toTrack(VIDEO, [
+        { Key: 'k1', FileName: 'Clip_180_LR.srt' },
+        { Key: 'k2', FileName: 'Clip_180_LR.funscript' },
+    ], OPTIONS);
+    assert.deepEqual(track?.funscripts, [{ key: 'k2', filename: 'Clip_180_LR.funscript', type: 'unknown' }]);
+});
+
+test(`${TAG} trickplay skips unusable resolutions and media sources`, () => {
+    const usable = { Width: 480, Height: 270, TileWidth: 3, TileHeight: 3, ThumbnailCount: 5, Interval: 2_000 };
+    assert.equal(trickplayOf({ ...VIDEO, Trickplay: null }), undefined);
+    assert.equal(trickplayOf({ ...VIDEO, Trickplay: { empty: {} } }), undefined);
+    const info = trickplayOf({
+        ...VIDEO,
+        Trickplay: {
+            broken: {
+                '320': { ...usable, ThumbnailCount: 0 },
+                '321': { ...usable, Interval: 0 },
+                wide: usable,
+            },
+            good: { '480': usable, '1280': { ...usable, Width: 1280 } },
+        },
+    });
+    assert.equal(info?.mediaSourceId, 'good', 'the first source with a usable resolution');
+    assert.equal(info?.resolution, 480, 'closest to 320');
+    assert.equal(info?.intervalSeconds, 2);
+
+    assert.equal(toTrack({ ...AUDIO, Trickplay: VIDEO.Trickplay }, undefined, OPTIONS)?.trickplay, undefined, 'audio never gets a storyboard');
+});
+
+test(`${TAG} playlists fall back to a generic name and carry their year`, () => {
+    const library = buildLibrary([AUDIO], {}, [
+        { item: { Id: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee1', Name: '  ', Type: 'Playlist', ProductionYear: 2023 }, entries: [AUDIO, AUDIO] },
+        { item: { Id: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee2', Type: 'Playlist' }, entries: [AUDIO] },
+    ], OPTIONS);
+    assert.deepEqual(library.playlists.map((p) => [p.name, p.year]), [['Playlist', '2023'], ['Playlist', '']]);
+    assert.deepEqual(library.playlists[0].entries, [
+        { order: 0, trackId: AUDIO.Id, title: 'First Track', artist: 'Artist', album: 'Collection' },
+        { order: 1, trackId: AUDIO.Id, title: 'First Track', artist: 'Artist', album: 'Collection' },
+    ]);
+    assert.equal(library.playlists[0].durationSeconds, 2 * 1234, 'a track listed twice counts twice');
 });

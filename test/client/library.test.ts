@@ -20,15 +20,114 @@ nodeRequire.extensions['.html'] = (module: NodeModule, filename: string) => {
 
 let Library: typeof import('../../src/client/components/library').Library;
 
+const savedGlobals = Object.fromEntries(
+    ['document', 'window', 'history', 'localStorage'].map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]),
+);
+
 test.before(async () => {
     (globalThis as any).document = {
         querySelector: () => null,
+        createElement: (tag: string) => new FakeElement(tag),
     };
     (globalThis as any).window = {
         location: { href: 'http://localhost/' },
     };
     ({ Library } = await import('../../src/client/components/library'));
 });
+
+test.after(() => {
+    for (const [key, descriptor] of Object.entries(savedGlobals)) {
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+        else delete (globalThis as any)[key];
+    }
+});
+
+/**
+ * Just enough of an element for the library's row and card builders: children, classes,
+ * attributes and listeners. `querySelector` finds descendants by tag name, and finds
+ * `[data-card-actions]` when the assigned `innerHTML` (a real template) contains that slot.
+ */
+class FakeElement {
+    readonly tagName: string;
+    readonly children: FakeElement[] = [];
+    readonly dataset: Record<string, string> = {};
+    readonly style: Record<string, string> = {};
+    readonly attributes = new Map<string, string>();
+    readonly listeners = new Map<string, ((event: unknown) => void)[]>();
+    readonly classes = new Set<string>();
+    title = '';
+    type = '';
+    private html = '';
+    private cardActions: FakeElement | null = null;
+
+    constructor(tag: string) {
+        this.tagName = tag.toUpperCase();
+    }
+
+    get className(): string { return [...this.classes].join(' '); }
+    set className(value: string) {
+        this.classes.clear();
+        for (const name of value.split(/\s+/).filter(Boolean)) this.classes.add(name);
+    }
+
+    readonly classList = {
+        add: (...names: string[]) => names.forEach((name) => this.classes.add(name)),
+        remove: (...names: string[]) => names.forEach((name) => this.classes.delete(name)),
+        contains: (name: string) => this.classes.has(name),
+        toggle: (name: string, force?: boolean) => {
+            const on = force ?? !this.classes.has(name);
+            if (on) this.classes.add(name); else this.classes.delete(name);
+            return on;
+        },
+    };
+
+    get innerHTML(): string { return this.html; }
+    set innerHTML(value: string) {
+        this.html = value;
+        this.children.length = 0;
+        this.cardActions = value.includes('data-card-actions') ? new FakeElement('div') : null;
+    }
+
+    /** Like the DOM: text assigned here reads back HTML-escaped from `innerHTML` (used by `escapeHtml`). */
+    set textContent(value: string) {
+        this.innerHTML = value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    setAttribute(name: string, value: string): void { this.attributes.set(name, value); }
+    getAttribute(name: string): string | null { return this.attributes.get(name) ?? null; }
+    appendChild(child: FakeElement): FakeElement { this.children.push(child); return child; }
+    addEventListener(type: string, listener: (event: unknown) => void): void {
+        this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+    }
+    dispatch(type: string): void {
+        for (const listener of this.listeners.get(type) ?? []) listener({ preventDefault() { }, stopPropagation() { } });
+    }
+
+    querySelector(selector: string): FakeElement | null {
+        if (selector === '[data-card-actions]') return this.cardActions;
+        if (!/^[a-z]+$/.test(selector)) return null;
+        for (const child of this.children) {
+            if (child.tagName === selector.toUpperCase()) return child;
+            const found = child.querySelector(selector);
+            if (found) return found;
+        }
+        return null;
+    }
+}
+
+function lastChild(element: FakeElement): FakeElement {
+    return element.children[element.children.length - 1];
+}
+
+function fakeLocalStorage(initial: Record<string, string> = {}): Map<string, string> {
+    const store = new Map(Object.entries(initial));
+    (globalThis as any).localStorage = {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => { store.set(key, value); },
+        removeItem: (key: string) => { store.delete(key); },
+    };
+    return store;
+}
 
 function makeCallbacks(): LibraryCallbacks {
     return {
@@ -50,6 +149,7 @@ function makeTrack(overrides: Partial<TrackInfo> = {}): TrackInfo {
         filename: 'track-1.mp3',
         hasArtwork: false,
         durationSeconds: 60,
+        year: '',
         funscripts: [],
         ...overrides,
     } as TrackInfo;
@@ -234,4 +334,127 @@ test(`${TAG} the favorites filter keeps favorite tracks, albums with one and fav
     assert.deepEqual((library as any).filterTrackList((library as any).videos).map((t: TrackInfo) => t.id), ['v1']);
     assert.deepEqual((library as any).getFilteredAlbums().map((a: AlbumInfo) => a.id), ['a1']);
     assert.deepEqual((library as any).getFilteredPlaylists().map((p: PlaylistInfo) => p.id), ['p1']);
+});
+
+test(`${TAG} the favorites filter is restored from and saved to localStorage`, () => {
+    fakeLocalStorage({
+        'happy-library-filters': JSON.stringify({ favorites: true, tracks: true, 'haptic-vibrator': true }),
+        'happy-library-sort': JSON.stringify({ field: 'not-a-field', asc: false }),
+    });
+    const library = new Library(makeCallbacks());
+    (library as any).loadLibraryFilters();
+    assert.equal((library as any).favoritesOnly, true);
+    assert.deepEqual([...(library as any).mediaFilters], ['tracks']);
+    assert.deepEqual([...(library as any).hapticFilters], ['vibrator']);
+    assert.equal((library as any).sortAsc, false);
+
+    fakeLocalStorage({ 'happy-library-filters': JSON.stringify({ favorites: 'yes' }) });
+    const other = new Library(makeCallbacks());
+    (other as any).loadLibraryFilters();
+    assert.equal((other as any).favoritesOnly, false, 'only a stored true turns it on');
+
+    fakeLocalStorage({ 'happy-library-filters': '{not json' });
+    const broken = new Library(makeCallbacks());
+    (broken as any).loadLibraryFilters();
+    assert.equal((broken as any).favoritesOnly, false, 'unreadable filters fall back to none');
+
+    const store = fakeLocalStorage();
+    (library as any).saveLibraryFilters();
+    const saved = JSON.parse(store.get('happy-library-filters')!);
+    assert.equal(saved.favorites, true);
+    assert.equal(saved.tracks, true);
+    assert.equal(saved.videos, false);
+    assert.equal(saved['haptic-vibrator'], true);
+});
+
+test(`${TAG} the favorites toggle flips the filter, its heart and the stored filters`, () => {
+    const store = fakeLocalStorage();
+    const library = new Library(makeCallbacks());
+    const button = new FakeElement('button');
+    const icon = button.appendChild(new FakeElement('i'));
+    (library as any).favoritesToggle = button;
+    let renders = 0;
+    (library as any).render = () => { renders++; };
+
+    (library as any).bindFavoritesFilter();
+    assert.equal(button.getAttribute('aria-pressed'), 'false');
+    assert.equal(button.classList.contains('active'), false);
+    assert.equal(button.title, 'Show favorites only');
+    assert.equal(icon.classList.contains('bi-heart'), true);
+    assert.equal(renders, 0, 'binding alone does not re-render');
+
+    button.dispatch('click');
+    assert.equal((library as any).favoritesOnly, true);
+    assert.equal(button.getAttribute('aria-pressed'), 'true');
+    assert.equal(button.classList.contains('active'), true);
+    assert.equal(button.title, 'Showing favorites only');
+    assert.equal(icon.classList.contains('bi-heart-fill'), true);
+    assert.equal(icon.classList.contains('bi-heart'), false);
+    assert.equal(JSON.parse(store.get('happy-library-filters')!).favorites, true);
+    assert.equal(renders, 1);
+
+    button.dispatch('click');
+    assert.equal((library as any).favoritesOnly, false);
+    assert.equal(JSON.parse(store.get('happy-library-filters')!).favorites, false);
+    assert.equal(renders, 2);
+});
+
+test(`${TAG} without a favorites toggle in the page, binding is a no-op`, () => {
+    const library = new Library(makeCallbacks());
+    assert.doesNotThrow(() => (library as any).bindFavoritesFilter());
+});
+
+test(`${TAG} an empty favorites-only result says the filters hide everything`, () => {
+    const library = new Library(makeCallbacks());
+    const grid = new FakeElement('div');
+    (library as any).grid = grid;
+    (library as any).list = new FakeElement('tbody');
+    (library as any).tracks = [makeTrack({ id: 't1', isFavorite: false })];
+    (library as any).videos = [];
+
+    (library as any).favoritesOnly = true;
+    library.render();
+    assert.match(grid.innerHTML, /No items match your search or filters\./);
+
+    (library as any).tracks = [];
+    (library as any).favoritesOnly = false;
+    library.render();
+    assert.match(grid.innerHTML, /No media files found/);
+});
+
+test(`${TAG} track and playlist rows end with a favorite heart, album rows with an empty cell`, () => {
+    const library = new Library(makeCallbacks());
+    const tracksById = new Map<string, TrackInfo>();
+
+    const trackRow = (library as any).createTrackRow(makeTrack({ id: 't1', isFavorite: true })) as FakeElement;
+    const trackCell = lastChild(trackRow);
+    assert.equal(trackCell.tagName, 'TD');
+    assert.equal(trackCell.classList.contains('favorite-cell'), true);
+    const heart = trackCell.children[0];
+    assert.equal(heart.tagName, 'BUTTON');
+    assert.equal(heart.dataset.favoriteId, 't1');
+    assert.equal(heart.getAttribute('aria-pressed'), 'true');
+
+    const playlistRow = (library as any).createPlaylistRow(makePlaylist({ id: 'p1', isFavorite: false }), tracksById) as FakeElement;
+    const playlistHeart = lastChild(playlistRow).children[0];
+    assert.equal(playlistHeart.dataset.favoriteId, 'p1');
+    assert.equal(playlistHeart.getAttribute('aria-pressed'), 'false');
+
+    const albumRow = (library as any).createAlbumRow(makeAlbum({ id: 'a1' }), tracksById) as FakeElement;
+    const albumCell = lastChild(albumRow);
+    assert.equal(albumCell.classList.contains('favorite-cell'), true);
+    assert.deepEqual(albumCell.children, [], 'client-side albums are not Jellyfin items and have no heart');
+});
+
+test(`${TAG} track and playlist cards put a favorite heart in the card actions`, () => {
+    const library = new Library(makeCallbacks());
+    const trackCard = (library as any).createTrackCard(makeTrack({ id: 't1', isFavorite: false })) as FakeElement;
+    const trackHeart = trackCard.querySelector('[data-card-actions]')!.children[0];
+    assert.equal(trackHeart.dataset.favoriteId, 't1');
+    assert.equal(trackHeart.title, 'Add to favorites');
+
+    const playlistCard = (library as any).createPlaylistCard(makePlaylist({ id: 'p1', isFavorite: true }), new Map()) as FakeElement;
+    const playlistHeart = playlistCard.querySelector('[data-card-actions]')!.children[0];
+    assert.equal(playlistHeart.dataset.favoriteId, 'p1');
+    assert.equal(playlistHeart.title, 'Remove from favorites');
 });
