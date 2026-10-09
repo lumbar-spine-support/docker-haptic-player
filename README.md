@@ -1,4 +1,4 @@
-# HAPPY ⸺ Docker Haptic Player
+# HAPPY ⸺ Jellyfin Haptic Player
 
 ![GitHub package.json version](https://img.shields.io/github/package-json/v/lumbar-spine-support/docker-haptic-player?label=stable)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/docker-haptic-player/.github%2Fworkflows%2Frelease.yml?branch=main&logo=docker&label=build)
@@ -6,40 +6,28 @@
 [![npm audit](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/docker-haptic-player/npm-audit.yml?label=npm%20audit)](https://github.com/lumbar-spine-support/docker-haptic-player/actions/workflows/npm-audit.yml)
 ![Codecov](https://img.shields.io/codecov/c/github/lumbar-spine-support/docker-haptic-player)
 
-**HAPPY** is a self-hosted **hap**tic **p**la**y**er for audio and video files.
-
 ![Preview](./docs/social.png)
+
+**HAPPY** is **hap**tic **p**la**y**er for your existing Jellyfin library!
 
 ⭐ Key features:
 
-- Easily self-hosted as a plugin for your [Jellyfin](https://jellyfin.org/) server, with automatic updates.
-- Uses your Jellyfin library: metadata, artwork, chapters, timeline thumbnails and users.
-- [Intiface](https://intiface.com/) interface for wide-raning haptic toys support.
-- Multiple `.funscript` files can be played in parallel.
+- Easily added as a plugin to your [Jellyfin](https://jellyfin.org/) server.
+- [Intiface](https://intiface.com/) websocket for wide-ranging haptic toys support.
 - Modern [Video.JS v10](https://videojs.org/blog/videojs-v10-release-candidate) framework for audio and video playback.
-- [Bootstrap](https://getbootstrap.com/) OLED-friendly, mobile-first UI.
 
 🧪 Experimental features:
 
 - [Dungeon Lab](https://www.dungeon-lab.com/) Coyote 3.0 E-stim haptic support
 - Virtual Reality Rendering (VR180 SBS+TB)
 
-❌ What it tries not to be:
-
-- A funscript editor. There are plenty of good tools already ([HapticsEditor-v2](https://github.com/ilor1/HapticsEditor-v2)).
-- A media file metadata editor. Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Kid3](https://kid3.kde.org/) (Linux) instead.
-- Do Video Transcoding; Please make sure your browser has the relevant decoding capabilities.
-
 🚀 Planned:
 
-- [ ] Full immersive VR Video support
+- [ ] Full VR Video support for headsets like the Steam Frame.
 - [ ] Playlist/Queue editor and a seperate mount with write-access.
 
-📱 Here you can find a [demo video](docs/videos/demo-player.mp4)!
 
 ## Quick Start
-
-HAPPY runs inside your [Jellyfin](https://jellyfin.org/) server as a plugin. Jellyfin manages your media; HAPPY plays it and adds the haptics.
 
 ### 1. Install the Jellyfin Plugin
 
