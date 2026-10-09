@@ -1,11 +1,37 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { existsSync, readFileSync } from 'node:fs';
 import { chromium, devices } from 'playwright';
 
-const SERVER_URL = 'http://localhost:3000';
 const LANDSCAPE_VIEWPORT = { width: 412, height: 915 };
 const SCREENSHOT_FULL_PAGE = false;
-const PLAYER_MEDIA = 'BigBuckBunny_320x180.mp4';
+// Card title of test/fixtures/media/BigBuckBunny_320x180.mp4 (Jellyfin falls back to the file name).
+const PLAYER_MEDIA = /big\s*buck\s*bunny/i;
+
+// Screenshots end up in the public docs, so they come from a demo Jellyfin holding only
+// test/fixtures/media, never from a personal library: by default the local dev Jellyfin
+// (npm run dev:jellyfin, credentials in config/dev-jellyfin.env), which serves the client from
+// public/. SCREENSHOT_JELLYFIN_* point at another demo Jellyfin with the HAPPY plugin instead;
+// they are deliberately separate from the HAPPY_JELLYFIN_* variables of the integration tests.
+function devJellyfin() {
+    const file = 'config/dev-jellyfin.env';
+    if (!existsSync(file)) return {};
+    return Object.fromEntries(readFileSync(file, 'utf8').split('\n')
+        .map((line) => line.match(/^([A-Z_]+)=(.*)$/))
+        .filter(Boolean)
+        .map(([, key, value]) => [key, value]));
+}
+const dev = devJellyfin();
+const JELLYFIN_URL = (process.env.SCREENSHOT_JELLYFIN_URL || dev.HAPPY_JELLYFIN_URL || '').replace(/\/+$/, '');
+const JELLYFIN_USER = process.env.SCREENSHOT_JELLYFIN_USER || dev.HAPPY_JELLYFIN_USER;
+const JELLYFIN_PASSWORD = process.env.SCREENSHOT_JELLYFIN_PASSWORD || dev.HAPPY_JELLYFIN_PASSWORD || '';
+if (!JELLYFIN_URL || !JELLYFIN_USER) {
+    console.error('Start the local dev Jellyfin first (npm run dev:jellyfin), or set SCREENSHOT_JELLYFIN_URL and '
+        + 'SCREENSHOT_JELLYFIN_USER (and SCREENSHOT_JELLYFIN_PASSWORD) to a demo Jellyfin that serves test/fixtures/media '
+        + 'with the HAPPY plugin installed.');
+    process.exit(1);
+}
+const APP_URL = `${JELLYFIN_URL}/Happy/Web/`;
 
 async function capture(page, path) {
     // avoid focus/hover/selection styling leaking into the screenshot
@@ -29,37 +55,6 @@ async function run(command, args, options = {}) {
     if (code !== 0) {
         throw new Error(`${command} ${args.join(' ')} failed with exit code ${code}`);
     }
-}
-
-async function assertPortFree(url) {
-    try {
-        await fetch(url);
-    } catch {
-        return;
-    }
-
-    // Otherwise waitForServer would happily accept the stale server and screenshot the wrong build.
-    throw new Error(`Something is already listening on ${url}; stop it before taking screenshots`);
-}
-
-async function waitForServer(url, timeoutMs = 30000) {
-    const deadline = Date.now() + timeoutMs;
-
-    while (Date.now() < deadline) {
-        try {
-            const response = await fetch(url);
-
-            if (response.ok || response.status < 500) {
-                return;
-            }
-        } catch {
-            // Server is not ready yet.
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-
-    throw new Error(`Timed out waiting for server at ${url}`);
 }
 
 async function applyMediaFilter(page, filterName) {
@@ -93,12 +88,12 @@ async function applyMediaFilter(page, filterName) {
 }
 
 async function clickPlayerMedia(page) {
-    // Library ids are the base64-encoded relative media path.
-    const id = Buffer.from(PLAYER_MEDIA).toString('base64');
-    const link = page.locator(`#track-grid a.track-art-link[href*="view=player"][href*="${encodeURIComponent(id)}"]`).first();
+    // Library ids are Jellyfin item ids, so the card is found by its title.
+    const card = page.locator('#track-grid .track-card', { has: page.locator('.card-title', { hasText: PLAYER_MEDIA }) });
+    const link = card.locator('a.track-art-link[href*="view=player"]').first();
 
     if (!(await link.count())) {
-        throw new Error(`Could not find "${PLAYER_MEDIA}" in the library`);
+        throw new Error(`Could not find ${PLAYER_MEDIA} in the library`);
     }
 
     await link.click();
@@ -120,43 +115,12 @@ async function waitForJavaScriptToSettle(page) {
     });
 }
 
-function stopServer(server) {
-    if (!server?.pid) {
-        return;
-    }
-
-    try {
-        process.kill(-server.pid, 'SIGTERM');
-    } catch (error) {
-        if (error.code !== 'ESRCH') {
-            throw error;
-        }
-    }
-}
-
-let server;
 let browser;
 
 try {
+    // The dev Jellyfin serves public/ straight from disk, so a fresh build is what gets captured.
     await run('npm', ['run', 'build:client']);
-    await run('npm', ['run', 'build:server']);
-
-    await assertPortFree(SERVER_URL);
-
-    server = spawn('node', ['--enable-source-maps', 'dist/server/index.js'], {
-        cwd: process.cwd(),
-        detached: true,
-        stdio: 'inherit',
-        env: {
-            ...process.env,
-            CONFIG_PATH: `${process.cwd()}/config`,
-            MEDIA_DIR: `${process.cwd()}/test/fixtures/media/`,
-            // Screenshots document the library and player, so skip the login gate entirely.
-            PASSWORD: '',
-        },
-    });
-
-    await waitForServer(SERVER_URL);
+    await run('npm', ['run', 'build:vendor']);
 
     browser = await chromium.launch();
 
@@ -169,9 +133,15 @@ try {
 
     const page = await context.newPage();
 
-    await page.goto(SERVER_URL, {
+    await page.goto(APP_URL, {
         waitUntil: 'networkidle',
     });
+
+    await page.locator('#jellyfin-user').fill(JELLYFIN_USER);
+    await page.locator('#jellyfin-password').fill(JELLYFIN_PASSWORD);
+    await page.locator('#jellyfin-sign-in-submit').click();
+    await page.locator('#jellyfin-sign-in').waitFor({ state: 'detached' });
+    await page.waitForLoadState('networkidle');
 
     await applyMediaFilter(page, 'audio');
     await applyMediaFilter(page, 'video');
@@ -212,6 +182,4 @@ try {
     if (browser) {
         await browser.close();
     }
-
-    stopServer(server);
 }

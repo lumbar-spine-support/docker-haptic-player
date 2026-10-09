@@ -3,6 +3,7 @@ dist/
 public/js/
 public/vendor/
 public/css/*.css
+public/css/themes/*.css
 public/auth/*.css
 public/auth/login.js*
 *.log
@@ -16,3 +17,10 @@ config/
 # Note: Test fixtures (test/fixtures/media/) ARE intentionally committed to the repository
 # for reproducible testing. Media files are tracked via Git LFS (.gitattributes).
 # See LICENSES.md and test/fixtures/media/ATTRIBUTION.md for license information.
+
+# Claude Code worktrees are full checkouts; never commit them.
+.claude/worktrees/
+
+# DG-Lab relay build output and its own install
+dglab-relay/node_modules/
+dglab-relay/dist/

@@ -4,8 +4,8 @@
 // Following Bootstrap 5.3 Sass Customization Guide:
 // https://getbootstrap.com/docs/5.3/customize/sass/
 //
-// Shared by app.scss and auth.scss so the login page matches the app theme
-// without exposing the full application stylesheet to unauthenticated clients.
+// These compile-time values are the OLED theme's. Colours that themes change are
+// re-pointed at the --happy-* tokens by _bridge.scss.
 // ============================================================================
 
 // 1. Import Bootstrap functions

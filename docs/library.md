@@ -2,38 +2,79 @@
 
 # Media Library
 
-HAPPY works with just your audio and video files. For tagging, descriptions and haptic sync, use this structure:
+HAPPY plays the media of your [Jellyfin](https://jellyfin.org/) libraries. Jellyfin reads names, artists, years, cover art and chapters from your files; HAPPY adds funscripts that sit next to them:
 
 ```
-media/
+audio/                       --> a Jellyfin library
 ├── audio.mp3
-├── audio.md                 --> tags, description
 ├── audio.stroker.funscript  --> funscript for stroker toy
 ├── audio.buttplug.funscript --> funscript for buttplug toy
-├── ...
+└── ...
+video/                       --> another Jellyfin library
 ├── video.mp4
-├── video-extras/            --> related files don't need to be in same directory
-│   ├── video.md
-│   └── video.stroker.funscript
-└── playlists/
-    └── favorites.m3u        --> playlists are only supported as .m3u files
+└── scripts/                 --> scripts may sit in a subfolder of the same library
+    └── video.stroker.funscript
 ```
+
+## Jellyfin libraries
+
+Add your folders as libraries in Jellyfin (*Dashboard → Libraries*). HAPPY shows every audio and video item the signed-in user can see.
+
+- **Audio**: use the **Books** library type. Jellyfin only turns the comment tag of an audio file into its description for audiobooks; in a Music library the description would be missing. Jellyfin does not build albums for audiobooks, so HAPPY groups tracks into albums itself, by album artist and album tag.
+- **Video**: use **Mixed movies and shows** or **Home videos and photos**. No online metadata is needed; turn the metadata downloaders off if Jellyfin should not rename your files.
+- Media plays as the original file, never transcoded. Your browser must be able to decode it (see [Video codecs](#video-codecs)).
+
+Playlists are Jellyfin playlists. Create them in Jellyfin; `.m3u` files in your media folders are not read by HAPPY.
+
+## Tags and descriptions
+
+- **Tags** are Jellyfin's tags plus genres. Jellyfin never reads its *Tags* field from tags embedded in a media file, so the file-based route is the genre:
+  - **Audio:** give the genre field several values (most taggers can store multiple values in one field; Mp3tag separates them with `\\`). A single text like `sfw; vanilla` stays one genre, unless you enable custom tag delimiters in the library settings.
+  - **Video:** an embedded genre like `sfw; vanilla; funny` is split into separate genres. For Jellyfin's *Tags*, put an NFO file next to the video (`<video name>.nfo` with `<tag>` entries, see below).
+  - Tags can also be set by hand in Jellyfin's metadata editor.
+- **Descriptions** are Jellyfin's overview of the item. For audio, put the text into the file's comment tag. Markdown is rendered, so you can use [links](https://github.com), **bold text** and more.
+
+Markdown sidecar files (`<name>.md`) are no longer read; move their tags into the genre field (or an NFO for videos) and their text into the comment (audio) or the NFO's `<plot>` (video).
+
+A video NFO looks like this; Jellyfin reads it when NFO is enabled as a metadata reader of the library (the default):
+
+```xml
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<movie>
+  <title>My video</title>
+  <plot><![CDATA[**Markdown** description]]></plot>
+  <genre>Comedy</genre>
+  <tag>sfw</tag>
+  <tag>funny</tag>
+</movie>
+```
+
+Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Puddletag](https://docs.puddletag.net/) (Linux) to edit these tags, then rescan the library in Jellyfin.
 
 ## Filtering and sorting
 
-Next to the search box are three controls:
+Next to the search box are four controls:
 
 - **Media type**: a dropdown to limit the library to albums, audio, playlists and/or videos. With nothing selected, everything is shown.
 - **Haptics**: a dropdown to show only items that have scripts for every selected toy type.
+- **Favorites** (heart): show only your favorites (see [Favorites](#favorites)).
 - **Sort**: pick the field (Title, Artist, Year, Duration, Type) and click the arrow button next to it to reverse the order. Items without a value (e.g. playlists have no year) are always listed last.
 
 Sorting applies to the grid and the list view alike, and all media types are sorted together. In the list view you can also click a column header. Filters and sort order are remembered in the browser.
 
+## Favorites
+
+HAPPY uses the favorites of your Jellyfin account, the same ones Jellyfin's own apps show with a heart. Click the heart on a card, in the list view, in the player's control bar (next to the repeat button) or on a playlist's page to add or remove a favorite; HAPPY saves it in Jellyfin right away.
+
+- Audio files, videos and playlists can be favorites. Albums are grouped by HAPPY, not by Jellyfin, so they have no heart of their own; with the favorites filter on, an album is shown when one of its tracks is a favorite.
+- Favorites you change in another Jellyfin app show up in HAPPY after a page reload.
+- With the favorites filter on, an item you remove from your favorites stays visible until the library is redrawn (for example when you change a filter), so it does not vanish under your mouse.
+
 ## Cover art in the grid view
 
-In the grid view, cards with widescreen cover art (typical for videos) are twice as wide as other cards. Square and portrait covers are cropped to a square. Set `CARD_VIEW_FORCE_SQUARE_ARTWORK: true` (see [configuration](configuration.md)) to show all covers as squares.
+In the grid view, cards with widescreen cover art (typical for videos) are twice as wide as other cards. Square and portrait covers are cropped to a square. Turn on *Crop artwork to squares* on the plugin's settings page (see [configuration](configuration.md#library)) to show all covers as squares.
 
-Videos without embedded cover art get a generated cover: a frame taken at `VIDEO_ARTWORK_OFFSET` percent of the video (default 10%), extracted once when the library is scanned and then cached. Set `VIDEO_ARTWORK_GENERATE: false` to turn this off. Audio files without cover art show a black player surface.
+Cover art is Jellyfin's primary image of each item: embedded cover art, an image next to the file, or a frame Jellyfin extracted from the video. Audio files without cover art show a black player surface.
 
 ## Video codecs
 
@@ -65,45 +106,25 @@ file.vibrator.balls.funscript
 Funscripts without a recognised toy suffix (`file.funscript`) are still picked up and listed as
 *Generic*. They can be assigned to any device just like typed scripts.
 
-If your funscripts follow another naming pattern, e.g. `file-prostate.funscript` instead of `file.buttplug.funscript` you can change the separator character and expected suffixes (see [docs/configuration.md](configuration.md)).
+If your funscripts follow another naming pattern, e.g. `file-prostate.funscript` instead of `file.buttplug.funscript` you can change the separator character and expected suffixes on the plugin's settings page (see [Configuration](configuration.md#funscript-file-names)). The plugin matches files with the new separator within about 30 seconds; reload HAPPY afterwards.
 
-## Markdown Descriptors
+### Where funscripts are found
 
-For tagging and file descriptions, create a Markdown `<audio_or_video_name>.md` file that contains tagging frontmatter and text to show.
-This is the most optional part of setting up your library. Tagging becomes more useful with a growing library, and descriptions are handy for files that come with instructions to the listener/viewer.
+Jellyfin does not know funscripts; the HAPPY plugin finds them. It looks through all folders of your Jellyfin libraries and assigns each `.funscript` file to the media file whose name it starts with:
 
-```markdown
----
-tags:
-  - sfw
-  - vanilla
-  - funny
----
+- The longest match wins: `scene.part2.stroker.funscript` belongs to `scene.part2.mp4` if that exists, otherwise to `scene.mp4`.
+- A media file in the same folder as the script wins. Otherwise the script is attached to every media file with that name anywhere in the same library folder, so scripts may live in a separate subfolder.
+- New scripts show up after the next library scan in Jellyfin, or within about 30 seconds.
 
-This is a description that will be rendered using Markdown-it.
-You can display [links](https://github.com), **bold-text** and more.
-```
 
-## Media Metadata
-
-The server uses [ffprobe](https://ffmpeg.org/ffprobe.html) to extract cover art, artist, date, name and chapters from the media files themselves.
-The markdown files are only used to add a description with markup and tagging, both of which are not natively supported by `.mp3`, `.mp4` or similar files.
-Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Puddletag](https://docs.puddletag.net/) (Linux) to add metadata to your files.
-
-Metadata HAPPY parses using `ffprobe`:
-- Album Cover
-- Album Artist
-- Track Artist
-- Release Year
-- Chapters
 
 ## Chapters
 
 Chapters split the progress bar into segments. Pressing or dragging the bar near a chapter start snaps to it (hold <kbd>Shift</kbd> to seek freely), and the chapter name is shown in the preview while dragging.
 
-HAPPY reads chapters from two sources. `CHAPTER_SOURCE_PRIORITY` (`chapterSourcePriority` in `settings.yaml`) sets their order; the first source that provides chapters wins. Leave it empty to disable chapters.
+HAPPY takes chapters from two sources. *Chapters* on the plugin's settings page sets their order; the first source that provides chapters wins. *No chapters* turns them off (see [Configuration](configuration.md#playback)).
 
-- `funscript`: `metadata.chapters` of the funscripts belonging to the media file, in the format used by [OpenFunscripter](https://github.com/OpenFunscripter/OFS) and [MultiFunPlayer](https://github.com/Yoooi0/MultiFunPlayer). If several funscripts of a file define chapters, they are merged and a warning is logged.
+- `funscript`: `metadata.chapters` of the funscripts belonging to the media file, in the format used by [OpenFunscripter](https://github.com/OpenFunscripter/OFS) and [MultiFunPlayer](https://github.com/Yoooi0/MultiFunPlayer). If several funscripts of a file define chapters, they are merged and a warning is logged in the browser console.
   ```json
   {
     "metadata": {
@@ -115,20 +136,15 @@ HAPPY reads chapters from two sources. `CHAPTER_SOURCE_PRIORITY` (`chapterSource
     "actions": []
   }
   ```
-- `embedded`: chapters stored in the media file itself (e.g. MP4, MKV, MP3). To add them, write an [FFMETADATA](https://ffmpeg.org/ffmpeg-formats.html#Metadata-1) file and mux it in without re-encoding:
+- `embedded`: chapters stored in the media file itself (e.g. MP4, MKV, MP3), as read by Jellyfin. To add them, write an [FFMETADATA](https://ffmpeg.org/ffmpeg-formats.html#Metadata-1) file and mux it in without re-encoding:
   ```shell
   ffmpeg -i input.mp4 -i chapters.txt -map 0 -map_metadata 0 -map_chapters 1 -codec copy output.mp4
   ```
+  Rescan the file in Jellyfin afterwards so it picks up the new chapters.
 
 ## Timeline thumbnails
 
-Hovering or dragging the progress bar of a video shows a preview frame together with the time and chapter name. HAPPY generates these storyboards with ffmpeg in the background after scanning the library, one video at a time; a video you open is moved to the front of the queue. Thumbnails appear once its storyboard is ready. They are cached in `cache/storyboards/` of the config directory.
-
-- `STORYBOARD_GENERATE`: set to `false` to disable thumbnails.
-- `STORYBOARD_INTERVAL`: seconds between thumbnails (default `10`).
-- `STORYBOARD_WIDTH`: thumbnail width in pixels (default `240`).
-
-Changing interval or width regenerates all storyboards. Only keyframes are decoded, so a thumbnail can be a few seconds off its position. VR180 videos show one eye. Audio files show only time and chapter.
+Hovering or dragging the progress bar of a video shows a preview frame together with the time and chapter name. The frames are Jellyfin's **trickplay** images. Enable them per library (*Library settings → Enable trickplay image extraction*) and let the scheduled task *Generate Trickplay Images* run; HAPPY uses them as soon as they exist. For VR180 videos the preview shows one eye. Audio files show only time and chapter.
 
 ## VR180 videos
 

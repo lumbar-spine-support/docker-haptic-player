@@ -18,26 +18,27 @@ sequenceDiagram
   participant PC as PlaybackController
   participant PS as PlaybackSession
   participant V as Visualization
-  participant S as Server
+  participant J as Jellyfin + HAPPY plugin
 
   U->>A: click a track in the album view
   A->>A: openTrack(id, pushState, source = album)
   A->>A: history.pushState(?view=player&id=…)
   A->>PC: browse(id, source)
+  PC->>PC: toRequest(track): streamUrl, cover URL,<br/>chaptersVttUrl / storyboardVttUrl (blob:), parseVrFormat
   PC->>PS: browse(request)
   PS->>PS: not the active track → load into the other slot (paused)
   PS-->>PC: onChange
   A->>A: loadTrackAssets(track)
-  A->>S: GET /api/funscript/:id/:file (once per file, cached)
-  S-->>A: raw funscript JSON
+  A->>J: GET /Happy/Items/{id}/Funscripts/{key} (once per file, cached)
+  J-->>A: raw funscript JSON
   A->>V: mount(container, scripts)
   V->>V: prepareScript() per script, draw timelines
-  A->>A: publishChannels → DeviceStatus, DeviceAssignment
-  opt track has a description
-    A->>S: GET /api/media/:id/description
-    S-->>A: markdown
+  opt funscripts carry metadata.chapters
+    A->>PS: updateChapters(id, chapters, blob URL)<br/>per chapterSourcePriority
   end
-  Note over PS: The media element itself streams<br/>GET /api/media/:id with range requests
+  A->>A: publishChannels → DeviceStatus, DeviceAssignment
+  A->>A: renderTrackDescription(track.description)
+  Note over PS: The media element itself streams<br/>/Videos|Audio/{id}/stream?static=true&ApiKey=…<br/>from Jellyfin with range requests (CORS mode)
 ```
 
 ## 2. Press play
@@ -134,7 +135,8 @@ Repeat-one does not go through the controller at all: it sets `loop` on the medi
 
 | Step | Files |
 | --- | --- |
-| Track page, asset loading | `openTrack`, `loadTrackAssets`, `fetchTrackScripts`, `onActiveTrackChanged` in [src/client/index.ts](../../../src/client/index.ts) |
+| Track page, asset loading | `openTrack`, `loadTrackAssets`, `fetchTrackScripts`, `applyFunscriptChapters`, `onActiveTrackChanged` in [src/client/index.ts](../../../src/client/index.ts) |
+| URLs and WebVTT | [src/client/api.ts](../../../src/client/api.ts), [jellyfin/urls.ts](../../../src/client/jellyfin/urls.ts) |
 | Slots and handoff | [player/session.ts](../../../src/client/components/player/session.ts) |
 | Queue and autoplay | [player/controller.ts](../../../src/client/components/player/controller.ts), [player/queue.ts](../../../src/client/components/player/queue.ts) |
 | Footer | [player/footer.ts](../../../src/client/components/player/footer.ts) |

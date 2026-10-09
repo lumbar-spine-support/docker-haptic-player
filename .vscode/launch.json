@@ -15,39 +15,51 @@
       ]
     },
     {
-      "name": "Client",
-      "request": "launch",
-      "type": "chrome",
-      "url": "http://localhost:3000",
-      "webRoot": "${workspaceFolder}/public",
-      "sourceMaps": true,
-      "sourceMapPathOverrides": {
-        "http://localhost:3000/src/*": "${workspaceFolder}/src/*"
-      },
-      "preLaunchTask": "npm: build:client"
-    },
-    {
-      "name": "Server",
-      "request": "launch",
+      "name": "Jellyfin Integration Tests",
       "type": "node",
-      "program": "${workspaceFolder}/dist/server/index.js",
-      "preLaunchTask": "npm: build:server",
-      "cwd": "${workspaceFolder}",
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "test:jellyfin"
       ],
-      "sourceMaps": true,
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
       "skipFiles": [
         "<node_internals>/**"
-      ],
+      ]
+    },
+    {
+      // HAPPY as the plugin serves it, from the local dev Jellyfin (docs/developer/local-jellyfin.md).
+      // The client is served straight from public/, so the watch tasks make edits live after a reload.
+      "name": "HAPPY in local Jellyfin",
+      "request": "launch",
+      "type": "chrome",
+      "url": "http://localhost:8097/Happy/Web/",
+      // In the devcontainer this opens Chrome on the host, which reaches the Jellyfin published on :8097.
+      "browserLaunchLocation": "ui",
+      "webRoot": "${workspaceFolder}/public",
+      "sourceMaps": true,
+      // The map's sources are relative to public/js/ (../../src/…), so they resolve to /Happy/src/…, /Happy/@/… etc.
+      "sourceMapPathOverrides": {
+        "http://localhost:8097/Happy/*": "${workspaceFolder}/*"
+      },
+      "preLaunchTask": "Local Jellyfin: start with client watch"
+    },
+    {
+      "name": "Local Jellyfin Integration Tests",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
       "runtimeArgs": [
-        "--enable-source-maps"
+        "run",
+        "test:jellyfin:dev"
       ],
-      "env": {
-        "CONFIG_PATH": "${workspaceFolder}/config",
-        "MEDIA_DIR": "${workspaceFolder}/test/fixtures/media/",
-        "LOG_LEVEL": "debug"
-      }
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
     },
     {
       "name": "E-stim Sandbox",
@@ -65,15 +77,6 @@
         "uriFormat": "%s",
         "webRoot": "${workspaceFolder}/sandbox"
       }
-    }
-  ],
-  "compounds": [
-    {
-      "name": "Debug",
-      "configurations": [
-        "Server",
-        "Client"
-      ]
     }
   ]
 }

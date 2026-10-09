@@ -17,7 +17,9 @@
         "@/**/*",
         "src/**/*",
         "test/**/*",
-        "scripts/**/*"
+        "scripts/**/*",
+        "dglab-relay/src/**/*",
+        "dglab-relay/test/**/*"
     ],
     "exclude": [
         "node_modules",

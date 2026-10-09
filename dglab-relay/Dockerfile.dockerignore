@@ -1,0 +1,6 @@
+# Build context is the repository root; only the relay and the shared protocol constants go in.
+*
+!dglab-relay/package.json
+!dglab-relay/package-lock.json
+!dglab-relay/src/
+!src/shared/dglab.ts

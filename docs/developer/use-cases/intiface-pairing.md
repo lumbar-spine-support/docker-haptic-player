@@ -4,7 +4,7 @@
 
 **Goal:** the user connects HAPPY to Intiface Central so their Bluetooth toy shows up in the settings panel.
 
-HAPPY does not pair Bluetooth devices itself. Intiface Central does that, and the browser connects to Intiface over a WebSocket using the [buttplug](https://github.com/buttplugio/buttplug-js) library (v5). The HAPPY server is not involved.
+HAPPY does not pair Bluetooth devices itself. Intiface Central does that, and the browser connects to Intiface over a WebSocket using the [buttplug](https://github.com/buttplugio/buttplug-js) library (v5). Neither Jellyfin nor the HAPPY plugin is involved.
 
 ## Sequence
 

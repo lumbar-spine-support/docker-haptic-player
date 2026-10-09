@@ -10,7 +10,100 @@
 			},
 			"problemMatcher": [],
 			"label": "npm: build",
-			"detail": "npm run build:server && npm run build:client && npm run build:vendor"
+			"detail": "npm run build:client && npm run build:vendor"
+		},
+		{
+			"type": "npm",
+			"script": "build:client",
+			"problemMatcher": [],
+			"label": "npm: build:client"
+		},
+		{
+			"type": "npm",
+			"script": "dev:jellyfin",
+			"problemMatcher": [],
+			"label": "npm: dev:jellyfin"
+		},
+		{
+			"type": "npm",
+			"script": "dev:jellyfin:plugin",
+			"problemMatcher": [],
+			"label": "npm: dev:jellyfin:plugin",
+			"detail": "Rebuild the HAPPY plugin and restart the local Jellyfin"
+		},
+		{
+			"type": "npm",
+			"script": "dev:jellyfin:down",
+			"problemMatcher": [],
+			"label": "npm: dev:jellyfin:down"
+		},
+		{
+			"type": "npm",
+			"script": "dev:client",
+			"label": "npm: dev:client",
+			"isBackground": true,
+			"problemMatcher": {
+				"owner": "esbuild",
+				"pattern": {
+					"regexp": "^✘ \\[ERROR\\] (.*)$",
+					"message": 1
+				},
+				"background": {
+					"activatesOnStart": true,
+					"beginsPattern": "^\\[watch\\] build started",
+					"endsPattern": "^(Watching |\\[watch\\] build finished)"
+				}
+			}
+		},
+		{
+			"type": "npm",
+			"script": "dev:css",
+			"label": "npm: dev:css",
+			"isBackground": true,
+			"problemMatcher": {
+				"owner": "sass",
+				"pattern": {
+					"regexp": "^Error: (.*)$",
+					"message": 1
+				},
+				"background": {
+					"activatesOnStart": true,
+					"beginsPattern": "^\\[\\d",
+					"endsPattern": "(Compiled |Sass is watching)"
+				}
+			}
+		},
+		{
+			// Everything "HAPPY in local Jellyfin" needs: Jellyfin with the plugin and relay, vendor assets, CSS and JS watches.
+			"label": "Local Jellyfin: start with client watch",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"npm: dev:jellyfin",
+				"npm: build:vendor",
+				"npm: build:css",
+				"Client watch"
+			],
+			"problemMatcher": []
+		},
+		{
+			"label": "Client watch",
+			"dependsOn": [
+				"npm: dev:client",
+				"npm: dev:css"
+			],
+			"problemMatcher": []
+		},
+		{
+			"type": "npm",
+			"script": "build:vendor",
+			"problemMatcher": [],
+			"label": "npm: build:vendor"
+		},
+		{
+			"type": "npm",
+			"script": "build:css",
+			"problemMatcher": [],
+			"label": "npm: build:css"
 		}
 	]
 }

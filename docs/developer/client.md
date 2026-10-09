@@ -2,7 +2,7 @@
 
 # Client
 
-The client is a single-page app bundled from [src/client/index.ts](../../src/client/index.ts). It uses no framework: plain TypeScript classes, Bootstrap for layout and Video.js 10 (`<video-player>`) for the players. The login page is a separate bundle from [src/client/login.ts](../../src/client/login.ts).
+The client is a single-page app bundled from [src/client/index.ts](../../src/client/index.ts). It uses no framework: plain TypeScript classes, Bootstrap for layout and Video.js 10 (`<video-player>`) for the players. The HAPPY Jellyfin plugin serves it at `<jellyfin>/Happy/Web/`, so it shares Jellyfin's origin. Signing in happens inside the app (the Jellyfin sign-in card); there is no separate login page.
 
 ## Object graph
 
@@ -51,14 +51,30 @@ flowchart TD
 
 Note that each `FunscriptSync` engine and each `DeviceAssignment` list is bound to **one backend**, not to the registry, because each backend has its own delay slider and settings section. Only `DeviceStatus` and the `pagehide` → `stopAll()` handler use the registry.
 
-## Player theming
+## Theming
+
+All colours come from `--happy-*` custom properties ("tokens"):
+
+- [public/css/themes/_theme.scss](../../public/css/themes/_theme.scss) turns a palette map into tokens with `tokens($palette)`. It derives the button states, focus colours and the SVG glyphs (checkmark, switch knob, select chevron) the way Bootstrap derives them from `$primary`, so the OLED palette reproduces Bootstrap's compiled values exactly. `app.scss` emits the OLED palette as the defaults.
+- Bootstrap is compiled once ([_bootstrap-theme.scss](../../public/css/scss/_bootstrap-theme.scss)). Sass bakes some colours into component rules, so [_bridge.scss](../../public/css/scss/_bridge.scss), emitted after Bootstrap, points the root variables (`--bs-body-bg`, `--bs-primary`, …) and those component rules (`.btn-primary`, focus states, `.form-check-input:checked`, `.form-range` thumbs, menus, `.table-dark`, cards, offcanvas, popovers) at the tokens. It repeats only properties Bootstrap set in the same selector.
+- Use `bg-surface`, `bg-app` and `btn-surface` instead of `bg-dark`, `bg-black` and `btn-dark`.
+- Text and scrims over video and artwork use the theme-independent `$scrim`/`$on-media` constants in `_variables.scss`.
+- Canvases read their colours from CSS (`getComputedStyle`), except signal colours that carry meaning.
+
+Themes are `public/css/themes/<name>.scss` files that only call `tokens()` with a palette; `npm run build:css` compiles them next to their sources. index.html links `theme.css` after `css/app.css`. The plugin answers it with the theme chosen in its settings, so the page has the right colours before any script runs, even on the sign-in card. Without the plugin, the request fails and the OLED defaults in `app.css` apply. The client mirrors the theme on `<html data-theme>` and copies `--happy-bg` into `<meta name="theme-color">`.
+
+To add a theme: add `public/css/themes/<name>.scss`, add the name to `THEMES` (`src/shared/types.ts`) and `ClientSettings.Themes` (C#), add an `<option>` to `configPage.html` and describe it in `docs/configuration.md`. The theme test checks that these lists agree.
+
+`test/scripts/themeColors.test.ts` fails on literal colours in `public/css/scss/` (outside `_variables.scss` and the Bootstrap theme) and on `bg-dark`/`bg-black`/`btn-dark` in the HTML.
+
+### Player
 
 The Video.js skin takes its look from Bootstrap's CSS variables. The mapping lives in [public/css/scss/_videojs.scss](../../public/css/scss/_videojs.scss):
 
 - `:root` sets the accent color and font.
 - An unlayered `.media-skin` block sets the control size (the height of a `.btn`), the radii (`--bs-border-radius*`) and the focus ring (`--bs-focus-ring-*`). It must stay unlayered so it overrides the skin's `@layer base.theme` defaults.
 
-To restyle the player, change the Bootstrap theme instead of the skin CSS.
+To restyle the player, change the theme tokens instead of the skin CSS.
 
 ## Bootstrap
 
@@ -68,35 +84,64 @@ sequenceDiagram
   participant M as main()
   participant PS as PlaybackSession
   participant A as App
-  participant S as Server
+  participant P as HAPPY plugin
+  participant J as Jellyfin
 
   M->>PS: create([#player-slot-a, #player-slot-b])
   PS->>PS: await customElements.whenDefined('video-player')
   M->>A: new App(session)
   Note over A: constructor: registry.add(buttplug),<br/>Intiface sync engine, DeviceStatus,<br/>Visualization, Library, PlaybackController
   M->>A: init()
-  A->>S: GET /api/config
-  S-->>A: ClientSettings + mediaAccessToken
-  A->>A: setMediaAccessToken, interpolation method, seek step
-  A->>A: bind library, Intiface settings, toggles, zoom
+  A->>A: connectJellyfin(): jellyfinUrlFromPage(location)<br/>not under /Happy/Web/ → notice, stop
+  opt no stored HAPPY session
+    A->>J: adoptJellyfinWebSession: jellyfin_credentials token →<br/>GET /Users/Me (borrowed session)
+    opt none, or rejected
+      A->>J: ensureSignedIn: sign-in card →<br/>POST /Users/AuthenticateByName
+      J-->>A: AccessToken, User
+    end
+  end
+  A->>P: GET /Happy/Config
+  P-->>A: ClientSettings (built-in defaults if this fails)
+  A->>A: useJellyfin(connection, suffixes, chapter priority)
+  A->>A: seek step, artwork options, bind library,<br/>Intiface settings, toggles, zoom
+  A-->>P: when idle: GET /Happy/Info → version badge
   A->>A: mount Intiface DeviceAssignment, initHapticControls
   opt dglabEnabled
-    A->>A: initDglab: new CoyoteBackend, sync engine,<br/>DeviceAssignment, bindPairingPanel
+    A->>A: initDglab: new CoyoteBackend(token callback, dglabRelayUrl),<br/>sync engine, DeviceAssignment, bindPairingPanel
   end
   A->>A: playback.onActiveTrack(onActiveTrackChanged)
-  A->>S: GET /api/library
-  S-->>A: LibraryResponse
+  A->>A: bindLogout()
+  A->>J: loadLibrary(): GET /Items, /Happy/Funscripts, playlists
+  J-->>A: items → buildLibrary() → LibraryResponse
   A->>A: router.start()
   Note over A: listeners: popstate → route,<br/>pagehide → haptics.stopAll()
 ```
 
-User settings live in `localStorage` (all keys start with `happy-`). Server values from `/api/config` are only **defaults** for keys that have no stored value. Simple values go through `storedSetting(key, fallback)` in `utils/storedSetting.ts`, which parses to the fallback's type.
+The settings need a signed-in user, so `init()` signs in before it fetches them. User settings live in `localStorage` (all keys start with `happy-`). The plugin's values from `/Happy/Config` (edited on its dashboard page) are only **defaults** for keys that have no stored value. Simple values go through `storedSetting(key, fallback)` in `utils/storedSetting.ts`, which parses to the fallback's type.
 
 The settings panel is wired by small modules instead of `App`: `components/settings/intiface.ts` (address, scheme, Connect), `components/settings/haptics.ts` (delay and update-rate sliders), `components/settings/toggle.ts` (blur and color-gradient switches) and `components/haptic/dglab/pairingPanel.ts` (DG-Lab relay and QR code).
 
 Auto-reconnect: `happy-intiface-last-state` / `happy-dglab-last-state` become `connected` on a successful connection and `disconnected` only on an explicit Disconnect click. `happy-dglab-last-seen` is refreshed on every relay frame (heartbeats every 30 s) and on `pagehide`; DG-Lab reconnects only while it is younger than `DGLAB_DETACH_GRACE_MS` (`src/shared/dglab.ts`), otherwise the section stays *Disconnected*.
 
 Intiface drops are retried by `bindIntifaceSettings()` with backoff (1 s doubling to 15 s) and on `visibilitychange`, but only after a connection made in the same page session and while `happy-intiface-last-state` is `connected`. Intiface pings only after 10 s without traffic and drops the client after the next 10 s without a pong, which happens when Android Chrome freezes the tab with the screen off. `keepScreenOnWhilePlaying()` (`utils/wakeLock.ts`) therefore holds a screen wake lock while the active player is playing and the page is visible, unless the `happy-keep-screen-on` toggle is off.
+
+## Jellyfin data layer
+
+[api.ts](../../src/client/api.ts) is still the only module the rest of the client calls for data. `useJellyfin()` points it at a signed-in `JellyfinConnection`; everything behind it lives in [src/client/jellyfin/](../../src/client/jellyfin/):
+
+| File | Role |
+| --- | --- |
+| `serverUrl.ts` | `jellyfinUrlFromPage()`: Jellyfin's address is everything before `/Happy/Web/` in the page URL (case-insensitive), so a base URL such as `/jellyfin` is kept; `null` when the page comes from elsewhere |
+| `connection.ts` | `JellyfinConnection`: sign-in, `localStorage` session keyed to the server URL, `MediaBrowser` authorization header with a stable `DeviceId` (from `crypto.getRandomValues`, since `randomUUID` is missing on plain-HTTP origins), `request()` that forgets the session and calls `onUnauthorized` (a reload) on `401`, sign-out via `POST /Sessions/Logout`. `adoptJellyfinWebSession()` takes over jellyfin-web's sign-in (`credentialsFromJellyfinWeb()` reads `jellyfin_credentials`) as a *borrowed* session, which sign-out only forgets |
+| `signIn.ts`, `signIn.html` | Full-screen sign-in card shown by `ensureSignedIn()` until a session exists; `showMissingServerNotice()` when the page is not served from `/Happy/Web/` |
+| `library.ts` | `loadLibrary(api, options)`: one `/Items` request with `Fields=Path,Tags,Genres,Overview,Chapters,Trickplay` and `EnableUserData=true`, `/Happy/Funscripts` (404 = plugin missing → no funscripts), playlists and their entries. `setFavorite(api, id, favorite)`: `POST`/`DELETE /UserFavoriteItems/{id}`. Takes any `JellyfinApi` (`userId` + `request()`), so the integration tests drive it from Node |
+| `mapper.ts` | Pure DTO → `TrackInfo`/`LibraryResponse` mapping: `MediaType` decides audio/video, tags = Tags ∪ Genres, description = Overview, embedded chapters (when `embedded` is in the priority), trickplay resolution closest to 320 px, client-side albums (`shared/albums.ts`), `isFavorite` from `UserData.IsFavorite` of items and playlists |
+| `urls.ts` | `streamUrl()` (`static=true&ApiKey=`), `imageUrl()` (tag, max 1000 px, no token), `trickplaySheetUrl()`, `trickplayVtt()` |
+| `dto.ts` | The subset of Jellyfin's PascalCase shapes HAPPY reads |
+
+`chaptersVttUrl()` and `storyboardVttUrl()` build WebVTT in the browser (`shared/webvtt.ts`) and return `blob:` URLs, cached per chapter list and per track. Blob URLs are same-origin, so `<track>` needs no CORS. Media and images come from the page's own origin. Both `<video>` elements in `public/index.html` and `loadImage()` (playlist collage) still use `crossorigin="anonymous"`, so WebGL (VR) and `canvas.toDataURL()` keep untainted frames even if media came from another origin.
+
+The logout button (`bindLogout()`, bound after the sign-in) shows whenever there is a Jellyfin session; `logout()` signs out of Jellyfin and reloads, which shows the sign-in card. For a borrowed session it is *Leave HAPPY*: `logout()` only forgets the session and goes to Jellyfin's web client (`JELLYFIN_WEB_URL`, `../../web/`). `initDglab()` runs after the sign-in as well: `CoyoteBackend` gets the token through a callback and offers it to the relay as the `jellyfin.<token>` WebSocket subprotocol, so the DG-Lab auto-reconnect never dials without one.
 
 ## Routing
 
@@ -107,7 +152,7 @@ flowchart TD
   R(["handleRouteChange()"]) --> Tags{"?tag=… present?"}
   Tags -- yes --> SetTags["library.setActiveTags"] --> V
   Tags -- no --> V{"?view="}
-  V -- docs --> Docs["showDocs(id or 'index')<br/>GET /api/docs/:page → Markdown.renderDoc"]
+  V -- docs --> Docs["showDocs(id or 'index')<br/>GET /Happy/Docs/:page → Markdown.renderDoc"]
   V -- "player + id" --> Track["openTrack(id)"]
   V -- "playlist + id" --> PL["showPlaylistDetail"]
   V -- "album + id" --> AL["showAlbumDetail"]
@@ -123,7 +168,9 @@ flowchart TD
 | `./?view=player&id=<trackId>` | Track page |
 | `./?view=docs&id=<page>` | In-app user documentation |
 
-`Library.render()` builds one `LibraryRow` per album, playlist, track and video, sorts them once with `sortLibraryItems()` (`shared/libraryFiltering.ts`), and renders the same order as cards (`buildCard`) and table rows (`buildRow`). The filter dropdowns are generated from `MEDIA_FILTERS` and from `ROLE_LABELS` (`components/haptic/icons.ts`), and the sort menu from `LIBRARY_SORT_FIELDS`. Adding a toy type or sort field only means adding an entry there. Filter state is kept as two `Set`s and saved as `{ [data-filter-type]: boolean }` under `happy-library-filters`; the sort order is saved under `happy-library-sort`.
+`Library.render()` builds one `LibraryRow` per album, playlist, track and video, sorts them once with `sortLibraryItems()` (`shared/libraryFiltering.ts`), and renders the same order as cards (`buildCard`) and table rows (`buildRow`). The filter dropdowns are generated from `MEDIA_FILTERS` and from `ROLE_LABELS` (`components/haptic/icons.ts`), and the sort menu from `LIBRARY_SORT_FIELDS`. Adding a toy type or sort field only means adding an entry there. Filter state is kept as two `Set`s plus the `favoritesOnly` flag and saved as `{ [data-filter-type]: boolean, favorites: boolean }` under `happy-library-filters`; the sort order is saved under `happy-library-sort`.
+
+Favorites are Jellyfin's per-user flag (`TrackInfo.isFavorite`, `PlaylistInfo.isFavorite`). Albums are client-side and have none; the favorites filter keeps an album when one of its tracks is a favorite (`albumHasFavorite()`). Every heart button goes through [components/library/favorites.ts](../../src/client/components/library/favorites.ts): `createFavoriteButton()` for cards and rows, `bindFavoriteButton()` to point the static button on the playlist page at the current playlist. `toggleFavorite()` flips the flag on the in-memory object at once, calls `setJellyfinFavorite()` and reverts when Jellyfin refuses; all buttons with the same `data-favorite-id` are redrawn and `notifyFavoriteChanged()` updates the player. In the player, `<media-favorite-button>` ([@/components/videojs/ui/favorite-button.ts](../../@/components/videojs/ui/favorite-button.ts), between loop and settings in the control bar) reads the track id from its own `<video-player>`'s `data-track-id` (set by `PlaybackSession.loadSlot()`), so each slot shows its own track. It asks the `FavoriteTarget` that `App` publishes with `setFavoriteTarget()` ([features/favorite.ts](../../@/components/videojs/features/favorite.ts)), the same pattern as the skip buttons. The library is not re-rendered, so an item that stops being a favorite stays in a filtered view until the next render. See [use case: mark a favorite](use-cases/favorite.md).
 
 Grid cards start with `CARD_SQUARE_GRID_CLASSES`. When an album or track card's artwork loads, `classifyArtAspect()` (`client/utils/artAspect.ts`) checks its natural size. Art at a ratio of 1.2 or wider switches the card to `CARD_LANDSCAPE_GRID_CLASSES` with `.track-card-landscape`, which shows the image at 2:1. Art at a ratio of 1/1.2 or taller adds `.track-card-portrait`, which spans two grid rows. `#track-grid` is a CSS grid (2/4/6 columns at xs/sm/lg) with `grid-auto-flow: dense`, so smaller cards fill gaps left by wide or tall ones. Playlist cards and the fallback art stay square. If `cardViewForceSquareArtwork` is on, every card stays square.
 
@@ -179,12 +226,16 @@ The detailed sequence is in [Browse and play a track](use-cases/browse-and-play.
 
 ### Funscripts on the client
 
-`App.fetchTrackScripts(track)` downloads each funscript listed in `track.funscripts` once and caches the promise per track id in `scriptCache`. The same raw `Funscript` objects then go to:
+`App.fetchTrackScripts(track)` downloads each funscript listed in `track.funscripts` once through the plugin (`fetchFunscript(track, info)` → `/Happy/Items/{id}/Funscripts/{key}`) and caches the promise per track id in `scriptCache`. The same raw `Funscript` objects then go to:
 
 - `Visualization.mount()` for the browsed track (timelines),
 - every `FunscriptSync.loadScripts()` for the active track (device output).
 
 Both call `prepareScript()` from [shared/interpolation.ts](../../src/shared/interpolation.ts) themselves. See [haptics.md](haptics.md#funscript-pipeline).
+
+The raw JSON also carries `metadata.chapters`. Once all scripts of a track are loaded, `applyFunscriptChapters()` merges them (`parseFunscriptChapters`, `mergeChapters`, `normalizeChapters`) and, unless embedded chapters exist and come first in `chapterSourcePriority`, replaces `track.chapters` and calls `PlaybackSession.updateChapters()`, which swaps the chapter `<track>` of every slot showing that track without reloading the media.
+
+The description on the track page is `track.description` (the Jellyfin overview), rendered with `Markdown.render`.
 
 ## Video.js integration
 
@@ -195,7 +246,7 @@ The `@/components/videojs/` folder holds the ejected Video.js skin and small fea
 | Loop (repeat one) | `features/loop.ts` | `PlaybackSession.setLoop` |
 | Repeat mode | `features/repeat.ts` | `PlaybackController.applyRepeat`, `advance` |
 | Skip prev/next | `features/skip.ts` | `PlaybackController` registers itself with `setSkipTarget` |
-| Chapters & thumbnails | `features/chapters.ts` | `PlaybackSession.loadSlot` → `setMediaChapters` / `setMediaStoryboard` replace default `<track kind="chapters">` and `<track kind="metadata" label="thumbnails">` elements pointing at the server's `chapters.vtt` / `storyboard.vtt`. `<media-time-slider-chapters>`, `<media-time-slider-chapter-title>` and `<media-slider-thumbnail>` render them natively; `ui/chapter-snap.ts` snaps slider presses to `chaptersCues` |
+| Chapters & thumbnails | `features/chapters.ts` | `PlaybackSession.loadSlot` → `setMediaChapters` / `setMediaStoryboard` replace default `<track kind="chapters">` and `<track kind="metadata" label="thumbnails">` elements pointing at the client-generated `blob:` WebVTT (chapters; trickplay thumbnails with `#xywh=` cues into Jellyfin's sheets, cropped to one eye for VR180). `<media-time-slider-chapters>`, `<media-time-slider-chapter-title>` and `<media-slider-thumbnail>` render them natively; `ui/chapter-snap.ts` snaps slider presses to `chaptersCues` |
 | VR180 view | `features/vr.ts`, `ui/vr-buttons.ts` | Reacts to `data-vr-format` set by `PlaybackSession.loadSlot` |
 
 ## VR180 playback
@@ -246,7 +297,7 @@ ffmpeg \
 | Settings panel | [components/settings/](../../src/client/components/settings/), [haptic/dglab/pairingPanel.ts](../../src/client/components/haptic/dglab/pairingPanel.ts), [utils/storedSetting.ts](../../src/client/utils/storedSetting.ts) |
 | Playback | [player/session.ts](../../src/client/components/player/session.ts), [player/controller.ts](../../src/client/components/player/controller.ts), [player/queue.ts](../../src/client/components/player/queue.ts), [player/footer.ts](../../src/client/components/player/footer.ts) |
 | Library UI | [components/library/index.ts](../../src/client/components/library/index.ts), [shared/libraryFiltering.ts](../../src/shared/libraryFiltering.ts) |
-| Server API calls | [api.ts](../../src/client/api.ts) |
+| Data facade, Jellyfin | [api.ts](../../src/client/api.ts), [jellyfin/](../../src/client/jellyfin/library.ts), [shared/albums.ts](../../src/shared/albums.ts), [shared/funscriptNames.ts](../../src/shared/funscriptNames.ts), [shared/webvtt.ts](../../src/shared/webvtt.ts) |
 | Timelines | [haptic/visualization/index.ts](../../src/client/components/haptic/visualization/index.ts) |
 | Video.js | [@/components/videojs/player.ts](../../@/components/videojs/player.ts), `@/components/videojs/features/` |
 | VR180 | [components/vr/](../../src/client/components/vr/), [shared/vrFormat.ts](../../src/shared/vrFormat.ts), `@/components/videojs/features/vr.ts` |

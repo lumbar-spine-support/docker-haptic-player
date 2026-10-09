@@ -2,7 +2,7 @@
 
 # Haptics
 
-This page covers everything between "a funscript file exists" and "a toy moves". All of it runs in the browser. The server only lists and serves funscript files. It does **not** interpolate or modify them.
+This page covers everything between "a funscript file exists" and "a toy moves". All of it runs in the browser. The Jellyfin plugin only lists and serves funscript files. It does **not** interpolate or modify them.
 
 ## Concepts
 
@@ -142,27 +142,33 @@ classDiagram
 
 ```mermaid
 flowchart LR
-  subgraph server["Server, at scan time"]
-    Files[("/media<br/>song.mp3<br/>song.vibrator.funscript<br/>song.estim.nipples.funscript")]
-    Parse["parseFunscriptName()<br/>stem, type, sub"]
-    Info["TrackInfo.funscripts[]<br/>filename, type, sub"]
-    Ch["readFunscriptChapters()<br/>chapters only"]
-    Files --> Parse --> Info
-    Files --> Ch
+  subgraph jellyfin["Jellyfin + HAPPY plugin"]
+    Files[("library folder<br/>song.mp3<br/>song.vibrator.funscript<br/>song.estim.nipples.funscript")]
+    Index["FunscriptIndex<br/>longest stem prefix,<br/>same folder first"]
+    Listing["GET /Happy/Funscripts<br/>item id → Key, FileName"]
+    Raw["GET /Happy/Items/{id}/Funscripts/{key}<br/>raw JSON"]
+    Files --> Index --> Listing
+    Index --> Raw
   end
 
-  subgraph client["Browser, per track"]
-    Fetch["App.fetchTrackScripts()<br/>GET /api/funscript/:id/:file<br/>cached per track id"]
-    Loaded["LoadedScript[]<br/>channel + raw Funscript"]
-    VizPrep["Visualization<br/>prepareScript() per script"]
-    SyncPrep["each FunscriptSync<br/>prepareScript() per script"]
+  subgraph client["Browser"]
+    Parse["buildLibrary(): parseFunscriptName()<br/>TrackInfo.funscripts[]<br/>key, filename, type, sub"]
+    Fetch["App.fetchTrackScripts()<br/>fetchFunscript(track, info)<br/>cached per track id"]
+    Ch["applyFunscriptChapters()<br/>metadata.chapters"]
+    Loaded["LoadedScript[]<br/>channel + prepared script"]
+    VizPrep["Visualization"]
+    SyncPrep["each FunscriptSync"]
     Fetch --> Loaded
+    Fetch --> Ch
     Loaded -- "browsed track" --> VizPrep
     Loaded -- "active track" --> SyncPrep
   end
 
-  Info -- "GET /api/library" --> Fetch
+  Listing -- "loadLibrary()" --> Parse --> Fetch
+  Raw --> Fetch
 ```
+
+The plugin only matches files to items; type and subcategory are parsed in the browser with the `funscriptSuffixes` setting from `/Happy/Config`. See [jellyfin-plugin.md](jellyfin-plugin.md#matching).
 
 `prepareScript(actions, method)` sorts the actions and precomputes one cubic polynomial per segment, so `positionAt(prepared, ms)` is a binary search plus a polynomial evaluation. The methods are:
 
@@ -172,7 +178,7 @@ flowchart LR
 | `linear` (default) | straight line between points | moves to the next point, duration = time until it |
 | `pchip` | smooth, overshoot-free curve | same as `linear` (the device interpolates the move itself) |
 
-The method comes from `FUNSCRIPT_INTERPOLATION_METHOD` (server config). The app prepares each funscript once with `prepareScript()` when it is fetched and caches the result per track as `LoadedScript { channel, prepared }`; the sync engines and the timeline view share these prepared scripts.
+The method comes from `funscriptInterpolationMethod` (plugin settings, `/Happy/Config`). The app prepares each funscript once with `prepareScript()` when it is fetched and caches the result per track as `LoadedScript { channel, prepared }`; the sync engines and the timeline view share these prepared scripts.
 
 ## The sync loop
 
@@ -271,7 +277,7 @@ The timing decisions and frame building live in `CoyoteChannelScheduler` and `lo
 
 #### DG-Lab sandbox page
 
-`?view=dglab-sandbox` (button under the DG-Lab device cards, `DGLAB_SANDBOX_ENABLED`, only with `DGLAB_ENABLED`) plays a looping pattern from `patterns.ts` on one Coyote channel, so users can test strength and pulse settings without funscript media. `DglabSandbox` (`sandboxView.ts`) samples the pattern with `patternSampler()` (interpolation from `shared/interpolation.ts`) and calls `CoyoteBackend.sendToFeature()` at 30 Hz, the same path the sync loop takes. The canvas draws the position and the pulses each 25 ms step would play. Starting pauses media playback; leaving the route (`Router` `before` hook) or stopping calls `stopAll()`.
+`?view=dglab-sandbox` (button under the DG-Lab device cards, `dglabSandboxEnabled`, only with `dglabEnabled`) plays a looping pattern from `patterns.ts` on one Coyote channel, so users can test strength and pulse settings without funscript media. `DglabSandbox` (`sandboxView.ts`) samples the pattern with `patternSampler()` (interpolation from `shared/interpolation.ts`) and calls `CoyoteBackend.sendToFeature()` at 30 Hz, the same path the sync loop takes. The canvas draws the position and the pulses each 25 ms step would play. Starting pauses media playback; leaving the route (`Router` `before` hook) or stopping calls `stopAll()`.
 
 #### E-stim sandbox
 
@@ -293,7 +299,7 @@ The wire protocol, device cache and patch merging come from [dglab-kit](https://
 - Sends each operation only to the app that owns the slot.
 - Sets `p: 1` and `ver: 3` explicitly, plus `im: true` on strength and on the first pulse batch; the kit leaves them out by default.
 - Fire-and-forget: every operation's promise is caught. Timeouts and disconnects are ignored, and other errors are logged once per kind.
-- Tracing via `localStorage['happy-log'] = 'dglab=debug'` or `LOG_LEVEL=debug` on the server, including `custom.action` events. Client code logs through `createLogger(namespace)` in `src/client/utils/logger.ts`; levels are set per namespace with `setLogLevel()` or the `happy-log` override.
+- Tracing via `localStorage['happy-log'] = 'dglab=debug'` or the plugin's `debugLogging` setting, including `custom.action` events. Client code logs through `createLogger(namespace)` in `src/client/utils/logger.ts`; levels are set per namespace with `setLogLevel()` or the `happy-log` override.
 
 ## Safety behaviour
 
@@ -323,7 +329,8 @@ Ideas for Coyote playback, taken from the [Restim stim theory wiki](https://gith
 
 | Topic | Files |
 | --- | --- |
-| Channel model | [shared/haptics.ts](../../src/shared/haptics.ts), [shared/types.ts](../../src/shared/types.ts) |
+| Channel model | [shared/haptics.ts](../../src/shared/haptics.ts), [shared/types.ts](../../src/shared/types.ts), [shared/funscriptNames.ts](../../src/shared/funscriptNames.ts) |
+| Funscript source | [jellyfin-plugin/](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptMatcher.cs), [client/api.ts](../../src/client/api.ts) (`fetchFunscript`) |
 | Interpolation | [shared/interpolation.ts](../../src/shared/interpolation.ts) |
 | Sync loop | [components/funscriptSync.ts](../../src/client/components/funscriptSync.ts) |
 | Interface and registry | [haptic/backend.ts](../../src/client/components/haptic/backend.ts), [haptic/backendRegistry.ts](../../src/client/components/haptic/backendRegistry.ts) |

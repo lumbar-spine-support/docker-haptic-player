@@ -2,11 +2,74 @@
     "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
     "release-type": "node",
     "include-v-in-tag": true,
-    "pull-request-footer": "Docker image: https://github.com/lumbar-spine-support/docker-haptic-player/pkgs/container/docker-haptic-player",
+    "pull-request-footer": "Jellyfin plugin repository: https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/jellyfin-plugin-repository/manifest.json",
     "packages": {
         ".": {
             "include-component-in-tag": false,
             "pull-request-title-pattern": "chore: release HAPPY v${version}",
+            "changelog-path": "CHANGELOG.md",
+            "extra-files": [
+                "jellyfin-plugin/build.yaml",
+                "jellyfin-plugin/Directory.Build.props"
+            ],
+            "changelog-sections": [
+                {
+                    "type": "feat",
+                    "section": "Features"
+                },
+                {
+                    "type": "fix",
+                    "section": "Bug Fixes"
+                },
+                {
+                    "type": "perf",
+                    "section": "Performance"
+                },
+                {
+                    "type": "revert",
+                    "section": "Reverts"
+                },
+                {
+                    "type": "docs",
+                    "section": "Documentation",
+                    "hidden": true
+                },
+                {
+                    "type": "chore",
+                    "section": "Miscellaneous",
+                    "hidden": true
+                },
+                {
+                    "type": "refactor",
+                    "section": "Code Refactoring",
+                    "hidden": true
+                },
+                {
+                    "type": "test",
+                    "section": "Tests",
+                    "hidden": true
+                },
+                {
+                    "type": "build",
+                    "section": "Build System",
+                    "hidden": true
+                },
+                {
+                    "type": "ci",
+                    "section": "Continuous Integration",
+                    "hidden": true
+                }
+            ],
+            "exclude-paths": [
+                "dglab-relay"
+            ]
+        },
+        "dglab-relay": {
+            "release-type": "node",
+            "component": "dglab-relay",
+            "include-component-in-tag": true,
+            "initial-version": "1.0.0",
+            "pull-request-title-pattern": "chore: release HAPPY DG-Lab relay v${version}",
             "changelog-path": "CHANGELOG.md",
             "changelog-sections": [
                 {

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    albumHasFavorite,
     albumMatchesActiveTags,
     artistTagValue,
     countMediaMatches,
@@ -107,4 +108,11 @@ test(`${TAG} playlistMatchesActiveTags matches on entry artist`, () => {
     assert.equal(playlistMatchesActiveTags(playlist, tracksById, ['artist:Entry Artist']), true);
     assert.equal(playlistMatchesActiveTags(playlist, tracksById, ['artist:Track Artist']), true);
     assert.equal(playlistMatchesActiveTags(playlist, tracksById, ['artist:Nobody']), false);
+});
+
+test(`${TAG} an album is a favorite when any of its tracks is`, () => {
+    const tracksById = new Map([['t1', { isFavorite: false }], ['t2', { isFavorite: true }]]);
+    assert.equal(albumHasFavorite({ trackIds: ['t1', 't2'] }, tracksById), true);
+    assert.equal(albumHasFavorite({ trackIds: ['t1', 'missing'] }, tracksById), false);
+    assert.equal(albumHasFavorite({ trackIds: [] }, tracksById), false);
 });

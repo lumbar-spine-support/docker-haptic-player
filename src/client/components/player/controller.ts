@@ -130,11 +130,11 @@ export class PlaybackController {
         return {
             id: track.id,
             type: track.type,
-            src: mediaUrl(track.id),
+            src: mediaUrl(track),
             title: track.title,
             artist: track.artist || track.filename,
             year: track.year,
-            poster: track.hasArtwork ? artworkUrl(track.id, track.artworkVersion) : FALLBACK_ART_DATA_URI,
+            poster: track.hasArtwork ? artworkUrl(track.id, track.artworkTag) : FALLBACK_ART_DATA_URI,
             hasArtwork: track.hasArtwork,
             chapters: track.chapters ?? [],
             chaptersSrc: chaptersVttUrl(track),

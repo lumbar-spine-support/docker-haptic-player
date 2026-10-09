@@ -45,7 +45,8 @@ When using or redistributing any files derived from Big Buck Bunny, you must inc
 ## Vendored Front-End Libraries
 
 These libraries are fetched from npm at build time by `scripts/copy-vendor-assets.js` and copied into
-`public/vendor/` (not committed to Git; excluded via `.gitignore`). They are listed here for completeness.
+`public/vendor/` (not committed to Git; excluded via `.gitignore`), which the HAPPY Jellyfin plugin embeds together with the rest of the
+client. They are listed here for completeness.
 
 ### Bootstrap
 
@@ -73,7 +74,7 @@ These libraries are fetched from npm at build time by `scripts/copy-vendor-asset
 
 ---
 
-## Server Dependencies
+## DG-Lab Relay Dependencies
 
 ### ws
 
@@ -83,16 +84,7 @@ These libraries are fetched from npm at build time by `scripts/copy-vendor-asset
 
 **Source:** https://github.com/websockets/ws
 
-Used for the DG-Lab V4 relay endpoint.
-
-### FFmpeg
-
-**License:** [LGPL 2.1 or later / GPL 2 or later, depending on build](https://ffmpeg.org/legal.html)
-
-**Source:** https://ffmpeg.org/
-
-Not bundled with the source code. The Docker image installs the Alpine `ffmpeg` package, whose
-`ffprobe` and `ffmpeg` binaries are invoked as separate processes to read metadata, chapters and cover art.
+Bundled into the DG-Lab relay image (`dglab-relay/`) as its WebSocket server.
 
 ---
 
@@ -104,7 +96,7 @@ Not bundled with the source code. The Docker image installs the Alpine `ffmpeg` 
 
 **Source:** https://github.com/dungeonlab-open/dglab-kit
 
-Bundled into `public/js/app.js` as the DG-Lab V4 client. HAPPY's relay server is its own implementation.
+Bundled into `public/js/app.js` as the DG-Lab V4 client. HAPPY's DG-Lab relay (`dglab-relay/`) is its own implementation.
 
 ### eventemitter3
 

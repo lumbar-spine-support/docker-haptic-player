@@ -1,0 +1,12 @@
+@layer components {
+  @scope (.media-skin) {
+    /* Nothing to mark while the player holds no known track. */
+    .media-favorite-button[data-hidden] {
+      display: none;
+    }
+
+    .media-favorite-button[data-active] .media-favorite-button-icon {
+      color: var(--bs-danger);
+    }
+  }
+}

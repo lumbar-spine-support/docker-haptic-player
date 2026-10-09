@@ -1,4 +1,7 @@
-import { fetchFunscript, fetchTrackDescription, fetchDoc, docAssetUrl, fetchVersion, fetchAuthStatus, fetchClientSettings, setMediaAccessToken, setStoryboardsEnabled, logout, artworkUrl } from './api';
+import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchClientSettings, logout, artworkUrl, chaptersVttUrl, useJellyfin } from './api';
+import { JellyfinConnection } from './jellyfin/connection';
+import { ensureSignedIn, showMissingServerNotice } from './jellyfin/signIn';
+import { jellyfinUrlFromPage } from './jellyfin/serverUrl';
 import { formatVersion } from './utils/formatVersion';
 import { qs } from './utils/html';
 import { storedSetting } from './utils/storedSetting';
@@ -16,6 +19,8 @@ import { DglabSandbox } from './components/haptic/dglab/sandboxView';
 import { setLogLevel } from './utils/logger';
 import { FunscriptSync, type LoadedScript } from './components/funscriptSync';
 import { prepareScript } from '../shared/interpolation';
+import { mergeChapters, normalizeChapters, type RawChapter } from '../shared/chapters';
+import { DEFAULT_FUNSCRIPT_SUFFIXES, parseFunscriptChapters } from '../shared/funscriptNames';
 import { DeviceStatus } from './components/haptic/deviceStatus';
 import { DeviceAssignment } from './components/haptic/deviceAssignment';
 import type { HapticBackend } from './components/haptic/backend';
@@ -23,6 +28,8 @@ import { Visualization } from './components/haptic/visualization';
 import { Markdown } from './components/markdown';
 import { Library } from './components/library';
 import { DetailView } from './components/library/detail';
+import { toggleFavorite } from './components/library/favorites';
+import { setFavoriteTarget } from '@/components/videojs/features/favorite';
 import { bindIntifaceSettings } from './components/settings/intiface';
 import { bindDelaySlider, bindUpdateRateSlider } from './components/settings/haptics';
 import { bindToggle } from './components/settings/toggle';
@@ -42,16 +49,16 @@ import '@/components/videojs/video/element';
 const INTIFACE_DELAY_KEY = 'happy-haptic-delay-ms';
 const DGLAB_DELAY_KEY = 'happy-dglab-delay-ms';
 
-/** Used when the server config cannot be reached. */
+/** Used when the plugin's settings cannot be fetched. */
 const FALLBACK_SETTINGS: ClientSettings = {
   videoSeekInterval: 10,
-  storyboards: false,
   blurContent: false,
   hapticFrequency: 30,
   hapticDelay: 0,
   hapticDelayLimit: 500,
   dglabEnabled: false,
   dglabSandboxEnabled: false,
+  dglabRelayUrl: '',
   autoReconnectIntiface: false,
   autoReconnectDglab: false,
   debugLogging: false,
@@ -59,7 +66,10 @@ const FALLBACK_SETTINGS: ClientSettings = {
   funscriptColorGradient: false,
   cardViewForceSquareArtwork: false,
   cardViewLargePortraitArtwork: true,
-  mediaAccessToken: null,
+  theme: 'oled',
+  jellyfinUrl: '',
+  funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES,
+  chapterSourcePriority: ['embedded', 'funscript'],
 };
 
 class App {
@@ -87,6 +97,7 @@ class App {
   private readonly haptics = new HapticBackendRegistry();
   /** Owns the two interchangeable players; one of them is always the playing one. */
   private readonly session: PlaybackSession;
+  private jellyfin: JellyfinConnection | null = null;
   private readonly queue = new PlaybackQueue();
   private readonly playback: PlaybackController;
   /** One engine per backend, so each can apply its own delay correction. */
@@ -158,6 +169,14 @@ class App {
       openTrack: (id, source, autoplay) => { void this.openTrack(id, true, source, autoplay); },
     });
     this.playback = new PlaybackController(this.library, this.queue, session);
+    // The heart in each player's control bar asks about the track that player holds.
+    setFavoriteTarget({
+      isFavorite: (id) => this.library.getTrack(id)?.isFavorite ?? null,
+      toggle: (id) => {
+        const track = this.library.getTrack(id);
+        return track ? toggleFavorite(track) : undefined;
+      },
+    });
   }
 
   /** All playable media items (audio tracks and videos combined). */
@@ -166,6 +185,13 @@ class App {
   }
 
   /** The seek indicator shows whatever step the triggering hotkey/gesture carries, so the interval goes there. */
+  private applyTheme(): void {
+    document.documentElement.dataset.theme = this.settings.theme;
+    // The browser chrome (mobile address bar, installed app) follows the theme's background.
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--happy-bg').trim();
+    if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
+  }
+
   private applySeekInterval(): void {
     const step = this.settings.videoSeekInterval;
     document.querySelectorAll<HTMLElement>('media-hotkey[action="seekStep"], media-gesture[action="seekStep"]').forEach((el) => {
@@ -177,13 +203,20 @@ class App {
   }
 
   async init(): Promise<void> {
+    // The settings come from the plugin and need a signed-in user, so signing in comes first.
+    if (!(await this.connectJellyfin())) return;
     try {
       this.settings = await fetchClientSettings();
     } catch (err) {
       console.warn('Falling back to built-in client settings:', err);
     }
-    setMediaAccessToken(this.settings.mediaAccessToken);
-    setStoryboardsEnabled(this.settings.storyboards);
+    if (this.jellyfin) {
+      useJellyfin(this.jellyfin, {
+        funscriptSuffixes: this.settings.funscriptSuffixes,
+        chapterSourcePriority: this.settings.chapterSourcePriority,
+      });
+    }
+    this.applyTheme();
     this.applySeekInterval();
     this.library.setForceSquareArtwork(this.settings.cardViewForceSquareArtwork);
     this.library.setLargePortraitArtwork(this.settings.cardViewLargePortraitArtwork);
@@ -197,7 +230,6 @@ class App {
     this.bindZoomControls();
     whenIdle(() => {
       void this.showVersion();
-      void this.bindLogout();
     });
     this.footer?.bind(this.session, this.playback, (trackId) => this.navigateTo(trackHref(trackId)));
 
@@ -211,9 +243,12 @@ class App {
     }
 
     this.initHapticControls();
+    // The relay only accepts signed-in tabs, so DG-Lab (and its auto-reconnect) waits for the session.
     await this.initDglab();
     this.playback.onActiveTrack((track) => { void this.onActiveTrackChanged(track); });
 
+    // Needs the Jellyfin session to decide whether there is anyone to sign out.
+    this.bindLogout();
     await yieldToMain();
     await this.library.load();
     await yieldToMain();
@@ -233,6 +268,23 @@ class App {
       event.preventDefault();
       this.navigateTo(link.href);
     });
+  }
+
+  /** Signs in to the Jellyfin serving this page; false when the page does not come from the HAPPY plugin. */
+  private async connectJellyfin(): Promise<boolean> {
+    const serverUrl = jellyfinUrlFromPage(window.location.href);
+    if (!serverUrl) {
+      showMissingServerNotice();
+      return false;
+    }
+    // A rejected token clears the session; reloading shows the sign-in card again.
+    this.jellyfin = new JellyfinConnection(serverUrl, () => window.location.reload());
+    await ensureSignedIn(this.jellyfin);
+    useJellyfin(this.jellyfin, {
+      funscriptSuffixes: this.settings.funscriptSuffixes,
+      chapterSourcePriority: this.settings.chapterSourcePriority,
+    });
+    return true;
   }
 
   private mountDeviceAssignment(backend: HapticBackend, containerSelector: string): void {
@@ -283,14 +335,13 @@ class App {
     }
   }
 
-  private async bindLogout(): Promise<void> {
-    if (!this.logoutBtn) return;
-    try {
-      const status = await fetchAuthStatus();
-      if (!status.required) return;
-    } catch {
-      return;
-    }
+  private bindLogout(): void {
+    if (!this.logoutBtn || !this.jellyfin?.signedIn) return;
+    if (this.jellyfin.borrowed) {
+      // Jellyfin's web client owns this sign-in; HAPPY only steps out of it.
+      this.logoutBtn.title = 'Leave HAPPY (back to Jellyfin)';
+      this.logoutBtn.setAttribute('aria-label', this.logoutBtn.title);
+    } else if (this.jellyfin.userName) this.logoutBtn.title = `Sign out ${this.jellyfin.userName}`;
     this.logoutBtn.classList.remove('d-none');
     this.logoutBtn.addEventListener('click', () => {
       void logout();
@@ -388,7 +439,7 @@ class App {
     }
 
     if (this.settings.debugLogging) setLogLevel('dglab', 'debug');
-    const coyote = new CoyoteBackend();
+    const coyote = new CoyoteBackend(() => this.jellyfin?.endpoint.token ?? '', this.settings.dglabRelayUrl);
     this.haptics.add(coyote);
     bindDelaySlider(this.createSyncEngine(coyote), 'dglab-delay', DGLAB_DELAY_KEY, 0, this.settings.hapticDelayLimit);
     this.mountDeviceAssignment(coyote, '#dglab-devices');
@@ -567,14 +618,7 @@ class App {
       this.viz.redraw();
     }
     this.publishChannels(scripts);
-    if (track.descriptionFilename) {
-      try {
-        const description = await fetchTrackDescription(track.id);
-        if (this.currentTrackId === track.id) this.renderTrackDescription(description);
-      } catch (err) {
-        console.warn(`[player] Failed to load description for ${track.filename}:`, err);
-      }
-    }
+    this.renderTrackDescription(track.description);
   }
 
   /** Tell the status badges and the assignment UI which channels this track carries. */
@@ -588,25 +632,49 @@ class App {
   private fetchTrackScripts(track: TrackInfo): Promise<LoadedScript[]> {
     const cached = this.scriptCache.get(track.id);
     if (cached) return cached;
+    const chapterLists: RawChapter[][] = [];
     const pending = Promise.all(track.funscripts.map(async (fsInfo) => {
       try {
-        const funscript = await fetchFunscript(track.id, fsInfo.filename);
+        const funscript = await fetchFunscript(track, fsInfo);
+        chapterLists.push(parseFunscriptChapters(funscript));
         const channel: HapticChannel = { type: fsInfo.type, ...(fsInfo.sub ? { sub: fsInfo.sub } : {}) };
         return { channel, prepared: prepareScript(funscript.actions, this.settings.funscriptInterpolationMethod) };
       } catch (err) {
         console.warn(`[player] Failed to load funscript ${fsInfo.filename}:`, err);
         return null;
       }
-    })).then((loaded) => loaded.filter((script): script is LoadedScript => script !== null));
+    })).then((loaded) => {
+      this.applyFunscriptChapters(track, chapterLists);
+      return loaded.filter((script): script is LoadedScript => script !== null);
+    });
     this.scriptCache.set(track.id, pending);
     return pending;
+  }
+
+  /**
+   * Funscript chapters are only known once the scripts are loaded. They replace the track's
+   * chapters unless embedded chapters exist and come first in CHAPTER_SOURCE_PRIORITY.
+   */
+  private applyFunscriptChapters(track: TrackInfo, lists: RawChapter[][]): void {
+    const priority = this.settings.chapterSourcePriority;
+    const funscriptRank = priority.indexOf('funscript');
+    if (funscriptRank < 0) return;
+    if (track.chaptersSource === 'embedded' && priority.indexOf('embedded') < funscriptRank) return;
+    const found = lists.filter((list) => list.length > 0);
+    if (found.length === 0) return;
+    if (found.length > 1) console.warn(`[chapters] ${track.filename}: ${found.length} funscripts define chapters; merging them`);
+    const chapters = normalizeChapters(mergeChapters(found), track.durationSeconds);
+    if (chapters.length === 0) return;
+    track.chapters = chapters;
+    track.chaptersSource = 'funscript';
+    this.session.updateChapters(track.id, chapters, chaptersVttUrl(track));
   }
 
   /** OS-level media controls always describe the playing file, not the browsed one. */
   private applyMediaSessionMetadata(track: TrackInfo): void {
     if (!('mediaSession' in navigator)) return;
     const artwork: MediaImage[] = track.hasArtwork
-      ? [{ src: artworkUrl(track.id, track.artworkVersion), type: 'image/jpeg' }]
+      ? [{ src: artworkUrl(track.id, track.artworkTag), type: 'image/jpeg' }]
       : [];
     navigator.mediaSession.metadata = new MediaMetadata({
       title: track.title,

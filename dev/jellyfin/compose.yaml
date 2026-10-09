@@ -1,0 +1,87 @@
+# Local Jellyfin with the test fixtures and the locally built HAPPY plugin.
+# Driven by scripts/dev-jellyfin.mjs (npm run dev:jellyfin); see docs/developer/local-jellyfin.md.
+#
+# Paths are relative to this file. Docker resolves bind mounts on the host, so this also works from the
+# devcontainer (docker-outside-of-docker), which mounts the workspace at the same absolute path.
+name: happy-dev
+
+x-no-selinux-relabel: &no-selinux-relabel
+  # Fedora/RHEL hosts with SELinux enforcing would otherwise block the bind mounts.
+  security_opt:
+    - label=disable
+
+services:
+  jellyfin:
+    <<: *no-selinux-relabel
+    # Keep the minor in step with Jellyfin.Controller in the plugin's csproj (targetAbi in build.yaml).
+    image: jellyfin/jellyfin:12.1
+    ports:
+      # Not 8096, so it can run next to a real Jellyfin. All interfaces: the devcontainer reaches it through the Docker bridge gateway, phones through the LAN.
+      - "${HAPPY_DEV_JELLYFIN_PORT:-8097}:8096"
+    environment:
+      # Read by the plugin's dev-only file serving (client and docs straight from the working tree).
+      # Set them to empty (HAPPY_DEV_WEB_ROOT= npm run dev:jellyfin) to test the copies embedded in the DLL.
+      HAPPY_DEV_WEB_ROOT: ${HAPPY_DEV_WEB_ROOT-/happy/web}
+      HAPPY_DEV_DOCS_ROOT: ${HAPPY_DEV_DOCS_ROOT-/happy/docs}
+    volumes:
+      - config:/config
+      - cache:/cache
+      # The same fixtures twice: libraries sharing one path would share (and retype) the items.
+      - ../../test/fixtures/media:/media/videos:ro
+      - ../../test/fixtures/media:/media/audio:ro
+      - ../../jellyfin-plugin/artifacts/dev:/config/plugins/HAPPY_dev
+      - ../../public:/happy/web:ro
+      - ../../docs:/happy/docs:ro
+    restart: unless-stopped
+
+  # The DG-Lab relay from dglab-relay/, checking sign-ins with the Jellyfin above.
+  dglab-relay:
+    build:
+      context: ../..
+      dockerfile: dglab-relay/Dockerfile
+    image: happy-dglab-relay:dev
+    ports:
+      - "${HAPPY_DEV_RELAY_PORT:-8070}:8070"
+    environment:
+      JELLYFIN_URL: http://jellyfin:8096
+      LOG_LEVEL: debug
+    restart: unless-stopped
+
+  # One-shot build of the plugin into jellyfin-plugin/artifacts/dev (no .NET SDK needed on the host).
+  plugin-build:
+    <<: *no-selinux-relabel
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    profiles: [tools]
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /src
+    environment:
+      OUT: artifacts/dev
+      CONFIGURATION: Debug
+      HOME: /tmp
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      # Keeps restored packages between runs, inside the gitignored artifacts folder.
+      NUGET_PACKAGES: /src/jellyfin-plugin/artifacts/nuget
+    volumes:
+      - ../..:/src
+    entrypoint: ["sh", "jellyfin-plugin/package.sh"]
+
+  # One-shot `dotnet test` of the plugin (npm run test:plugin).
+  plugin-test:
+    <<: *no-selinux-relabel
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    profiles: [tools]
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /src
+    environment:
+      HOME: /tmp
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      NUGET_PACKAGES: /src/jellyfin-plugin/artifacts/nuget
+    volumes:
+      - ../..:/src
+    entrypoint: ["dotnet", "test", "jellyfin-plugin/Jellyfin.Plugin.Happy.slnx"]
+
+volumes:
+  config:
+  cache:

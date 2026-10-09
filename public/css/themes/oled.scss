@@ -1,0 +1,6 @@
+// OLED: pure black, white accent. The same palette app.scss uses as its defaults.
+@use 'theme';
+
+:root {
+  @include theme.tokens(theme.$oled);
+}

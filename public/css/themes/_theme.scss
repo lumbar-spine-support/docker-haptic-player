@@ -1,0 +1,139 @@
+// ============================================================================
+// Theme tokens
+// ============================================================================
+// A theme is a palette map turned into `--happy-*` custom properties by
+// `tokens()`. app.scss emits the OLED palette as the defaults; each theme file
+// (themes/<name>.scss -> css/themes/<name>.css) re-emits its own palette on
+// :root and is loaded after app.css, so it wins. The app styles and the
+// Bootstrap bridge (scss/_bridge.scss) read colours only through these tokens.
+//
+// States are derived here the way Bootstrap derives them from $primary, so the
+// OLED palette reproduces the previously compiled-in values exactly.
+// ============================================================================
+
+@use 'sass:color';
+@use 'sass:map';
+@use 'sass:math';
+@use 'sass:meta';
+@use 'sass:string';
+
+$font-system: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+// The original HAPPY look: pure black for OLED panels, white accent.
+$oled: (
+  bg: #000,
+  surface: #000,
+  surface-raised: #111,
+  input-bg: #000,
+  menu-bg: #343a40,
+  text: #fff,
+  accent: #fff,
+  secondary: #343a40,
+  divider: #dee2e6,
+  secondary-bg: #e9ecef,
+  tertiary-bg: #f8f9fa,
+  select-indicator: #343a40,
+  code-bg: #1e1e1e,
+  code-text: #d4d4d4,
+  font: $font-system,
+  radius: 0.375rem,
+);
+
+@function tint($c, $weight) {
+  @return color.mix(#fff, $c, $weight);
+}
+
+@function shade($c, $weight) {
+  @return color.mix(#000, $c, $weight);
+}
+
+@function rgb-list($c) {
+  @return math.round(color.channel($c, 'red', $space: rgb)),
+    math.round(color.channel($c, 'green', $space: rgb)),
+    math.round(color.channel($c, 'blue', $space: rgb));
+}
+
+// `#rrggbb` escaped for an SVG data URI.
+@function svg-hex($c) {
+  @return '%23' + string.slice(color.ie-hex-str($c), 4);
+}
+
+@function luminance($c) {
+  $sum: 0;
+  $weights: (0.2126, 0.7152, 0.0722);
+  @each $channel in ('red', 'green', 'blue') {
+    $v: math.div(color.channel($c, $channel, $space: rgb), 255);
+    $v: if($v <= 0.04045, math.div($v, 12.92), math.pow(math.div($v + 0.055, 1.055), 2.4));
+    $sum: $sum + $v * nth($weights, index(('red', 'green', 'blue'), $channel));
+  }
+  @return $sum;
+}
+
+// Black or white, whichever reads better on $c.
+@function on($c) {
+  $l: luminance($c);
+  @return if(math.div(1.05, $l + 0.05) >= math.div($l + 0.05, 0.05), #fff, #000);
+}
+
+// Emits a solid colour role with its button states. $lift `tint` lightens on
+// hover (Bootstrap's dark button), `auto` follows Bootstrap's button-variant.
+@mixin role($name, $c, $on: null, $lift: auto) {
+  $on: if($on, $on, on($c));
+  $lighten: if($lift == auto, $on != #fff, $lift == tint);
+  --happy-#{$name}: #{$c};
+  --happy-#{$name}-rgb: #{rgb-list($c)};
+  --happy-#{$name}-on: #{$on};
+  --happy-#{$name}-focus-rgb: #{rgb-list(color.mix($on, $c, 15%))};
+  @if $lighten {
+    --happy-#{$name}-hover-bg: #{tint($c, 15%)};
+    --happy-#{$name}-hover-border: #{tint($c, 10%)};
+    --happy-#{$name}-active-bg: #{tint($c, 20%)};
+    --happy-#{$name}-active-border: #{tint($c, 10%)};
+  } @else {
+    --happy-#{$name}-hover-bg: #{shade($c, 15%)};
+    --happy-#{$name}-hover-border: #{shade($c, 20%)};
+    --happy-#{$name}-active-bg: #{shade($c, 20%)};
+    --happy-#{$name}-active-border: #{shade($c, 25%)};
+  }
+}
+
+@mixin tokens($t) {
+  $t: map.merge($oled, $t);
+  $accent: map.get($t, accent);
+  $accent-on: if(map.has-key($t, accent-on), map.get($t, accent-on), on($accent));
+  $text: map.get($t, text);
+
+  --happy-bg: #{map.get($t, bg)};
+  --happy-bg-rgb: #{rgb-list(map.get($t, bg))};
+  --happy-surface-raised: #{map.get($t, surface-raised)};
+  --happy-input-bg: #{map.get($t, input-bg)};
+  --happy-menu-bg: #{map.get($t, menu-bg)};
+  --happy-text: #{$text};
+  --happy-text-rgb: #{rgb-list($text)};
+  --happy-divider: #{map.get($t, divider)};
+  --happy-secondary-bg: #{map.get($t, secondary-bg)};
+  --happy-secondary-bg-rgb: #{rgb-list(map.get($t, secondary-bg))};
+  --happy-tertiary-bg: #{map.get($t, tertiary-bg)};
+  --happy-tertiary-bg-rgb: #{rgb-list(map.get($t, tertiary-bg))};
+  --happy-code-bg: #{map.get($t, code-bg)};
+  --happy-code-text: #{map.get($t, code-text)};
+  --happy-font: #{meta.inspect(map.get($t, font))};
+  --happy-radius: #{map.get($t, radius)};
+
+  @include role(accent, $accent, $accent-on);
+  // Chips and links: a step away from the accent, darker on light accents, lighter on dark ones.
+  --happy-accent-hover: #{if($accent-on == #000, shade($accent, 10%), tint($accent, 10%))};
+  $link-hover: if($accent-on == #000, shade($accent, 20%), tint($accent, 20%));
+  --happy-link-hover: #{$link-hover};
+  --happy-link-hover-rgb: #{rgb-list($link-hover)};
+  --happy-accent-focus-border: #{tint($accent, 50%)};
+  --happy-accent-range-active: #{tint($accent, 70%)};
+  @include role(secondary, map.get($t, secondary));
+  @include role(surface, map.get($t, surface), $lift: tint);
+
+  // SVG data URIs can't read custom properties, so the glyphs are baked per theme.
+  --happy-check-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='#{svg-hex($accent-on)}' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+  --happy-switch-knob: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='#{svg-hex($text)}'/%3e%3c/svg%3e");
+  --happy-switch-knob-checked: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='#{svg-hex($accent-on)}'/%3e%3c/svg%3e");
+  --happy-select-indicator: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='#{svg-hex(map.get($t, select-indicator))}' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}

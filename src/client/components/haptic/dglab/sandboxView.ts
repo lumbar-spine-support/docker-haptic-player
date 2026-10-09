@@ -184,7 +184,8 @@ export class DglabSandbox {
 
         if (this.startedAt !== null) {
             const head = (performance.now() - this.startedAt) % windowMs;
-            ctx.strokeStyle = '#f8f9fa';
+            // The playhead follows the theme's text colour; the signal colours above are fixed.
+            ctx.strokeStyle = getComputedStyle(canvas).color;
             ctx.beginPath();
             ctx.moveTo(x(head), 0);
             ctx.lineTo(x(head), height);

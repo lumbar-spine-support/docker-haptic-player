@@ -12,7 +12,8 @@
 
 ⭐ Key features:
 
-- Easily self-hosted using the prebuilt Docker image.
+- Easily self-hosted as a plugin for your [Jellyfin](https://jellyfin.org/) server, with automatic updates.
+- Uses your Jellyfin library: metadata, artwork, chapters, timeline thumbnails and users.
 - [Intiface](https://intiface.com/) interface for wide-raning haptic toys support.
 - Multiple `.funscript` files can be played in parallel.
 - Modern [Video.JS v10](https://videojs.org/blog/videojs-v10-release-candidate) framework for audio and video playback.
@@ -38,38 +39,31 @@
 
 ## Quick Start
 
-### 1. Docker Compose Setup
+HAPPY runs inside your [Jellyfin](https://jellyfin.org/) server as a plugin. Jellyfin manages your media; HAPPY plays it and adds the haptics.
 
-Create a [service](https://docs.docker.com/reference/compose-file/services/) in a `docker-compose.yml` and run it using `docker compose up`. The web interface should be accessible shortly after.
+### 1. Install the Jellyfin Plugin
 
-```yaml
-services:
-  happy:
-    image: ghcr.io/lumbar-spine-support/docker-haptic-player:stable
-    ports:
-      - "8069:8069"
-    environment:
-      PASSWORD: "happy"
-      PORT: 8069
-    volumes:
-      - ./media:/media:ro
-      - ./config:/config
-    restart: unless-stopped
+In Jellyfin, open *Dashboard → Plugins → Repositories* and add HAPPY's plugin repository:
+
 ```
+https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/jellyfin-plugin-repository/manifest.json
+```
+
+Then install **HAPPY** from the plugin *Catalog* and restart Jellyfin. Jellyfin keeps the plugin up to date from now on. Open HAPPY at `<your Jellyfin address>/Happy/Web/` (or *Open HAPPY* on the plugin's settings page) and sign in with your Jellyfin account. Server-wide settings are on the plugin's settings page (*Dashboard → Plugins → HAPPY*).
 
 →  [docs/installation.md](docs/installation.md), [docs/configuration.md](docs/configuration.md)
 
-### 2. Media Library Setup
+### 2. Library Setup
 
-Put your files into the folder you mounted as `./media`. Funscripts and optional descriptions are matched by file name not by folder.
+Put your funscripts next to the media files in your Jellyfin libraries:
 
 ```
-media/
+audio/
 ├── audio.mp3
-├── audio.vibrator.mp3
+└── audio.vibrator.funscript
+video/
 ├── video.mp4
-├── video.stroker.funscript
-└── playlists/favorites.m3u
+└── video.stroker.funscript
 ```
 
 →  [docs/library.md](docs/library.md)
@@ -82,9 +76,26 @@ Once Intiface server is running and your toys are connected, find the IP-address
 
 →  [docs/intiface.md](docs/intiface.md)
 
+### 4. DG-Lab Relay (Optional, for the Coyote 3.0)
+
+The experimental DG-Lab Coyote support needs a small relay between HAPPY and the DG-Lab app. It ships as its own image; run it next to Jellyfin, then enable DG-Lab and enter the relay's address on the plugin's settings page.
+
+```yaml
+services:
+  happy-dglab-relay:
+    image: ghcr.io/lumbar-spine-support/happy-dglab-relay:latest
+    ports:
+      - "8070:8070"
+    environment:
+      JELLYFIN_URL: "http://jellyfin:8096" # Jellyfin as the relay reaches it
+    restart: unless-stopped
+```
+
+→  [docs/dg-lab.md](docs/dg-lab.md#the-relay)
+
 ## Documentation
 
-Note: All docs are also available through the web interface at `http://<HOST>:8069/docs`.
+Note: All docs are also available in HAPPY itself (*Documentation* at the bottom of the settings panel).
 
 - [Overview](docs/index.md)
 - [Installation](docs/installation.md)

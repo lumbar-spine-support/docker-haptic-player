@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Jellyfin.Plugin.Happy</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <DocsRoot>$(MSBuildThisFileDirectory)../../docs/</DocsRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Jellyfin.Controller" Version="12.1.0">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Jellyfin.Model" Version="12.1.0">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SerilogAnalyzer" Version="0.15.0" PrivateAssets="All" />
+    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Jellyfin.Plugin.Happy.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Configuration\configPage.html" />
+    <EmbeddedResource Include="Configuration\configPage.html" />
+  </ItemGroup>
+
+  <!-- User docs shown in HAPPY (GET /Happy/Docs), as resources named docs/<path>. docs/developer stays out. -->
+  <ItemGroup>
+    <EmbeddedResource Include="$(DocsRoot)*.md" LogicalName="docs/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(DocsRoot)**/*.png;$(DocsRoot)**/*.jpg;$(DocsRoot)**/*.jpeg;$(DocsRoot)**/*.gif;$(DocsRoot)**/*.svg;$(DocsRoot)**/*.webp"
+                      Exclude="$(DocsRoot)developer/**"
+                      LogicalName="docs/$([System.String]::Copy('%(RecursiveDir)').Replace('\', '/'))%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- The built HAPPY client (npm run build:client, build:vendor), as resources named web/<path>; source maps stay out. -->
+  <PropertyGroup>
+    <WebRoot>$(MSBuildThisFileDirectory)../../public/</WebRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(WebRoot)index.html;$(WebRoot)manifest.webmanifest;$(WebRoot)icon.svg;$(WebRoot)jellyfin-menu.css;$(WebRoot)img/**/*.svg;$(WebRoot)css/app.css;$(WebRoot)css/themes/*.css;$(WebRoot)js/app.js;$(WebRoot)js/app.css;$(WebRoot)vendor/bootstrap/*.js;$(WebRoot)vendor/bootstrap-icons/**/*"
+                      Exclude="$(WebRoot)**/*.map"
+                      LogicalName="web/$([System.IO.Path]::GetRelativePath('$(WebRoot)', '%(FullPath)').Replace('\', '/'))" />
+  </ItemGroup>
+  <!-- A release without the client would serve an empty app; Debug builds (tests, the dev Jellyfin) don't need it. -->
+  <Target Name="RequireBuiltClient" BeforeTargets="PrepareForBuild" Condition="'$(Configuration)' == 'Release' And !Exists('$(WebRoot)js/app.js')">
+    <Error Text="public/js/app.js is missing. Run `npm run build:client` and `npm run build:vendor` before building the plugin in Release." />
+  </Target>
+
+  <!-- Build details for GET /Happy/Info: dotnet publish -p:HappyCommit=<sha> -p:HappyBuiltAt=<ISO time>. -->
+  <ItemGroup>
+    <AssemblyMetadata Include="HappyCommit" Value="$(HappyCommit)" Condition="'$(HappyCommit)' != ''" />
+    <AssemblyMetadata Include="HappyBuiltAt" Value="$(HappyBuiltAt)" Condition="'$(HappyBuiltAt)' != ''" />
+  </ItemGroup>
+
+</Project>

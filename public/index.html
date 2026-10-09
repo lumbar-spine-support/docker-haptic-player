@@ -4,19 +4,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#000000" />
   <title>HAPPY</title>
-  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-  <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
-  <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.min.css" />
-  <link rel="stylesheet" href="/js/app.css" />
-  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials" />
+  <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="js/app.css" />
+  <link rel="stylesheet" href="css/app.css" />
+  <!-- The theme chosen in the plugin settings (css/themes/<theme>.css), served by the plugin -->
+  <link rel="stylesheet" href="theme.css" />
 </head>
 
 <body>
 
-  <header class="navbar navbar-dark bg-black border-bottom border-secondary">
+  <header class="navbar navbar-dark bg-surface border-bottom border-secondary">
     <div class="container-fluid gap-2">
-      <a id="navbar-home" href="/"
+      <a id="navbar-home" href="./"
         class="navbar-brand fw-bold mb-0 flex-grow-1 text-decoration-none d-flex align-items-center gap-2">
         <span class="navbar-brand-icon" aria-hidden="true"></span>
         HAPPY
@@ -43,9 +46,9 @@
       <div id="library-controls" class="mb-3">
         <div class="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2">
           <div class="input-group input-group-sm flex-grow-1">
-            <span class="input-group-text bg-dark text-light border-secondary"><i class="bi bi-search"></i></span>
+            <span class="input-group-text text-light border-secondary"><i class="bi bi-search"></i></span>
             <div
-              class="form-control bg-dark text-light border-secondary d-flex align-items-center flex-wrap gap-1 search-input-shell">
+              class="form-control text-light border-secondary d-flex align-items-center flex-wrap gap-1 search-input-shell">
               <input id="search-input" type="search"
                 class="search-input-field form-control form-control-sm border-0 bg-transparent text-light shadow-none p-0"
                 placeholder="Search by title, artist or tags..." autocomplete="off" />
@@ -73,6 +76,11 @@
               </button>
               <ul class="dropdown-menu dropdown-menu-dark library-filter-menu" data-filter-menu="haptic"></ul>
             </div>
+            <button id="filter-favorites-toggle"
+              class="btn btn-sm btn-outline-primary library-filter-btn library-favorites-toggle" type="button"
+              aria-pressed="false" aria-label="Favorites only" title="Show favorites only">
+              <i class="bi bi-heart" aria-hidden="true"></i>
+            </button>
             <div class="d-flex gap-2" role="group" aria-label="Sort">
               <div class="dropdown library-sort-field">
                 <button id="sort-field-toggle" class="btn btn-sm btn-outline-primary dropdown-toggle library-filter-btn"
@@ -126,6 +134,7 @@
             <th scope="col" class="text-uppercase d-none d-md-table-cell">Scripts</th>
             <th scope="col" class="sort-header text-uppercase d-none d-md-table-cell" data-sort-field="duration">
               Duration <span class="sort-indicator"></span></th>
+            <th scope="col" style="width:1%"><span class="visually-hidden">Favorite</span></th>
           </tr>
         </thead>
         <tbody id="track-list"></tbody>
@@ -138,6 +147,10 @@
             <div id="detail-title" class="fw-bold fs-3 mb-1"></div>
             <div id="detail-subtitle" class="text-muted mb-1"></div>
             <div id="detail-meta" class="text-muted small mb-3"></div>
+            <button id="btn-detail-favorite" type="button"
+              class="btn btn-sm btn-outline-primary favorite-toggle mb-3 d-none">
+              <i class="bi bi-heart" aria-hidden="true"></i><span class="ms-1" data-favorite-label>Favorite</span>
+            </button>
             <img id="detail-cover" src="" alt="" class="rounded mx-auto d-block"
               style="width:200px;height:200px;object-fit:cover;display:none;" />
           </div>
@@ -170,7 +183,7 @@
             <video-player>
               <video-compat-skin>
                 <!-- Remote Playback must stay enabled: the skin's cast button relies on it. -->
-                <video playsinline controlslist="nodownload"></video>
+                <video playsinline crossorigin="anonymous" controlslist="nodownload"></video>
                 <div class="player-meta d-flex flex-column lh-sm">
                   <media-title class="d-block fw-semibold text-truncate"></media-title>
                   <span class="player-artist d-block small text-truncate"></span>
@@ -183,7 +196,7 @@
           <div id="player-slot-b" class="d-none">
             <video-player>
               <video-compat-skin>
-                <video playsinline controlslist="nodownload"></video>
+                <video playsinline crossorigin="anonymous" controlslist="nodownload"></video>
                 <div class="player-meta d-flex flex-column lh-sm">
                   <media-title class="d-block fw-semibold text-truncate"></media-title>
                   <span class="player-artist d-block small text-truncate"></span>
@@ -213,7 +226,7 @@
               </button>
             </div>
           </div>
-          <div id="visualization" class="bg-black rounded"></div>
+          <div id="visualization" class="bg-app rounded"></div>
         </section>
 
         <section id="track-description-section" class="mb-3 d-none">
@@ -238,13 +251,11 @@
         <div class="row g-2 align-items-end mb-2">
           <div class="col-12 col-md">
             <label for="dglab-sandbox-channel" class="form-label small mb-1">Channel</label>
-            <select id="dglab-sandbox-channel"
-              class="form-select form-select-sm bg-dark text-light border-secondary"></select>
+            <select id="dglab-sandbox-channel" class="form-select form-select-sm text-light border-secondary"></select>
           </div>
           <div class="col-12 col-md">
             <label for="dglab-sandbox-pattern" class="form-label small mb-1">Pattern</label>
-            <select id="dglab-sandbox-pattern"
-              class="form-select form-select-sm bg-dark text-light border-secondary"></select>
+            <select id="dglab-sandbox-pattern" class="form-select form-select-sm text-light border-secondary"></select>
           </div>
           <div class="col-12 col-md-auto">
             <button id="btn-dglab-sandbox-toggle" type="button" class="btn btn-sm btn-primary w-100"
@@ -252,7 +263,7 @@
           </div>
         </div>
         <p id="dglab-sandbox-info" class="small text-muted mb-2"></p>
-        <canvas id="dglab-sandbox-canvas" class="bg-black rounded w-100" style="height:240px"></canvas>
+        <canvas id="dglab-sandbox-canvas" class="bg-app rounded w-100" style="height:240px"></canvas>
         <p class="small text-muted mt-2 mb-0">Orange: pattern position. Blue: pulses at the chosen rate, height is
           strength × width. Red dashed: held strength. Strength, pulse rate and width are set on the device card in the
           settings.</p>
@@ -260,9 +271,9 @@
     </section>
   </main>
 
-  <player-footer id="player-footer" class="player-footer d-none bg-dark border-top border-secondary">
+  <player-footer id="player-footer" class="player-footer d-none border-top border-secondary">
     <button data-footer="info"
-      class="btn btn-dark text-start d-flex align-items-center gap-2 flex-grow-1 min-w-0 p-0 border-0" type="button">
+      class="btn btn-surface text-start d-flex align-items-center gap-2 flex-grow-1 min-w-0 p-0 border-0" type="button">
       <img data-footer="art" src="" alt="" class="rounded player-footer-art" />
       <div class="min-w-0 flex-grow-1">
         <div data-footer="title" class="fw-semibold text-truncate"></div>
@@ -275,7 +286,7 @@
       <i class="bi bi-play-fill" aria-hidden="true"></i>
     </button>
     <div id="player-footer-volume" class="player-footer-volume position-relative flex-shrink-0">
-      <button data-footer="mute" class="btn btn-dark btn-sm rounded-circle player-footer-mute flex-shrink-0"
+      <button data-footer="mute" class="btn btn-surface btn-sm rounded-circle player-footer-mute flex-shrink-0"
         type="button" aria-label="Mute" aria-pressed="false">
         <i class="bi bi-volume-up-fill" aria-hidden="true"></i>
       </button>
@@ -296,8 +307,7 @@
           <span id="intiface-status" class="badge bg-secondary">Disconnected</span>
         </h6>
         <div class="input-group input-group-sm mb-3">
-          <select id="intiface-scheme"
-            class="form-select form-select-sm bg-dark text-light border-secondary flex-grow-0 w-auto"
+          <select id="intiface-scheme" class="form-select form-select-sm text-light border-secondary flex-grow-0 w-auto"
             aria-label="Intiface websocket scheme">
             <option value="ws://" selected>ws://</option>
             <option value="wss://">wss://</option>
@@ -333,13 +343,12 @@
       </div>
 
       <div class="settings-section" id="dglab-section">
-        <hr>
         <h6 class="settings-header">
           <span>Dungeon Lab</span>
           <span id="dglab-status" class="badge bg-secondary">Disconnected</span>
         </h6>
         <div id="dglab-host-group" class="input-group input-group-sm">
-          <span class="input-group-text bg-dark text-light border-secondary">ws://</span>
+          <span class="input-group-text text-light border-secondary">ws://</span>
           <input id="dglab-host" type="text" class="form-control form-control-sm border-secondary"
             placeholder="192.168.1.10:3000" aria-label="Address the DG-Lab app should connect to" />
           <button id="btn-dglab-reset" class="btn btn-sm btn-outline-primary" type="button">
@@ -373,7 +382,6 @@
       </div>
 
       <div class="settings-section">
-        <hr>
         <h6 class="settings-header">Appearance</h6>
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" role="switch" id="blur-content-toggle" />
@@ -398,13 +406,15 @@
       <div class="mt-auto pt-3 d-flex flex-column align-items-center gap-2">
         <a id="btn-docs" class="btn btn-outline-primary w-100" href="?view=docs&amp;id=index" title="Documentation"
           data-bs-dismiss="offcanvas"><i class="bi bi-journal-text me-2"></i>Documentation</a>
+        <a id="btn-jellyfin" class="btn btn-outline-primary w-100" href="../../web/" title="Jellyfin's web client"><i
+            class="bi bi-box-arrow-up-left me-2"></i>Back to Jellyfin</a>
         <span id="app-version" class="badge bg-secondary" title="Application version">v…</span>
       </div>
     </div>
   </div>
 
-  <script defer src="/vendor/bootstrap/bootstrap.bundle.min.js"></script>
-  <script defer src="/js/app.js"></script>
+  <script defer src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
+  <script defer src="js/app.js"></script>
 </body>
 
 </html>

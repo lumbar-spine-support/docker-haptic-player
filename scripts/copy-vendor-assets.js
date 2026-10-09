@@ -78,12 +78,8 @@ try {
     path.join(vendor, 'bootstrap-icons', 'fonts'),
   );
 
-  // Video.js 10 is an ESM package. Copy its module and stylesheet tree for
-  // browser experiments; it no longer provides the legacy global video.min.js.
-  copyDir(
-    path.join(nm, '@videojs', 'html', 'dist', 'default'),
-    path.join(vendor, '@videojs', 'html'),
-  );
+  // Video.js 10 is bundled into js/app.js by esbuild, so it needs no copy here.
+  fs.rmSync(path.join(vendor, '@videojs'), { recursive: true, force: true });
 
   console.log(
     `Vendor assets copied to public/vendor/ (${copiedCount} files, ${formatSize(copiedBytes)})`,

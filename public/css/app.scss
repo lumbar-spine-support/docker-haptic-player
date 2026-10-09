@@ -1,16 +1,23 @@
 // ============================================================================
 // Application stylesheet
 // ============================================================================
-// Themed Bootstrap plus all app-specific modules. Served only to authenticated
-// clients; the login page uses auth.scss instead.
+// Themed Bootstrap plus all app-specific modules. Colours come from the
+// `--happy-*` tokens (themes/_theme.scss); the OLED palette is the default and
+// the plugin's theme.css (css/themes/<name>.css) overrides it.
 // ============================================================================
 
 // All @use rules MUST come first
+@use 'themes/theme';
 @use 'scss/layout';
 @use 'scss/components';
 @use 'scss/utilities';
 @use 'scss/player';
 @use 'scss/videojs';
 
-// Themed Bootstrap, shared with the login page
+:root {
+  @include theme.tokens(theme.$oled);
+}
+
+// Themed Bootstrap, then the bridge that points its compiled-in colours at the tokens
 @import 'scss/bootstrap-theme';
+@import 'scss/bridge';

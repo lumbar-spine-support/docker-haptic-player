@@ -2,14 +2,32 @@
 
 # Authentication
 
-HAPPY has a very simple authentication system. A single shared password. Nothing — not the page, not the JavaScript bundle, not the API — is served before you sign in. There are no user accounts. Not sure why you would need that for a porn stash...
+HAPPY has no accounts or passwords of its own. Your media, artwork and funscripts come from Jellyfin, so HAPPY asks you to sign in with your **Jellyfin user name and password**.
 
-Signing in stores an access token in an `HttpOnly` cookie and appends it to `tokens.txt` in the config directory. Because that directory is the `/config` mount, you stay signed in across container restarts and image upgrades. If the config directory is not writable, the server logs a `[tokens]` warning at startup and keeps sessions in memory only — login works, but every restart requires signing in again.
+## Signing in
 
-**To sign every device out, simply delete the token file:**
+If you are already signed in to Jellyfin's web client in the same browser (for example when you open HAPPY from Jellyfin's menu), HAPPY uses that sign-in and asks for nothing. Otherwise, the first time you open HAPPY in a browser it shows a sign-in card for the Jellyfin server HAPPY runs on. After signing in you see exactly the libraries that Jellyfin user can access, and the HAPPY plugin only hands out funscripts of those items.
 
-```bash
-rm ./config/tokens.txt
-```
+The sign-in is remembered in the browser. Each browser shows up once in Jellyfin under *Dashboard → Devices*, where you can also end its session. If Jellyfin rejects the stored session later (because it was ended there, or the user was removed), HAPPY shows the sign-in card again.
 
-This takes effect immediately, no restart needed. You can also open the settings panel and use *Sign out* to revoke only the current device.
+## Signing out
+
+The lock button in the header (its tooltip names the signed-in user) ends the session in Jellyfin and returns to the sign-in card.
+
+If HAPPY uses the sign-in of Jellyfin's web client, the lock button is *Leave HAPPY* instead. It goes back to Jellyfin's web client, which stays signed in. To sign out completely, sign out in Jellyfin.
+
+## Controlling access
+
+Who may use HAPPY, and which media they see, is decided in Jellyfin:
+
+- Create a Jellyfin user for each person and give them access only to the libraries they should see.
+- Disable or delete a user in Jellyfin to lock them out of HAPPY too.
+
+The HAPPY page itself (the app and the built-in docs, under `/Happy/Web/` and `/Happy/Docs/`) is served without a sign-in, so it can show the sign-in card. It contains no media and nothing from your libraries. HAPPY's settings and everything from your libraries need a signed-in user.
+
+Note that Jellyfin itself may serve the original media file (`/Videos/{id}/stream?static=true`) to anyone who knows the item's id, even without a token. Item ids are long random values that HAPPY only hands to signed-in users, but if that matters to you, restrict access to Jellyfin itself (for example with your reverse proxy). Funscripts, trickplay images and the library listing always require a signed-in user.
+
+## Casting and the DG-Lab relay
+
+- **Chromecast and AirPlay:** stream URLs carry your Jellyfin access token, so a remote receiver can play the file without signing in itself.
+- **DG-Lab Coyote:** the [DG-Lab relay](dg-lab.md#the-relay) only accepts browser tabs that are signed in to Jellyfin. It checks the tab's token with Jellyfin (the relay's `JELLYFIN_URL`) when the tab connects. The DG-Lab app itself pairs with the one-time link HAPPY shows.
