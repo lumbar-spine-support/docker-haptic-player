@@ -167,6 +167,19 @@
   --bs-dropdown-link-active-bg: var(--happy-accent);
 }
 
+// Bootstrap tints .table-dark's states with white; the text colour does that per theme.
+.table-dark {
+  --bs-table-color: var(--happy-text);
+  --bs-table-bg: var(--happy-bg);
+  --bs-table-border-color: rgba(var(--happy-text-rgb), 0.2);
+  --bs-table-striped-bg: color-mix(in srgb, var(--happy-bg), var(--happy-text) 5%);
+  --bs-table-striped-color: var(--happy-text);
+  --bs-table-active-bg: color-mix(in srgb, var(--happy-bg), var(--happy-text) 10%);
+  --bs-table-active-color: var(--happy-text);
+  --bs-table-hover-bg: color-mix(in srgb, var(--happy-bg), var(--happy-text) 7.5%);
+  --bs-table-hover-color: var(--happy-text);
+}
+
 .card {
   --bs-card-bg: var(--happy-surface);
 }
