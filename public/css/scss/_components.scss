@@ -336,3 +336,27 @@ tr {
     vertical-align: middle;
   }
 }
+
+// Jellyfin favorites: heart buttons on cards, list rows, the file page and playlists.
+.favorite-btn {
+  // Through Bootstrap's button variables, so hover, focus and active states agree.
+  --bs-btn-color: var(--bs-secondary-color);
+  --bs-btn-hover-color: var(--app-color-danger-soft);
+  --bs-btn-active-color: var(--app-color-danger);
+  font-size: 0.9rem;
+  text-decoration: none;
+
+  &.is-favorite {
+    --bs-btn-color: var(--app-color-danger);
+    --bs-btn-hover-color: var(--app-color-danger);
+  }
+}
+
+.favorite-toggle.is-favorite i,
+.library-favorites-toggle.active i {
+  color: var(--app-color-danger);
+}
+
+.favorite-cell {
+  width: 1%;
+}

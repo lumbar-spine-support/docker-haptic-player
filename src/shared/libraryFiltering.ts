@@ -208,3 +208,11 @@ export function playlistMatchesHapticFilters(
   }
   return allowedHapticTypes.every((type) => available.has(type));
 }
+
+/** Albums are grouped client-side and have no Jellyfin favorite of their own: one favorite track makes the album one. */
+export function albumHasFavorite(
+  album: Pick<AlbumInfo, 'trackIds'>,
+  tracksById: Map<string, Pick<TrackInfo, 'isFavorite'>>,
+): boolean {
+  return album.trackIds.some((trackId) => tracksById.get(trackId)?.isFavorite === true);
+}

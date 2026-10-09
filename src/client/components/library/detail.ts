@@ -2,6 +2,7 @@ import { applyPlaylistCover } from '../../api';
 import { detailRowHtml } from '../../templates';
 import { qs } from '../../utils/html';
 import { renderHapticIcons } from '../haptic/icons';
+import { bindFavoriteButton } from './favorites';
 import type { AlbumInfo, FunscriptInfo, PlaylistInfo, QueueSource, TrackInfo } from '../../../shared/types';
 
 type DetailContext =
@@ -31,6 +32,7 @@ export class DetailView {
     private readonly playBtn = qs<HTMLButtonElement>('#btn-detail-play');
     private readonly cover = qs<HTMLImageElement>('#detail-cover');
     private readonly meta = qs<HTMLElement>('#detail-meta');
+    private readonly favoriteBtn = qs<HTMLButtonElement>('#btn-detail-favorite');
     private context: DetailContext | null = null;
 
     constructor(private readonly options: DetailViewOptions) {
@@ -60,6 +62,7 @@ export class DetailView {
             onClick: () => this.options.openTrack(entry.trackId, source, true),
         })));
         if (this.playBtn) this.playBtn.disabled = !playlist.entries[0]?.trackId;
+        if (this.favoriteBtn) bindFavoriteButton(this.favoriteBtn, playlist);
     }
 
     showAlbum(album: AlbumInfo): void {
@@ -79,6 +82,8 @@ export class DetailView {
             };
         }));
         if (this.playBtn) this.playBtn.disabled = !album.trackIds[0];
+        // Albums are grouped client-side; Jellyfin has no item to mark.
+        if (this.favoriteBtn) bindFavoriteButton(this.favoriteBtn, null);
     }
 
     private playFirst(): void {

@@ -73,6 +73,11 @@
               </button>
               <ul class="dropdown-menu dropdown-menu-dark library-filter-menu" data-filter-menu="haptic"></ul>
             </div>
+            <button id="filter-favorites-toggle"
+              class="btn btn-sm btn-outline-primary library-filter-btn library-favorites-toggle" type="button"
+              aria-pressed="false" aria-label="Favorites only" title="Show favorites only">
+              <i class="bi bi-heart" aria-hidden="true"></i>
+            </button>
             <div class="d-flex gap-2" role="group" aria-label="Sort">
               <div class="dropdown library-sort-field">
                 <button id="sort-field-toggle" class="btn btn-sm btn-outline-primary dropdown-toggle library-filter-btn"
@@ -126,6 +131,7 @@
             <th scope="col" class="text-uppercase d-none d-md-table-cell">Scripts</th>
             <th scope="col" class="sort-header text-uppercase d-none d-md-table-cell" data-sort-field="duration">
               Duration <span class="sort-indicator"></span></th>
+            <th scope="col" style="width:1%"><span class="visually-hidden">Favorite</span></th>
           </tr>
         </thead>
         <tbody id="track-list"></tbody>
@@ -138,6 +144,9 @@
             <div id="detail-title" class="fw-bold fs-3 mb-1"></div>
             <div id="detail-subtitle" class="text-muted mb-1"></div>
             <div id="detail-meta" class="text-muted small mb-3"></div>
+            <button id="btn-detail-favorite" type="button" class="btn btn-sm btn-outline-primary favorite-toggle mb-3 d-none">
+              <i class="bi bi-heart" aria-hidden="true"></i><span class="ms-1" data-favorite-label>Favorite</span>
+            </button>
             <img id="detail-cover" src="" alt="" class="rounded mx-auto d-block"
               style="width:200px;height:200px;object-fit:cover;display:none;" />
           </div>

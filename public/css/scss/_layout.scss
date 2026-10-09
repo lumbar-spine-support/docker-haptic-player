@@ -424,6 +424,11 @@ body.blur-content media-container {
     min-width: 0;
   }
 
+  // A single icon; it keeps its size while the dropdowns share the rest.
+  .library-filter-group>.library-favorites-toggle {
+    flex: 0 0 auto;
+  }
+
   .library-filter-group .dropdown-toggle {
     width: 100%;
     justify-content: space-between;

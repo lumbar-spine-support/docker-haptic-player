@@ -210,3 +210,28 @@ test(`${TAG} artist filters are removed like regular tags`, () => {
     (library as any).removeTag('artist:Kinkyshibby');
     assert.deepEqual(library.activeTags_readonly, ['asmr']);
 });
+
+test(`${TAG} the favorites filter keeps favorite tracks, albums with one and favorite playlists`, () => {
+    const library = new Library(makeCallbacks());
+    (library as any).tracks = [
+        makeTrack({ id: 't1', isFavorite: true }),
+        makeTrack({ id: 't2', isFavorite: false }),
+    ];
+    (library as any).videos = [makeTrack({ id: 'v1', type: 'video', isFavorite: true })];
+    (library as any).albums = [
+        makeAlbum({ id: 'a1', trackIds: ['t1', 't2'] }),
+        makeAlbum({ id: 'a2', trackIds: ['t2'] }),
+    ];
+    (library as any).playlists = [
+        makePlaylist({ id: 'p1', isFavorite: true }),
+        makePlaylist({ id: 'p2', isFavorite: false }),
+    ];
+
+    assert.equal((library as any).filterTrackList((library as any).tracks).length, 2, 'off by default');
+
+    (library as any).favoritesOnly = true;
+    assert.deepEqual((library as any).filterTrackList((library as any).tracks).map((t: TrackInfo) => t.id), ['t1']);
+    assert.deepEqual((library as any).filterTrackList((library as any).videos).map((t: TrackInfo) => t.id), ['v1']);
+    assert.deepEqual((library as any).getFilteredAlbums().map((a: AlbumInfo) => a.id), ['a1']);
+    assert.deepEqual((library as any).getFilteredPlaylists().map((p: PlaylistInfo) => p.id), ['p1']);
+});

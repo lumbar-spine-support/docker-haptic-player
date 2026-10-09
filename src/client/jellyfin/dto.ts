@@ -17,6 +17,11 @@ export interface JellyfinChapterDto {
     Name?: string | null;
 }
 
+/** The signed-in user's data on an item (`EnableUserData=true`). */
+export interface JellyfinUserDataDto {
+    IsFavorite?: boolean | null;
+}
+
 /** `BaseItemDto`, requested with `Fields=Path,Tags,Genres,Overview,Chapters,Trickplay`. */
 export interface JellyfinItemDto {
     Id: string;
@@ -38,6 +43,7 @@ export interface JellyfinItemDto {
     Chapters?: JellyfinChapterDto[] | null;
     /** Media source id → resolution (thumbnail width) → sheet layout. */
     Trickplay?: Record<string, Record<string, JellyfinTrickplayDto>> | null;
+    UserData?: JellyfinUserDataDto | null;
 }
 
 export interface JellyfinItemsResult {

@@ -69,6 +69,8 @@ export interface TrackInfo extends LibraryItemBase {
   durationSeconds: number;
   funscripts: FunscriptInfo[];
   tags: string[];
+  /** Marked as a favorite by the signed-in Jellyfin user. */
+  isFavorite: boolean;
   /** Sorted, non-overlapping chapters; absent when no configured source provides any. */
   chapters?: Chapter[];
   chaptersSource?: ChapterSource;
@@ -116,6 +118,8 @@ export interface PlaylistInfo {
   year: string;
   durationSeconds: number;
   entries: PlaylistEntry[];
+  /** Marked as a favorite by the signed-in Jellyfin user. */
+  isFavorite: boolean;
 }
 
 /** A single action entry inside a Funscript file. */

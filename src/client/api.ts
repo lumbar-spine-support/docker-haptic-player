@@ -3,7 +3,7 @@ import { DEFAULT_FUNSCRIPT_SUFFIXES } from '../shared/funscriptNames';
 import { parseVrFormat } from '../shared/vrFormat';
 import { buildChaptersVtt } from '../shared/webvtt';
 import type { JellyfinConnection } from './jellyfin/connection';
-import { loadLibrary } from './jellyfin/library';
+import { loadLibrary, setFavorite } from './jellyfin/library';
 import type { MapOptions } from './jellyfin/mapper';
 import { imageUrl, streamUrl, trickplayVtt } from './jellyfin/urls';
 import { versionFromPluginInfo, type PluginInfo } from './utils/formatVersion';
@@ -26,6 +26,11 @@ function requireJellyfin(): JellyfinConnection {
 /** Loads the whole library from Jellyfin into the client's in-memory model. */
 export function fetchLibrary(): Promise<LibraryResponse> {
   return loadLibrary(requireJellyfin(), mapOptions);
+}
+
+/** Marks or unmarks a track, video or playlist as a Jellyfin favorite; resolves to the stored state. */
+export function setJellyfinFavorite(itemId: string, favorite: boolean): Promise<boolean> {
+  return setFavorite(requireJellyfin(), itemId, favorite);
 }
 
 /** Fetches one funscript through the HAPPY Jellyfin plugin. The raw JSON also carries chapter metadata. */

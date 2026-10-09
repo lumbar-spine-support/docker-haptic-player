@@ -82,6 +82,8 @@ import chevronDownIconSource from 'bootstrap-icons/icons/chevron-down.svg';
 import fullscreenExitIconSource from 'bootstrap-icons/icons/fullscreen-exit.svg';
 import fullscreenIconSource from 'bootstrap-icons/icons/fullscreen.svg';
 import gearIconSource from 'bootstrap-icons/icons/gear.svg';
+import heartIconSource from 'bootstrap-icons/icons/heart.svg';
+import heartFillIconSource from 'bootstrap-icons/icons/heart-fill.svg';
 import pauseFillIconSource from 'bootstrap-icons/icons/pause-fill.svg';
 import phoneIconSource from 'bootstrap-icons/icons/phone.svg';
 import pipIconSource from 'bootstrap-icons/icons/pip.svg';
@@ -109,6 +111,8 @@ registerIcons('compat', {
   chevron: stripBootstrapClassesFromSource(chevronDownIconSource),
   'fullscreen-enter': stripBootstrapClassesFromSource(fullscreenIconSource),
   'fullscreen-exit': stripBootstrapClassesFromSource(fullscreenExitIconSource),
+  'favorite-off': stripBootstrapClassesFromSource(heartIconSource),
+  'favorite-on': stripBootstrapClassesFromSource(heartFillIconSource),
   gear: stripBootstrapClassesFromSource(gearIconSource),
   loop: stripBootstrapClassesFromSource(repeatIconSource),
   pause: stripBootstrapClassesFromSource(pauseFillIconSource),

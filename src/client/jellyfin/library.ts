@@ -1,5 +1,5 @@
 import type { LibraryResponse } from '../../shared/types';
-import type { HappyFunscriptListing, JellyfinItemsResult, JellyfinPlaylist } from './dto';
+import type { HappyFunscriptListing, JellyfinItemsResult, JellyfinPlaylist, JellyfinUserDataDto } from './dto';
 import { buildLibrary, type MapOptions } from './mapper';
 
 /** What the loader needs from a signed-in Jellyfin session; the browser connection and the integration tests both provide it. */
@@ -37,7 +37,7 @@ async function loadFunscripts(api: JellyfinApi): Promise<HappyFunscriptListing> 
 
 async function loadPlaylists(api: JellyfinApi): Promise<JellyfinPlaylist[]> {
     const user = encodeURIComponent(api.userId);
-    const { Items } = await getJson<JellyfinItemsResult>(api, `/Items?userId=${user}&Recursive=true&IncludeItemTypes=Playlist`, 'Playlist listing');
+    const { Items } = await getJson<JellyfinItemsResult>(api, `/Items?userId=${user}&Recursive=true&IncludeItemTypes=Playlist&EnableUserData=true`, 'Playlist listing');
     return Promise.all(Items.map(async (item) => {
         const { Items: entries } = await getJson<JellyfinItemsResult>(
             api, `/Playlists/${encodeURIComponent(item.Id)}/Items?userId=${user}`, 'Playlist entries');
@@ -51,10 +51,23 @@ export async function loadLibrary(api: JellyfinApi, options: MapOptions): Promis
     const [items, funscripts, playlists] = await Promise.all([
         getJson<JellyfinItemsResult>(api,
             `/Items?userId=${user}&Recursive=true&IncludeItemTypes=${PLAYABLE_TYPES}&Fields=${ITEM_FIELDS}`
-            + '&SortBy=SortName&EnableImageTypes=Primary&ImageTypeLimit=1&EnableTotalRecordCount=false',
+            + '&SortBy=SortName&EnableImageTypes=Primary&ImageTypeLimit=1&EnableUserData=true&EnableTotalRecordCount=false',
             'Library fetch'),
         loadFunscripts(api),
         loadPlaylists(api),
     ]);
     return buildLibrary(items.Items, funscripts, playlists, options);
+}
+
+/**
+ * Marks or unmarks an item as a favorite of the signed-in user, the same flag Jellyfin's own
+ * clients show. Returns the state Jellyfin stored.
+ */
+export async function setFavorite(api: JellyfinApi, itemId: string, favorite: boolean): Promise<boolean> {
+    const res = await api.request(
+        `/UserFavoriteItems/${encodeURIComponent(itemId)}?userId=${encodeURIComponent(api.userId)}`,
+        { method: favorite ? 'POST' : 'DELETE' });
+    if (!res.ok) throw new JellyfinRequestError(res.status, favorite ? 'Adding a favorite' : 'Removing a favorite');
+    const data = await res.json().catch(() => null) as JellyfinUserDataDto | null;
+    return typeof data?.IsFavorite === 'boolean' ? data.IsFavorite : favorite;
 }

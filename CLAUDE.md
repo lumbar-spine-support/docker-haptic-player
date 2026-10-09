@@ -36,7 +36,7 @@ Tests against a real Jellyfin live in `test/integration/jellyfin/` and run only 
 
 - `src/client/` — bundled by esbuild (`scripts/build-client.js`) into `public/js/app.js`.
 - `src/shared/` — pure code (haptic channels, interpolation, VR format detection, chapters/WebVTT, library filtering); the relay imports `dglab.ts` from here too. Keep it free of DOM and Node APIs.
-- `@/components/videojs/` — Video.js v10 skin, features (chapters, loop, repeat, skip, vr) and UI elements, imported via the `@/*` path alias (tsconfig `paths` + esbuild `alias`).
+- `@/components/videojs/` — Video.js v10 skin, features (chapters, favorite, loop, repeat, skip, vr) and UI elements, imported via the `@/*` path alias (tsconfig `paths` + esbuild `alias`).
 - `.html` and `.svg` files are imported as text strings (esbuild `text` loader) and used as templates via `src/client/utils/template.ts`. Tests that transitively import templates must register a `.html` loader (see `test/client/library.test.ts` or `test/helpers/htmlLoader.mjs`).
 - `public/` holds the static shell, SCSS and icons; generated output (`public/js`, `public/vendor`, compiled CSS) is gitignored. A Release build of the plugin embeds `public/` (without source maps), so build the client first.
 - `config/` (gitignored): `test.env` for `npm run test:jellyfin` and `dev-jellyfin.env` (credentials written by `npm run dev:jellyfin`).

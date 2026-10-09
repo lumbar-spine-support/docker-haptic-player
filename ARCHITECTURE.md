@@ -255,6 +255,10 @@ Media elements cannot send headers, so stream and trickplay sheet URLs carry the
   scripts load, and replace them according to the configured `chapterSourcePriority`
   (`PlaybackSession.updateChapters()` swaps the chapter track without reloading the media)
 - trickplay uses the resolution closest to 320 px
+- favorites are Jellyfin's per-user `UserData.IsFavorite` (requested with `EnableUserData=true`) on
+  tracks, videos and playlists; client-side albums have none. HAPPY writes them back with
+  `POST`/`DELETE /UserFavoriteItems/{id}` (`setFavorite()`), optimistically, and they are the only
+  thing the client writes to Jellyfin's library data
 
 ### Generated WebVTT and origins
 

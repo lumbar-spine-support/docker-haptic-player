@@ -3,6 +3,7 @@ import type { VideoPlayerElement } from '@videojs/html/video';
 import type { Chapter, PlaybackRequest } from '../../../shared/types';
 import { vrFormatToAttribute } from '../../../shared/vrFormat';
 import { selectLoop } from '@/components/videojs/features/loop';
+import { TRACK_ID_ATTRIBUTE } from '@/components/videojs/features/favorite';
 import { setMediaChapters, setMediaStoryboard } from '@/components/videojs/features/chapters';
 
 interface PlayerSlot {
@@ -188,6 +189,7 @@ export class PlaybackSession {
         }
         const artist = request.artist.trim();
         const year = request.year.trim();
+        slot.el.setAttribute(TRACK_ID_ATTRIBUTE, request.id);
         slot.el.setAttribute('content-title', request.title);
         if (slot.artistEl) {
             slot.artistEl.textContent = artist;

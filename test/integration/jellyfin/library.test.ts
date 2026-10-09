@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { login, skip, type JellyfinSession } from './session';
-import { loadLibrary } from '../../../src/client/jellyfin/library';
+import { loadLibrary, setFavorite } from '../../../src/client/jellyfin/library';
 import { imageUrl, streamUrl, trickplaySheetUrl, trickplayVtt } from '../../../src/client/jellyfin/urls';
 import { DEFAULT_FUNSCRIPT_SUFFIXES } from '../../../src/shared/funscriptNames';
 import type { LibraryResponse, TrackInfo } from '../../../src/shared/types';
@@ -110,4 +110,19 @@ test('[jellyfin-library] the storyboard VTT points at sheets the browser can loa
     await res.body?.cancel();
     assert.equal(res.status, 200, 'the token in the sheet URL is accepted');
     assert.match(String(res.headers.get('content-type')), /^image\//);
+});
+
+test('[jellyfin-library] favorites round-trip through Jellyfin', { skip }, async (t) => {
+    const track = media[0];
+    if (!track) return t.skip('no playable items visible to the test user');
+    const original = track.isFavorite;
+    assert.equal(typeof original, 'boolean');
+    try {
+        assert.equal(await setFavorite(session, track.id, !original), !original);
+        const reloaded = await loadLibrary(session, { funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES, chapterSourcePriority: ['embedded'] });
+        const again = [...reloaded.tracks, ...reloaded.videos].find((candidate) => candidate.id === track.id);
+        assert.equal(again?.isFavorite, !original, 'the library sees the new state');
+    } finally {
+        assert.equal(await setFavorite(session, track.id, original), original, 'restores the original state');
+    }
 });

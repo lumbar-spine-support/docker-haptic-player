@@ -53,13 +53,22 @@ Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Puddletag](https://docs.puddletag
 
 ## Filtering and sorting
 
-Next to the search box are three controls:
+Next to the search box are four controls:
 
 - **Media type**: a dropdown to limit the library to albums, audio, playlists and/or videos. With nothing selected, everything is shown.
 - **Haptics**: a dropdown to show only items that have scripts for every selected toy type.
+- **Favorites** (heart): show only your favorites (see [Favorites](#favorites)).
 - **Sort**: pick the field (Title, Artist, Year, Duration, Type) and click the arrow button next to it to reverse the order. Items without a value (e.g. playlists have no year) are always listed last.
 
 Sorting applies to the grid and the list view alike, and all media types are sorted together. In the list view you can also click a column header. Filters and sort order are remembered in the browser.
+
+## Favorites
+
+HAPPY uses the favorites of your Jellyfin account, the same ones Jellyfin's own apps show with a heart. Click the heart on a card, in the list view, in the player's control bar (next to the repeat button) or on a playlist's page to add or remove a favorite; HAPPY saves it in Jellyfin right away.
+
+- Audio files, videos and playlists can be favorites. Albums are grouped by HAPPY, not by Jellyfin, so they have no heart of their own; with the favorites filter on, an album is shown when one of its tracks is a favorite.
+- Favorites you change in another Jellyfin app show up in HAPPY after a page reload.
+- With the favorites filter on, an item you remove from your favorites stays visible until the library is redrawn (for example when you change a filter), so it does not vanish under your mouse.
 
 ## Cover art in the grid view
 

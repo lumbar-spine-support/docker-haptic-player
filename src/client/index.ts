@@ -28,6 +28,8 @@ import { Visualization } from './components/haptic/visualization';
 import { Markdown } from './components/markdown';
 import { Library } from './components/library';
 import { DetailView } from './components/library/detail';
+import { toggleFavorite } from './components/library/favorites';
+import { setFavoriteTarget } from '@/components/videojs/features/favorite';
 import { bindIntifaceSettings } from './components/settings/intiface';
 import { bindDelaySlider, bindUpdateRateSlider } from './components/settings/haptics';
 import { bindToggle } from './components/settings/toggle';
@@ -166,6 +168,14 @@ class App {
       openTrack: (id, source, autoplay) => { void this.openTrack(id, true, source, autoplay); },
     });
     this.playback = new PlaybackController(this.library, this.queue, session);
+    // The heart in each player's control bar asks about the track that player holds.
+    setFavoriteTarget({
+      isFavorite: (id) => this.library.getTrack(id)?.isFavorite ?? null,
+      toggle: (id) => {
+        const track = this.library.getTrack(id);
+        return track ? toggleFavorite(track) : undefined;
+      },
+    });
   }
 
   /** All playable media items (audio tracks and videos combined). */

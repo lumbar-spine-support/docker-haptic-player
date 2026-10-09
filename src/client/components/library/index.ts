@@ -5,6 +5,7 @@ import { renderHapticIcons, ROLE_ICON_CLASSES, ROLE_LABELS } from '../haptic/ico
 import { formatHoursMinutes } from '../../utils/formatTime';
 import { classifyArtAspect } from '../../utils/artAspect';
 import {
+    albumHasFavorite,
     albumMatchesActiveTags,
     albumMatchesHapticFilters,
     artistTagValue,
@@ -29,6 +30,7 @@ import {
     tagChipActiveHtml,
     tagChipArtistActiveHtml,
 } from './templates';
+import { createFavoriteButton, type FavoriteItem } from './favorites';
 
 type LibraryViewMode = 'grid' | 'list' | 'tags';
 
@@ -100,6 +102,7 @@ export class Library {
     private readonly loading = qs<HTMLElement>('#loading');
     private readonly error = qs<HTMLElement>('#error-msg');
     private readonly navbarHomeLink = qs<HTMLAnchorElement>('#navbar-home');
+    private readonly favoritesToggle = qs<HTMLButtonElement>('#filter-favorites-toggle');
 
     // State
     private tracks: TrackInfo[] = [];
@@ -114,6 +117,8 @@ export class Library {
     private mediaFilters = new Set<MediaFilterKey>();
     /** Items must provide every selected haptic type; empty means no haptic filter. */
     private hapticFilters = new Set<FunscriptType>();
+    /** Only the user's Jellyfin favorites (albums: those containing one). */
+    private favoritesOnly = false;
     private currentViewMode: LibraryViewMode = 'grid';
     private loaded = false;
     private forceSquareArtwork = false;
@@ -164,7 +169,7 @@ export class Library {
         const tracksById = new Map(this.allMedia().map((track) => [track.id, track]));
 
         if (tracks.length === 0 && videos.length === 0 && visibleAlbums.length === 0 && visiblePlaylists.length === 0) {
-            const hasActiveFilter = this.mediaFilters.size > 0 || this.hapticFilters.size > 0;
+            const hasActiveFilter = this.mediaFilters.size > 0 || this.hapticFilters.size > 0 || this.favoritesOnly;
             const msg = (isSearching || hasActiveFilter) ? 'No items match your search or filters.' : 'No media files found in the media directory.';
             this.grid.innerHTML = emptyStateHtml({ message: msg });
             return;
@@ -293,6 +298,7 @@ export class Library {
             (key) => `haptic-${key}`,
             'Any haptics',
         );
+        this.bindFavoritesFilter();
         this.bindSortControls();
 
         applyView(viewMode);
@@ -517,6 +523,7 @@ export class Library {
         } catch { /* fall back to no filters */ }
         for (const { key } of MEDIA_FILTERS) if (parsed[key] === true) this.mediaFilters.add(key);
         for (const type of HAPTIC_TYPES) if (parsed[`haptic-${type}`] === true) this.hapticFilters.add(type);
+        this.favoritesOnly = parsed.favorites === true;
         // Every media type selected is the same as none; keep the menu showing "All".
         if (this.mediaFilters.size === MEDIA_FILTERS.length) this.mediaFilters.clear();
 
@@ -531,6 +538,7 @@ export class Library {
         const stored: Record<string, boolean> = {};
         for (const { key } of MEDIA_FILTERS) stored[key] = this.mediaFilters.has(key);
         for (const type of HAPTIC_TYPES) stored[`haptic-${type}`] = this.hapticFilters.has(type);
+        stored.favorites = this.favoritesOnly;
         localStorage.setItem(LIBRARY_FILTERS_KEY, JSON.stringify(stored));
         localStorage.setItem(LIBRARY_SORT_KEY, JSON.stringify({ field: this.sortField, asc: this.sortAsc }));
     }
@@ -609,6 +617,26 @@ export class Library {
         updateSummary();
     }
 
+    private bindFavoritesFilter(): void {
+        const button = this.favoritesToggle;
+        if (!button) return;
+        const update = (): void => {
+            button.classList.toggle('active', this.favoritesOnly);
+            button.setAttribute('aria-pressed', String(this.favoritesOnly));
+            button.title = this.favoritesOnly ? 'Showing favorites only' : 'Show favorites only';
+            const icon = button.querySelector('i');
+            icon?.classList.toggle('bi-heart-fill', this.favoritesOnly);
+            icon?.classList.toggle('bi-heart', !this.favoritesOnly);
+        };
+        button.addEventListener('click', () => {
+            this.favoritesOnly = !this.favoritesOnly;
+            update();
+            this.saveLibraryFilters();
+            this.render();
+        });
+        update();
+    }
+
     private bindSortControls(): void {
         const menu = document.querySelector<HTMLElement>('#sort-field-menu');
         const setSort = (field: LibrarySortField, asc: boolean): void => {
@@ -676,6 +704,9 @@ export class Library {
         if (allowedHapticTypes.length > 0) {
             tracks = tracks.filter((t) => trackMatchesHapticFilters(t, allowedHapticTypes));
         }
+        if (this.favoritesOnly) {
+            tracks = tracks.filter((t) => t.isFavorite);
+        }
         if (this.searchQuery) {
             const q = this.searchQuery.toLowerCase();
             tracks = tracks.filter((t) =>
@@ -697,6 +728,9 @@ export class Library {
         if (allowedHapticTypes.length > 0) {
             albums = albums.filter((album) => albumMatchesHapticFilters(album, tracksById, allowedHapticTypes));
         }
+        if (this.favoritesOnly) {
+            albums = albums.filter((album) => albumHasFavorite(album, tracksById));
+        }
         if (this.searchQuery) {
             const q = this.searchQuery.toLowerCase();
             albums = albums.filter((a) =>
@@ -715,6 +749,9 @@ export class Library {
         }
         if (allowedHapticTypes.length > 0) {
             playlists = playlists.filter((playlist) => playlistMatchesHapticFilters(playlist, tracksById, allowedHapticTypes));
+        }
+        if (this.favoritesOnly) {
+            playlists = playlists.filter((playlist) => playlist.isFavorite);
         }
         if (this.searchQuery) {
             const q = this.searchQuery.toLowerCase();
@@ -824,6 +861,7 @@ export class Library {
             event.preventDefault();
             this.callbacks.openTrack(track.id);
         });
+        this.addCardFavoriteButton(col, track);
         this.applyCardAspect(col);
         return col;
     }
@@ -865,7 +903,21 @@ export class Library {
             event.preventDefault();
             this.callbacks.openPlaylist(playlist.id);
         });
+        this.addCardFavoriteButton(col, playlist);
         return col;
+    }
+
+    /** Heart next to the card's meta line. */
+    private addCardFavoriteButton(col: HTMLElement, item: FavoriteItem): void {
+        col.querySelector('[data-card-actions]')?.appendChild(createFavoriteButton(item));
+    }
+
+    /** Last cell of a list row: a heart for Jellyfin items, empty for client-side albums. */
+    private appendRowFavoriteCell(tr: HTMLElement, item: FavoriteItem | null): void {
+        const td = document.createElement('td');
+        td.className = 'align-middle text-end pe-2 favorite-cell';
+        if (item) td.appendChild(createFavoriteButton(item));
+        tr.appendChild(td);
     }
 
     private createAlbumRow(album: AlbumInfo, tracksById: Map<string, TrackInfo>): HTMLElement {
@@ -882,6 +934,7 @@ export class Library {
             duration: formatHoursMinutes(album.durationSeconds),
             hapticIcons: renderHapticIcons(this.albumFunscriptTypes(album, tracksById)),
         });
+        this.appendRowFavoriteCell(tr, null);
         return tr;
     }
 
@@ -902,6 +955,7 @@ export class Library {
             hapticIcons: renderHapticIcons(this.playlistFunscriptTypes(playlist, tracksById)),
         });
         applyPlaylistCover(tr.querySelector('img'), playlist.entries.map((entry) => tracksById.get(entry.trackId)));
+        this.appendRowFavoriteCell(tr, playlist);
         return tr;
     }
 
@@ -920,6 +974,7 @@ export class Library {
             duration: formatHoursMinutes(track.durationSeconds),
             hapticIcons: renderHapticIcons(track.funscripts.map((f) => f.type)),
         });
+        this.appendRowFavoriteCell(tr, track);
         return tr;
     }
 

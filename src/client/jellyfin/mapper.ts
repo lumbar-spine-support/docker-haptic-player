@@ -91,6 +91,7 @@ export function toTrack(item: JellyfinItemDto, scripts: HappyFunscriptListing[st
         durationSeconds,
         funscripts: funscriptsOf(scripts, options.funscriptSuffixes),
         tags: tagsOf(item),
+        isFavorite: item.UserData?.IsFavorite === true,
     };
 
     // Funscript chapters need the script files, so they are resolved once the track is opened.
@@ -121,6 +122,7 @@ function toPlaylist(playlist: JellyfinPlaylist, tracksById: Map<string, TrackInf
         year: playlist.item.ProductionYear ? String(playlist.item.ProductionYear) : '',
         durationSeconds: entries.reduce((sum, entry) => sum + (tracksById.get(entry.trackId)?.durationSeconds ?? 0), 0),
         entries,
+        isFavorite: playlist.item.UserData?.IsFavorite === true,
     };
 }
 

@@ -26,6 +26,7 @@ Each use case follows one user action from start to finish, across client, Jelly
 | [Log in](use-cases/login.md) | Jellyfin sign-in, expired tokens, logout, the relay's token check |
 | [Load the library from Jellyfin](use-cases/library-load.md) | Items, funscript listing, playlists, client-side mapping, new files |
 | [Browse and play a track](use-cases/browse-and-play.md) | Opening a track, pressing play, player handoff, autoplay |
+| [Mark a favorite](use-cases/favorite.md) | Favorites from Jellyfin, the heart buttons, writing back, the favorites filter |
 | [Connect Intiface and a toy](use-cases/intiface-pairing.md) | Intiface connection, device discovery, disconnects |
 | [Assign a device feature](use-cases/assign-feature.md) | Mapping an actuator to a funscript channel, strength, stroker range |
 | [Pair a DG-Lab Coyote](use-cases/coyote-pairing.md) | Relay, QR code and deep link, device snapshot, output, timeouts |

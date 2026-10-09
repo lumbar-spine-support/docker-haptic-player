@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { JellyfinItemDto } from '../../src/client/jellyfin/dto';
 import { buildLibrary, toTrack, type MapOptions } from '../../src/client/jellyfin/mapper';
+import { setFavorite, type JellyfinApi } from '../../src/client/jellyfin/library';
 import { imageUrl, streamUrl, trickplayVtt } from '../../src/client/jellyfin/urls';
 import { DEFAULT_FUNSCRIPT_SUFFIXES } from '../../src/shared/funscriptNames';
 
@@ -147,6 +148,45 @@ test(`${TAG} builds the library with client-side albums and resolved playlists`,
     assert.equal(library.playlists.length, 1, 'playlists without playable entries are dropped');
     assert.deepEqual(library.playlists[0].entries.map((e) => [e.order, e.trackId]), [[0, VIDEO.Id], [1, AUDIO.Id]]);
     assert.equal(library.playlists[0].durationSeconds, 95 + 1234);
+});
+
+test(`${TAG} favorites come from the user data of tracks and playlists`, () => {
+    assert.equal(toTrack(AUDIO, undefined, OPTIONS)?.isFavorite, false, 'no UserData means not a favorite');
+    assert.equal(toTrack({ ...AUDIO, UserData: { IsFavorite: true } }, undefined, OPTIONS)?.isFavorite, true);
+    assert.equal(toTrack({ ...AUDIO, UserData: { IsFavorite: false } }, undefined, OPTIONS)?.isFavorite, false);
+
+    const library = buildLibrary([AUDIO], {}, [
+        { item: { Id: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee1', Name: 'Liked', Type: 'Playlist', UserData: { IsFavorite: true } }, entries: [AUDIO] },
+        { item: { Id: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee2', Name: 'Other', Type: 'Playlist' }, entries: [AUDIO] },
+    ], OPTIONS);
+    assert.deepEqual(library.playlists.map((p) => p.isFavorite), [true, false]);
+});
+
+function fakeApi(response: Response): JellyfinApi & { calls: { path: string; method?: string }[] } {
+    const calls: { path: string; method?: string }[] = [];
+    return {
+        userId: 'user 1',
+        calls,
+        request: async (path, init) => {
+            calls.push({ path, method: init?.method });
+            return response;
+        },
+    };
+}
+
+test(`${TAG} setFavorite adds and removes through UserFavoriteItems`, async () => {
+    const add = fakeApi(new Response(JSON.stringify({ IsFavorite: true }), { status: 200 }));
+    assert.equal(await setFavorite(add, AUDIO.Id, true), true);
+    assert.deepEqual(add.calls, [{ path: `/UserFavoriteItems/${AUDIO.Id}?userId=user%201`, method: 'POST' }]);
+
+    const remove = fakeApi(new Response(JSON.stringify({ IsFavorite: false }), { status: 200 }));
+    assert.equal(await setFavorite(remove, AUDIO.Id, false), false);
+    assert.equal(remove.calls[0].method, 'DELETE');
+});
+
+test(`${TAG} setFavorite trusts the request when Jellyfin returns no body, and throws on errors`, async () => {
+    assert.equal(await setFavorite(fakeApi(new Response(null, { status: 204 })), AUDIO.Id, true), true);
+    await assert.rejects(setFavorite(fakeApi(new Response('', { status: 403 })), AUDIO.Id, true), /HTTP 403/);
 });
 
 test(`${TAG} stream URLs request the original file with the token in the query`, () => {

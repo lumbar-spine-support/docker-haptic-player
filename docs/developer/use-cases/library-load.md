@@ -20,7 +20,7 @@ sequenceDiagram
   B->>P: GET /Happy/Config
   P-->>B: funscript suffixes, chapter priority, …
   par items
-    B->>J: GET /Items?Recursive=true&IncludeItemTypes=…<br/>&Fields=Path,Tags,Genres,Overview,Chapters,Trickplay
+    B->>J: GET /Items?Recursive=true&IncludeItemTypes=…<br/>&Fields=Path,Tags,Genres,Overview,Chapters,Trickplay<br/>&EnableUserData=true (favorites)
     J-->>B: BaseItemDto[]
   and funscripts
     B->>P: GET /Happy/Funscripts
