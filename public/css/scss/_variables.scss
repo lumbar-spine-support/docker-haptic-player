@@ -1,14 +1,10 @@
-$color-black: #000000;
-$color-white: #ffffff;
-$color-surface: #111;
-$color-primary: #ffffff;
-$color-primary-hover: #e6e6e6;
-$color-danger: #dc3545;
-$color-danger-soft: #f8b4bb;
-$overlay-dark: rgba(0, 0, 0, 0.7);
-$overlay-soft: rgba(0, 0, 0, 0.65);
-$border-light: rgba(255, 255, 255, 0.12);
-$muted-light: rgba(255, 255, 255, 0.2);
+// Theme colours are the --happy-* tokens (themes/_theme.scss). The constants
+// below are for text and scrims drawn over video and artwork, which stay the
+// same in every theme.
+$scrim: #000;
+$on-media: #fff;
+// Status colour of the "clear all" tag chip (a soft --bs-danger).
+$danger-soft: #f8b4bb;
 $space-1: 0.25rem;
 $space-2: 0.35rem;
 $space-3: 0.5rem;
@@ -25,13 +21,6 @@ $transition-collapse-duration: 0.35s;
 $transition-collapse-easing: ease;
 
 :root {
-  --app-color-black: #{$color-black};
-  --app-color-white: #{$color-white};
-  --app-color-surface: #{$color-surface};
-  --app-color-primary: #{$color-primary};
-  --app-color-primary-hover: #{$color-primary-hover};
-  --app-color-danger: #{$color-danger};
-  --app-color-danger-soft: #{$color-danger-soft};
   --app-space-1: #{$space-1};
   --app-space-2: #{$space-2};
   --app-space-3: #{$space-3};

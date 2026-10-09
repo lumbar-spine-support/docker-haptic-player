@@ -11,12 +11,12 @@
   align-items: center;
   gap: var(--app-space-4);
   padding: 0.75rem 1rem;
-  background-color: var(--app-color-black);
-  border-top: 1px solid $border-light;
+  background-color: var(--happy-surface);
+  border-top: 1px solid rgba(var(--happy-text-rgb), 0.12);
 }
 
 .player-footer [data-footer='info'] {
-  background-color: var(--app-color-black);
+  background-color: var(--happy-surface);
 }
 
 .player-footer-art {
@@ -55,7 +55,7 @@
   left: 0;
   right: 0;
   padding: 0.4em 1em 0.75em;
-  background: linear-gradient(to bottom, $overlay-soft 0%, transparent 100%);
+  background: linear-gradient(to bottom, rgba($scrim, 0.65) 0%, transparent 100%);
   opacity: 0;
   transition: opacity 0.25s;
   pointer-events: none;
@@ -81,22 +81,22 @@
 .vjs-now-playing-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: $color-white;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+  color: $on-media;
+  text-shadow: 0 1px 4px rgba($scrim, 0.85);
   @include ellipsis;
 }
 
 .vjs-now-playing-artist {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.8);
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+  color: rgba($on-media, 0.8);
+  text-shadow: 0 1px 4px rgba($scrim, 0.85);
   @include ellipsis;
 }
 
 .vjs-now-playing-timestamp {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.7);
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+  color: rgba($on-media, 0.7);
+  text-shadow: 0 1px 4px rgba($scrim, 0.85);
   margin-top: 0.25em;
 }
 
@@ -132,7 +132,7 @@
   font-size: 12px;
 
   .vjs-control-bar {
-    background-color: $overlay-dark;
+    background-color: rgba($scrim, 0.7);
     flex-wrap: wrap;
     height: auto;
 
@@ -171,8 +171,8 @@
   transform: translateY(-50%);
   padding: 0.35rem 0.6rem;
   border-radius: var(--app-radius-pill);
-  background: rgba(0, 0, 0, 0.72);
-  color: $color-white;
+  background: rgba($scrim, 0.72);
+  color: $on-media;
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -180,7 +180,7 @@
   z-index: 20;
   opacity: 0;
   transition: opacity 0.15s ease, transform 0.15s ease;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 4px rgba($scrim, 0.6);
 
   &.visible {
     opacity: 1;

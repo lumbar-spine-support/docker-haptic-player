@@ -262,7 +262,7 @@ body.blur-content media-container {
   }
 
   canvas {
-    background-color: var(--app-color-surface);
+    background-color: var(--happy-surface-raised);
     border-radius: var(--app-radius-sm);
     cursor: pointer;
   }
@@ -291,8 +291,8 @@ body.blur-content media-container {
     padding: 0.5em 1em;
     border-left: 0.25em solid var(--bs-secondary-color);
     border-radius: var(--bs-border-radius);
-    background: #1e1e1e;
-    color: #fff;
+    background: var(--happy-code-bg);
+    color: var(--happy-text);
 
     > :last-child {
       margin-bottom: 0;
@@ -312,8 +312,8 @@ body.blur-content media-container {
     overflow-x: auto;
     padding: var(--app-space-2);
     border-radius: var(--bs-border-radius);
-    background: #1e1e1e;
-    color: #d4d4d4;
+    background: var(--happy-code-bg);
+    color: var(--happy-code-text);
 
     code {
       padding: 0;
@@ -325,8 +325,8 @@ body.blur-content media-container {
   code {
     padding: 0.1em 0.35em;
     border-radius: var(--bs-border-radius-sm);
-    background: #1e1e1e;
-    color: #d4d4d4;
+    background: var(--happy-code-bg);
+    color: var(--happy-code-text);
   }
 
   min-width: 0;

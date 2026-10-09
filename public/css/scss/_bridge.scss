@@ -1,0 +1,180 @@
+// ============================================================================
+// Bootstrap bridge
+// ============================================================================
+// Bootstrap is compiled once; Sass bakes $primary & co. into some component
+// rules. This file, emitted after Bootstrap, points those values and the root
+// variables at the `--happy-*` theme tokens (themes/_theme.scss), so a theme is
+// a token file only. Each rule repeats only properties Bootstrap set in the same
+// selector, so ordering against the app's own rules is unchanged.
+// ============================================================================
+
+:root {
+  --bs-font-sans-serif: var(--happy-font);
+  --bs-body-bg: var(--happy-bg);
+  --bs-body-bg-rgb: var(--happy-bg-rgb);
+  --bs-body-color: var(--happy-text);
+  --bs-body-color-rgb: var(--happy-text-rgb);
+  --bs-secondary-color: rgba(var(--happy-text-rgb), 0.75);
+  --bs-secondary-color-rgb: var(--happy-text-rgb);
+  --bs-tertiary-color: rgba(var(--happy-text-rgb), 0.5);
+  --bs-tertiary-color-rgb: var(--happy-text-rgb);
+  --bs-secondary-bg: var(--happy-secondary-bg);
+  --bs-secondary-bg-rgb: var(--happy-secondary-bg-rgb);
+  --bs-tertiary-bg: var(--happy-tertiary-bg);
+  --bs-tertiary-bg-rgb: var(--happy-tertiary-bg-rgb);
+  --bs-primary: var(--happy-accent);
+  --bs-primary-rgb: var(--happy-accent-rgb);
+  --bs-secondary: var(--happy-secondary);
+  --bs-secondary-rgb: var(--happy-secondary-rgb);
+  --bs-border-color: var(--happy-divider);
+  --bs-border-radius: var(--happy-radius);
+  --bs-link-color: var(--happy-accent);
+  --bs-link-color-rgb: var(--happy-accent-rgb);
+  --bs-link-hover-color: var(--happy-link-hover);
+  --bs-link-hover-color-rgb: var(--happy-link-hover-rgb);
+  --bs-focus-ring-color: rgba(var(--happy-accent-rgb), 0.25);
+}
+
+// App utilities for the theme's surfaces (instead of bg-dark/bg-black).
+.bg-app {
+  background-color: var(--happy-bg) !important;
+}
+
+.bg-surface {
+  background-color: var(--happy-surface) !important;
+}
+
+// Buttons ---------------------------------------------------------------------
+
+@mixin btn-solid($role) {
+  --bs-btn-color: var(--happy-#{$role}-on);
+  --bs-btn-bg: var(--happy-#{$role});
+  --bs-btn-border-color: var(--happy-#{$role});
+  --bs-btn-hover-color: var(--happy-#{$role}-on);
+  --bs-btn-hover-bg: var(--happy-#{$role}-hover-bg);
+  --bs-btn-hover-border-color: var(--happy-#{$role}-hover-border);
+  --bs-btn-focus-shadow-rgb: var(--happy-#{$role}-focus-rgb);
+  --bs-btn-active-color: var(--happy-#{$role}-on);
+  --bs-btn-active-bg: var(--happy-#{$role}-active-bg);
+  --bs-btn-active-border-color: var(--happy-#{$role}-active-border);
+  --bs-btn-disabled-color: var(--happy-#{$role}-on);
+  --bs-btn-disabled-bg: var(--happy-#{$role});
+  --bs-btn-disabled-border-color: var(--happy-#{$role});
+}
+
+@mixin btn-outline($role) {
+  --bs-btn-color: var(--happy-#{$role});
+  --bs-btn-border-color: var(--happy-#{$role});
+  --bs-btn-hover-color: var(--happy-#{$role}-on);
+  --bs-btn-hover-bg: var(--happy-#{$role});
+  --bs-btn-hover-border-color: var(--happy-#{$role});
+  --bs-btn-focus-shadow-rgb: var(--happy-#{$role}-rgb);
+  --bs-btn-active-color: var(--happy-#{$role}-on);
+  --bs-btn-active-bg: var(--happy-#{$role});
+  --bs-btn-active-border-color: var(--happy-#{$role});
+  --bs-btn-disabled-color: var(--happy-#{$role});
+  --bs-btn-disabled-border-color: var(--happy-#{$role});
+}
+
+.btn-primary {
+  @include btn-solid(accent);
+}
+
+.btn-outline-primary {
+  @include btn-outline(accent);
+}
+
+.btn-secondary {
+  @include btn-solid(secondary);
+}
+
+.btn-outline-secondary {
+  @include btn-outline(secondary);
+}
+
+// A button on the theme's surface (the footer's info and mute buttons).
+.btn-surface {
+  @include btn-solid(surface);
+}
+
+// Forms -----------------------------------------------------------------------
+
+.form-control,
+.form-select,
+.input-group-text {
+  background-color: var(--happy-input-bg);
+}
+
+.form-select {
+  --bs-form-select-bg-img: var(--happy-select-indicator);
+}
+
+.form-control:focus {
+  background-color: var(--happy-input-bg);
+  border-color: var(--happy-accent-focus-border);
+  box-shadow: 0 0 0 0.25rem rgba(var(--happy-accent-rgb), 0.25);
+}
+
+.form-select:focus,
+.form-check-input:focus {
+  border-color: var(--happy-accent-focus-border);
+  box-shadow: 0 0 0 0.25rem rgba(var(--happy-accent-rgb), 0.25);
+}
+
+.form-check-input:checked {
+  background-color: var(--happy-accent);
+  border-color: var(--happy-accent);
+}
+
+.form-range {
+  &::-webkit-slider-thumb {
+    background-color: var(--happy-accent);
+  }
+
+  &::-webkit-slider-thumb:active {
+    background-color: var(--happy-accent-range-active);
+  }
+
+  &::-moz-range-thumb {
+    background-color: var(--happy-accent);
+  }
+
+  &::-moz-range-thumb:active {
+    background-color: var(--happy-accent-range-active);
+  }
+
+  &:focus::-webkit-slider-thumb {
+    box-shadow: 0 0 0 1px var(--happy-bg), 0 0 0 0.25rem rgba(var(--happy-accent-rgb), 0.25);
+  }
+
+  &:focus::-moz-range-thumb {
+    box-shadow: 0 0 0 1px var(--happy-bg), 0 0 0 0.25rem rgba(var(--happy-accent-rgb), 0.25);
+  }
+}
+
+.btn-close {
+  --bs-btn-close-focus-shadow: 0 0 0 0.25rem rgba(var(--happy-accent-rgb), 0.25);
+}
+
+// Overlays --------------------------------------------------------------------
+
+.dropdown-menu {
+  --bs-dropdown-link-active-bg: var(--happy-accent);
+}
+
+.dropdown-menu-dark {
+  --bs-dropdown-bg: var(--happy-menu-bg);
+  --bs-dropdown-link-active-bg: var(--happy-accent);
+}
+
+.card {
+  --bs-card-bg: var(--happy-surface);
+}
+
+.offcanvas {
+  --bs-offcanvas-bg: var(--happy-surface);
+}
+
+.popover {
+  --bs-popover-bg: var(--happy-surface);
+}

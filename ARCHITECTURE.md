@@ -273,6 +273,13 @@ same-origin. Both `<video>` elements and the images drawn into the playlist coll
 `canvas.toDataURL()` need untainted frames, and Jellyfin answers CORS requests with
 `Access-Control-Allow-Origin: *`. No cookies are involved.
 
+## Theming
+
+- Colours come only from the `--happy-*` tokens (`public/css/themes/_theme.scss`). App styles never
+  hardcode a colour; `_bridge.scss` points Bootstrap's compiled-in colours at the tokens. A theme
+  changes tokens only. `test/scripts/themeColors.test.ts` enforces this for `public/css/scss/` and
+  the HTML. Details in [docs/developer/client.md](docs/developer/client.md#theming).
+
 ## Gallery rendering with large libraries
 
 The client holds the whole library in memory and does all searching, tag filtering and sorting

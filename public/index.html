@@ -14,7 +14,7 @@
 
 <body>
 
-  <header class="navbar navbar-dark bg-black border-bottom border-secondary">
+  <header class="navbar navbar-dark bg-surface border-bottom border-secondary">
     <div class="container-fluid gap-2">
       <a id="navbar-home" href="./"
         class="navbar-brand fw-bold mb-0 flex-grow-1 text-decoration-none d-flex align-items-center gap-2">
@@ -43,9 +43,9 @@
       <div id="library-controls" class="mb-3">
         <div class="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2">
           <div class="input-group input-group-sm flex-grow-1">
-            <span class="input-group-text bg-dark text-light border-secondary"><i class="bi bi-search"></i></span>
+            <span class="input-group-text text-light border-secondary"><i class="bi bi-search"></i></span>
             <div
-              class="form-control bg-dark text-light border-secondary d-flex align-items-center flex-wrap gap-1 search-input-shell">
+              class="form-control text-light border-secondary d-flex align-items-center flex-wrap gap-1 search-input-shell">
               <input id="search-input" type="search"
                 class="search-input-field form-control form-control-sm border-0 bg-transparent text-light shadow-none p-0"
                 placeholder="Search by title, artist or tags..." autocomplete="off" />
@@ -222,7 +222,7 @@
               </button>
             </div>
           </div>
-          <div id="visualization" class="bg-black rounded"></div>
+          <div id="visualization" class="bg-app rounded"></div>
         </section>
 
         <section id="track-description-section" class="mb-3 d-none">
@@ -248,12 +248,12 @@
           <div class="col-12 col-md">
             <label for="dglab-sandbox-channel" class="form-label small mb-1">Channel</label>
             <select id="dglab-sandbox-channel"
-              class="form-select form-select-sm bg-dark text-light border-secondary"></select>
+              class="form-select form-select-sm text-light border-secondary"></select>
           </div>
           <div class="col-12 col-md">
             <label for="dglab-sandbox-pattern" class="form-label small mb-1">Pattern</label>
             <select id="dglab-sandbox-pattern"
-              class="form-select form-select-sm bg-dark text-light border-secondary"></select>
+              class="form-select form-select-sm text-light border-secondary"></select>
           </div>
           <div class="col-12 col-md-auto">
             <button id="btn-dglab-sandbox-toggle" type="button" class="btn btn-sm btn-primary w-100"
@@ -261,7 +261,7 @@
           </div>
         </div>
         <p id="dglab-sandbox-info" class="small text-muted mb-2"></p>
-        <canvas id="dglab-sandbox-canvas" class="bg-black rounded w-100" style="height:240px"></canvas>
+        <canvas id="dglab-sandbox-canvas" class="bg-app rounded w-100" style="height:240px"></canvas>
         <p class="small text-muted mt-2 mb-0">Orange: pattern position. Blue: pulses at the chosen rate, height is
           strength × width. Red dashed: held strength. Strength, pulse rate and width are set on the device card in the
           settings.</p>
@@ -269,9 +269,9 @@
     </section>
   </main>
 
-  <player-footer id="player-footer" class="player-footer d-none bg-dark border-top border-secondary">
+  <player-footer id="player-footer" class="player-footer d-none border-top border-secondary">
     <button data-footer="info"
-      class="btn btn-dark text-start d-flex align-items-center gap-2 flex-grow-1 min-w-0 p-0 border-0" type="button">
+      class="btn btn-surface text-start d-flex align-items-center gap-2 flex-grow-1 min-w-0 p-0 border-0" type="button">
       <img data-footer="art" src="" alt="" class="rounded player-footer-art" />
       <div class="min-w-0 flex-grow-1">
         <div data-footer="title" class="fw-semibold text-truncate"></div>
@@ -284,7 +284,7 @@
       <i class="bi bi-play-fill" aria-hidden="true"></i>
     </button>
     <div id="player-footer-volume" class="player-footer-volume position-relative flex-shrink-0">
-      <button data-footer="mute" class="btn btn-dark btn-sm rounded-circle player-footer-mute flex-shrink-0"
+      <button data-footer="mute" class="btn btn-surface btn-sm rounded-circle player-footer-mute flex-shrink-0"
         type="button" aria-label="Mute" aria-pressed="false">
         <i class="bi bi-volume-up-fill" aria-hidden="true"></i>
       </button>
@@ -306,7 +306,7 @@
         </h6>
         <div class="input-group input-group-sm mb-3">
           <select id="intiface-scheme"
-            class="form-select form-select-sm bg-dark text-light border-secondary flex-grow-0 w-auto"
+            class="form-select form-select-sm text-light border-secondary flex-grow-0 w-auto"
             aria-label="Intiface websocket scheme">
             <option value="ws://" selected>ws://</option>
             <option value="wss://">wss://</option>
@@ -348,7 +348,7 @@
           <span id="dglab-status" class="badge bg-secondary">Disconnected</span>
         </h6>
         <div id="dglab-host-group" class="input-group input-group-sm">
-          <span class="input-group-text bg-dark text-light border-secondary">ws://</span>
+          <span class="input-group-text text-light border-secondary">ws://</span>
           <input id="dglab-host" type="text" class="form-control form-control-sm border-secondary"
             placeholder="192.168.1.10:3000" aria-label="Address the DG-Lab app should connect to" />
           <button id="btn-dglab-reset" class="btn btn-sm btn-outline-primary" type="button">

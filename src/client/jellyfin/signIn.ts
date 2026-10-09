@@ -51,7 +51,7 @@ export async function ensureSignedIn(connection: JellyfinConnection): Promise<vo
 export function showMissingServerNotice(): void {
     const notice = document.createElement('div');
     notice.className = 'jellyfin-sign-in';
-    notice.innerHTML = `<main class="login-card"><div class="card bg-dark border-secondary shadow"><div class="card-body p-4">
+    notice.innerHTML = `<main class="login-card"><div class="card border-secondary shadow"><div class="card-body p-4">
         <h1 class="h5 fw-bold mb-3">Open HAPPY from Jellyfin</h1>
         <p class="mb-0 small">HAPPY is served by its Jellyfin plugin. Open <code>&lt;your Jellyfin address&gt;/Happy/Web/</code>, or <em>Open HAPPY</em> on the plugin's settings page.</p>
     </div></div></main>`;

@@ -51,14 +51,26 @@ flowchart TD
 
 Note that each `FunscriptSync` engine and each `DeviceAssignment` list is bound to **one backend**, not to the registry, because each backend has its own delay slider and settings section. Only `DeviceStatus` and the `pagehide` → `stopAll()` handler use the registry.
 
-## Player theming
+## Theming
+
+All colours come from `--happy-*` custom properties ("tokens"):
+
+- [public/css/themes/_theme.scss](../../public/css/themes/_theme.scss) turns a palette map into tokens with `tokens($palette)`. It derives the button states, focus colours and the SVG glyphs (checkmark, switch knob, select chevron) the way Bootstrap derives them from `$primary`, so the OLED palette reproduces Bootstrap's compiled values exactly. `app.scss` emits the OLED palette as the defaults.
+- Bootstrap is compiled once ([_bootstrap-theme.scss](../../public/css/scss/_bootstrap-theme.scss)). Sass bakes some colours into component rules, so [_bridge.scss](../../public/css/scss/_bridge.scss), emitted after Bootstrap, points the root variables (`--bs-body-bg`, `--bs-primary`, …) and those component rules (`.btn-primary`, focus states, `.form-check-input:checked`, `.form-range` thumbs, menus, cards, offcanvas, popovers) at the tokens. It repeats only properties Bootstrap set in the same selector.
+- Use `bg-surface`, `bg-app` and `btn-surface` instead of `bg-dark`, `bg-black` and `btn-dark`.
+- Text and scrims over video and artwork use the theme-independent `$scrim`/`$on-media` constants in `_variables.scss`.
+- Canvases read their colours from CSS (`getComputedStyle`), except signal colours that carry meaning.
+
+`test/scripts/themeColors.test.ts` fails on literal colours in `public/css/scss/` (outside `_variables.scss` and the Bootstrap theme) and on `bg-dark`/`bg-black`/`btn-dark` in the HTML.
+
+### Player
 
 The Video.js skin takes its look from Bootstrap's CSS variables. The mapping lives in [public/css/scss/_videojs.scss](../../public/css/scss/_videojs.scss):
 
 - `:root` sets the accent color and font.
 - An unlayered `.media-skin` block sets the control size (the height of a `.btn`), the radii (`--bs-border-radius*`) and the focus ring (`--bs-focus-ring-*`). It must stay unlayered so it overrides the skin's `@layer base.theme` defaults.
 
-To restyle the player, change the Bootstrap theme instead of the skin CSS.
+To restyle the player, change the theme tokens instead of the skin CSS.
 
 ## Bootstrap
 
