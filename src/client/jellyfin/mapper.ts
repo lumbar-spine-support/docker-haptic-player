@@ -111,7 +111,7 @@ export function toTrack(item: JellyfinItemDto, scripts: HappyFunscriptListing[st
     return track;
 }
 
-function toPlaylist(playlist: JellyfinPlaylist, tracksById: Map<string, TrackInfo>): PlaylistInfo {
+export function toPlaylist(playlist: JellyfinPlaylist, tracksById: Map<string, TrackInfo>): PlaylistInfo {
     const entries = playlist.entries
         .map((entry) => tracksById.get(entry.Id))
         .filter((track): track is TrackInfo => track !== undefined)

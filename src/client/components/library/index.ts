@@ -500,6 +500,14 @@ export class Library {
         return this.playlists.find((p) => p.id === id);
     }
 
+    /** Adds a playlist saved from HAPPY, or replaces it after an overwrite, without reloading the library. */
+    upsertPlaylist(playlist: PlaylistInfo): void {
+        const at = this.playlists.findIndex((p) => p.id === playlist.id);
+        if (at >= 0) this.playlists[at] = playlist;
+        else this.playlists.push(playlist);
+        if (this.loaded) this.render();
+    }
+
     /** Finds the album containing the given track, if any. */
     findAlbumForTrack(trackId: string): AlbumInfo | undefined {
         return this.albums.find((album) => album.trackIds.includes(trackId));

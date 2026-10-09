@@ -1,14 +1,19 @@
 import type { Library } from '../library';
 import type { PlaybackController } from './controller';
 import type { PlaybackQueue } from './queue';
-import { notifyQueueChanged, setQueueTarget, type QueueState, type QueueTarget } from '@/components/videojs/features/queue';
+import { notifyQueueChanged, setQueueTarget, type QueueSave, type QueueState, type QueueTarget } from '@/components/videojs/features/queue';
 
 /**
  * Publishes the queue to the player UI (queue panel, add-to-queue button):
  * reads come from the queue and the library, every change goes through the
- * controller.
+ * controller; saving as a playlist is the app's (it talks to Jellyfin).
  */
-export function publishQueue(queue: PlaybackQueue, controller: PlaybackController, library: Library): QueueTarget {
+export function publishQueue(
+    queue: PlaybackQueue,
+    controller: PlaybackController,
+    library: Library,
+    save: (request: QueueSave) => Promise<string>,
+): QueueTarget {
     const target: QueueTarget = {
         getState(): QueueState {
             const source = queue.source;
@@ -27,6 +32,8 @@ export function publishQueue(queue: PlaybackQueue, controller: PlaybackControlle
                 }),
                 currentIndex: queue.currentIndex,
                 sourceName: sourceName ?? null,
+                fromPlaylist: source.type === 'playlist' && sourceName !== undefined,
+                edited: queue.edited,
             };
         },
         placeOf(trackId) {
@@ -39,6 +46,7 @@ export function publishQueue(queue: PlaybackQueue, controller: PlaybackControlle
         remove: (uid) => controller.removeFromQueue(uid),
         shuffle: () => controller.shuffleUpcoming(),
         clear: () => controller.clearUpcoming(),
+        save,
     };
     queue.onChange(notifyQueueChanged);
     setQueueTarget(target);

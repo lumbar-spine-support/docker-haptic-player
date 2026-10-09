@@ -1,7 +1,7 @@
 import { UIElement } from '@videojs/html';
 import { applyElementProps, createButton } from '@videojs/core/dom';
 import { TRACK_ID_ATTRIBUTE } from '../features/favorite';
-import { getQueueTarget, subscribeQueue, upcomingOf, type QueueItem, type QueueState } from '../features/queue';
+import { getQueueTarget, subscribeQueue, upcomingOf, type QueueItem, type QueueSave, type QueueState } from '../features/queue';
 import './queue.css';
 
 /**
@@ -77,7 +77,8 @@ class QueueAddButtonElement extends UIElement {
 /**
  * Contents of the queue popover: what played, what plays now and what is up
  * next. Upcoming entries can be dragged by their handle (or moved with
- * Alt+↑/↓), removed, shuffled and cleared; any entry can be played.
+ * Alt+↑/↓), removed, shuffled and cleared; any entry can be played. The whole
+ * queue can be saved as a Jellyfin playlist, or back to the playlist it came from.
  *
  * Also hides its popover's trigger while the queue is empty.
  */
@@ -89,6 +90,7 @@ class QueuePanelElement extends UIElement {
     #showHistory = false;
     /** Re-rendering mid-drag would drop the row being dragged. */
     #dragging = false;
+    #saving = false;
     #list: HTMLOListElement | null = null;
 
     override connectedCallback(): void {
@@ -142,10 +144,82 @@ class QueuePanelElement extends UIElement {
                     <media-icon family="compat" name="trash"></media-icon>
                 </button>
             </div>
-            <ol class="media-queue-list" data-part="list"></ol>`;
+            <ol class="media-queue-list" data-part="list"></ol>
+            <div class="media-queue-save" data-part="save">
+                <div class="media-queue-save-actions">
+                    <button type="button" class="media-queue-text-button" data-action="overwrite">
+                        <media-icon family="compat" name="save"></media-icon><span data-part="overwrite-label"></span>
+                    </button>
+                    <button type="button" class="media-queue-text-button" data-action="save-new">Save as playlist…</button>
+                </div>
+                <form class="media-queue-save-form" data-part="save-form" hidden>
+                    <input type="text" class="media-queue-name" data-part="name" maxlength="200" required
+                        aria-label="Playlist name" placeholder="Playlist name">
+                    <button type="submit" class="media-queue-text-button">Save</button>
+                    <button type="button" class="media-queue-text-button" data-action="cancel">Cancel</button>
+                </form>
+                <div class="media-queue-status" data-part="status" role="status"></div>
+            </div>`;
         this.#list = this.querySelector('[data-part="list"]');
         this.querySelector('[data-action="shuffle"]')?.addEventListener('click', () => getQueueTarget()?.shuffle());
         this.querySelector('[data-action="clear"]')?.addEventListener('click', () => getQueueTarget()?.clear());
+        this.#bindSave();
+    }
+
+    #bindSave(): void {
+        const form = this.querySelector<HTMLFormElement>('[data-part="save-form"]');
+        const name = this.querySelector<HTMLInputElement>('[data-part="name"]');
+        if (!form || !name) return;
+        const showForm = (open: boolean): void => {
+            form.hidden = !open;
+            this.querySelector<HTMLElement>('[data-action="save-new"]')!.hidden = open;
+            if (open) {
+                const source = getQueueTarget()?.getState().sourceName;
+                name.value = source ? `${source} (queue)` : `Queue ${new Date().toLocaleDateString()}`;
+                name.select();
+                name.focus();
+            }
+        };
+        this.querySelector('[data-action="save-new"]')?.addEventListener('click', () => showForm(true));
+        this.querySelector('[data-action="cancel"]')?.addEventListener('click', () => showForm(false));
+        this.querySelector('[data-action="overwrite"]')?.addEventListener('click', () => { void this.#save({ mode: 'overwrite' }); });
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            void this.#save({ mode: 'new', name: name.value }).then((saved) => { if (saved) showForm(false); });
+        });
+        // Typing a name must not reach the player's hotkeys (space, k, f, m, …); Escape only leaves the form.
+        name.addEventListener('keydown', (event) => {
+            event.stopPropagation();
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                showForm(false);
+            }
+        });
+    }
+
+    async #save(request: QueueSave): Promise<boolean> {
+        const target = getQueueTarget();
+        if (!target || this.#saving) return false;
+        this.#saving = true;
+        this.#status('Saving…');
+        this.requestUpdate();
+        try {
+            this.#status(await target.save(request));
+            return true;
+        } catch (error) {
+            this.#status(error instanceof Error ? error.message : String(error), true);
+            return false;
+        } finally {
+            this.#saving = false;
+            this.requestUpdate();
+        }
+    }
+
+    #status(text: string, error = false): void {
+        const status = this.querySelector<HTMLElement>('[data-part="status"]');
+        if (!status) return;
+        status.textContent = text;
+        status.toggleAttribute('data-error', error);
     }
 
     #render(state: QueueState | null): void {
@@ -157,6 +231,7 @@ class QueuePanelElement extends UIElement {
         for (const button of this.querySelectorAll<HTMLButtonElement>('.media-queue-action')) {
             button.disabled = button.dataset.action === 'shuffle' ? upcoming.length < 2 : upcoming.length === 0;
         }
+        this.#renderSave(state);
 
         list.replaceChildren();
         if (!state) return;
@@ -185,6 +260,22 @@ class QueuePanelElement extends UIElement {
         heading.textContent = upcoming.length ? 'Up next' : 'Nothing up next. Add media with ＋ or the ⋯ menu in the library.';
         list.appendChild(heading);
         upcoming.forEach((item, index) => list.appendChild(this.#row(item, 'upcoming', index)));
+    }
+
+    #renderSave(state: QueueState | null): void {
+        const section = this.querySelector<HTMLElement>('[data-part="save"]');
+        if (section) section.hidden = !state?.items.length;
+        const overwrite = this.querySelector<HTMLButtonElement>('[data-action="overwrite"]');
+        if (overwrite) {
+            overwrite.hidden = !state?.fromPlaylist;
+            overwrite.disabled = this.#saving || !state?.edited;
+            overwrite.title = state?.edited ? '' : 'The queue still matches the playlist';
+            const label = overwrite.querySelector('[data-part="overwrite-label"]');
+            if (label) label.textContent = `Save to “${state?.sourceName ?? ''}”`;
+        }
+        for (const button of this.querySelectorAll<HTMLButtonElement>('[data-action="save-new"], .media-queue-save-form button[type="submit"]')) {
+            button.disabled = this.#saving;
+        }
     }
 
     #row(item: QueueItem, kind: 'played' | 'current' | 'upcoming', index = -1): HTMLLIElement {

@@ -17,9 +17,16 @@ export interface QueueState {
     readonly items: readonly QueueItem[];
     /** Index of the playing entry in `items`; -1 while nothing from the queue played yet. */
     readonly currentIndex: number;
-    /** Name of the album or playlist the queue was started from, if any. */
+    /** Name of the album or playlist the queue was started from (or last saved as), if any. */
     readonly sourceName: string | null;
+    /** The queue came from (or was saved as) a playlist, so "Save" can write back to it. */
+    readonly fromPlaylist: boolean;
+    /** The order no longer matches that album or playlist. */
+    readonly edited: boolean;
 }
+
+/** `overwrite` writes back to the playlist the queue came from; `new` creates one named `name`. */
+export type QueueSave = { mode: 'overwrite' } | { mode: 'new'; name: string };
 
 export interface QueueTarget {
     getState(): QueueState;
@@ -32,6 +39,8 @@ export interface QueueTarget {
     remove(uid: number): void;
     shuffle(): void;
     clear(): void;
+    /** Stores the whole queue as a Jellyfin playlist; resolves to a confirmation, rejects with a readable reason. */
+    save(request: QueueSave): Promise<string>;
 }
 
 let target: QueueTarget | null = null;

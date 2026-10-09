@@ -1,9 +1,11 @@
-import type { Chapter, ClientSettings, Funscript, FunscriptInfo, LibraryResponse, TrackInfo, VersionInfo } from '../shared/types';
+import type { Chapter, ClientSettings, Funscript, FunscriptInfo, LibraryResponse, PlaylistInfo, TrackInfo, VersionInfo } from '../shared/types';
 import { DEFAULT_FUNSCRIPT_SUFFIXES } from '../shared/funscriptNames';
 import { parseVrFormat } from '../shared/vrFormat';
 import { buildChaptersVtt } from '../shared/webvtt';
 import type { JellyfinConnection } from './jellyfin/connection';
 import { loadLibrary, setFavorite, type LoadOptions } from './jellyfin/library';
+import { toPlaylist } from './jellyfin/mapper';
+import { canOverwritePlaylist, createPlaylist, loadPlaylist, replacePlaylistItems } from './jellyfin/playlists';
 import { imageUrl, streamUrl, trickplayVtt } from './jellyfin/urls';
 import { versionFromPluginInfo, type PluginInfo } from './utils/formatVersion';
 
@@ -30,6 +32,29 @@ export function fetchLibrary(): Promise<LibraryResponse> {
 /** Marks or unmarks a track, video or playlist as a Jellyfin favorite; resolves to the stored state. */
 export function setJellyfinFavorite(itemId: string, favorite: boolean): Promise<boolean> {
   return setFavorite(requireJellyfin(), itemId, favorite);
+}
+
+/** Saves tracks as a new private Jellyfin playlist; resolves to it as the library shows playlists. */
+export async function createJellyfinPlaylist(
+  name: string, trackIds: readonly string[], tracksById: Map<string, TrackInfo>,
+): Promise<PlaylistInfo> {
+  const api = requireJellyfin();
+  const id = await createPlaylist(api, name, trackIds);
+  return toPlaylist(await loadPlaylist(api, id), tracksById);
+}
+
+/**
+ * Replaces a playlist's entries with `trackIds`. Resolves to `null` without touching it when that
+ * would lose entries HAPPY does not show, or the user may not edit it (see `canOverwritePlaylist`).
+ */
+export async function overwriteJellyfinPlaylist(
+  playlist: PlaylistInfo, trackIds: readonly string[], tracksById: Map<string, TrackInfo>,
+): Promise<PlaylistInfo | null> {
+  const api = requireJellyfin();
+  const loaded = playlist.entries.map((entry) => entry.trackId);
+  if (!(await canOverwritePlaylist(api, playlist.id, loaded))) return null;
+  await replacePlaylistItems(api, playlist.id, trackIds);
+  return toPlaylist(await loadPlaylist(api, playlist.id), tracksById);
 }
 
 /** Fetches one funscript through the HAPPY Jellyfin plugin. The raw JSON also carries chapter metadata. */

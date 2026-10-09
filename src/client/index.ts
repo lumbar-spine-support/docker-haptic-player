@@ -1,4 +1,5 @@
-import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchClientSettings, logout, artworkUrl, chaptersVttUrl, useJellyfin } from './api';
+import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchClientSettings, logout, artworkUrl, chaptersVttUrl, useJellyfin, createJellyfinPlaylist, overwriteJellyfinPlaylist } from './api';
+import { JellyfinRequestError } from './jellyfin/library';
 import { JellyfinConnection } from './jellyfin/connection';
 import { ensureSignedIn, showMissingServerNotice } from './jellyfin/signIn';
 import { jellyfinUrlFromPage } from './jellyfin/serverUrl';
@@ -35,7 +36,8 @@ import { setFavoriteTarget } from '@/components/videojs/features/favorite';
 import { bindIntifaceSettings } from './components/settings/intiface';
 import { bindDelaySlider, bindUpdateRateSlider } from './components/settings/haptics';
 import { bindToggle } from './components/settings/toggle';
-import type { TrackInfo, QueueSource, ClientSettings } from '../shared/types';
+import type { TrackInfo, QueueSource, ClientSettings, PlaylistInfo } from '../shared/types';
+import type { QueueSave } from '@/components/videojs/features/queue';
 import type { HapticChannel } from '../shared/haptics';
 
 import '@videojs/html/ui/title';
@@ -174,7 +176,7 @@ class App {
       enqueue: (ids) => this.enqueue(ids),
     });
     this.playback = new PlaybackController(this.library, this.queue, session);
-    publishQueue(this.queue, this.playback, this.library);
+    publishQueue(this.queue, this.playback, this.library, (request) => this.saveQueue(request));
     setQueueActions({
       playNext: (ids) => {
         this.playback.playNext(ids);
@@ -574,6 +576,37 @@ class App {
   private queuedLabel(trackIds: string[]): string {
     if (trackIds.length !== 1) return `${trackIds.length} tracks`;
     return `“${this.library.getTrack(trackIds[0])?.title ?? 'Track'}”`;
+  }
+
+  /** Stores the whole queue as a Jellyfin playlist; the queue then counts as that playlist. */
+  private async saveQueue(request: QueueSave): Promise<string> {
+    const ids = this.queue.trackIds;
+    if (!ids.length) throw new Error('The queue is empty.');
+    const tracksById = new Map(this.allMedia().map((track) => [track.id, track]));
+    let playlist: PlaylistInfo;
+    try {
+      if (request.mode === 'overwrite') {
+        const source = this.queue.source;
+        const current = source.type === 'playlist' ? this.library.getPlaylist(source.id) : undefined;
+        if (!current) throw new Error('This queue did not come from a playlist.');
+        const saved = await overwriteJellyfinPlaylist(current, ids, tracksById);
+        if (!saved) {
+          throw new Error('This playlist holds media HAPPY does not show, changed elsewhere, or is not yours to edit. '
+            + 'Save the queue as a new playlist instead.');
+        }
+        playlist = saved;
+      } else {
+        const name = request.name.trim();
+        if (!name) throw new Error('Give the playlist a name.');
+        playlist = await createJellyfinPlaylist(name, ids, tracksById);
+      }
+    } catch (err) {
+      if (err instanceof JellyfinRequestError) throw new Error(`Jellyfin did not save the playlist (HTTP ${err.status}).`);
+      throw err;
+    }
+    this.library.upsertPlaylist(playlist);
+    this.queue.markSaved({ type: 'playlist', id: playlist.id });
+    return `Saved “${playlist.name}” (${playlist.entries.length} media).`;
   }
 
   /** Play/Shuffle on an album or playlist page: the queue is replaced and its first track's page opens. */

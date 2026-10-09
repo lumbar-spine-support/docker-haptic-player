@@ -9,7 +9,7 @@ const TAG = '[client:queueTarget]';
 const library = {
     getTrack: (id: string) => (id === 'gone' ? undefined : { id, title: `Title ${id}`, artist: id === 't2' ? '' : 'Artist', filename: `${id}.mp4` }),
     getAlbum: (id: string) => (id === 'a1' ? { id, title: 'Album One' } : undefined),
-    getPlaylist: () => undefined,
+    getPlaylist: (id: string) => (id === 'p1' ? { id, name: 'Mix' } : undefined),
 } as any;
 
 function setup() {
@@ -23,7 +23,10 @@ function setup() {
         shuffleUpcoming: () => calls.push('shuffle'),
         clearUpcoming: () => calls.push('clear'),
     } as any;
-    const target = publishQueue(queue, controller, library);
+    const target = publishQueue(queue, controller, library, async (request) => {
+        calls.push(`save ${request.mode}`);
+        return 'saved';
+    });
     return { queue, target, calls };
 }
 
@@ -37,6 +40,8 @@ test(`${TAG} publishes a state the panel can render without the library`, () => 
     const state = target.getState();
     assert.equal(state.currentIndex, 1);
     assert.equal(state.sourceName, 'Album One');
+    assert.equal(state.fromPlaylist, false);
+    assert.equal(state.edited, false);
     assert.deepEqual(state.items.map((item) => [item.title, item.subtitle]), [
         ['Title t1', 'Artist'],
         ['Title t2', 't2.mp4'],
@@ -51,6 +56,17 @@ test(`${TAG} tells where a track stands in the queue`, () => {
     assert.equal(target.placeOf('t1'), 'current');
     assert.equal(target.placeOf('t2'), 'upcoming');
     assert.equal(target.placeOf('t3'), null);
+});
+
+test(`${TAG} a queue from a playlist can be written back once edited`, async () => {
+    const { queue, target, calls } = setup();
+    queue.replace(['t1', 't2'], 0, { type: 'playlist', id: 'p1' });
+    assert.equal(target.getState().fromPlaylist, true);
+    assert.equal(target.getState().sourceName, 'Mix');
+    queue.append(['t3']);
+    assert.equal(target.getState().edited, true);
+    assert.equal(await target.save({ mode: 'overwrite' }), 'saved');
+    assert.deepEqual(calls, ['save overwrite']);
 });
 
 test(`${TAG} every change goes through the controller`, () => {
