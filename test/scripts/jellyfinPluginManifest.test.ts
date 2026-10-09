@@ -36,6 +36,14 @@ describe('jellyfin plugin manifest', () => {
         assert.ok(!info.description.endsWith('\n'));
     });
 
+    it('lets the release PR bump build.yaml through its marker, not as YAML', () => {
+        // A plain "*.yaml" extra-file makes release-please rewrite `version` as x.y.z and reformat the file.
+        const config = JSON.parse(readFileSync('release-please-config.json', 'utf8'));
+        const extraFiles: (string | { type: string; path: string })[] = config.packages['.']['extra-files'];
+        assert.deepEqual(extraFiles.filter(f => (typeof f === 'string' ? f : f.path) === 'jellyfin-plugin/build.yaml'),
+            [{ type: 'generic', path: 'jellyfin-plugin/build.yaml' }]);
+    });
+
     it('rejects a build.yaml without a required field', () => {
         assert.throws(() => readPluginInfo('name: "HAPPY"\n'), /missing "guid"/);
     });

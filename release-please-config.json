@@ -2,6 +2,7 @@
     "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
     "release-type": "node",
     "include-v-in-tag": true,
+    "separate-pull-requests": true,
     "pull-request-footer": "Jellyfin plugin repository: https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/jellyfin-plugin-repository/manifest.json",
     "packages": {
         ".": {
@@ -9,7 +10,10 @@
             "pull-request-title-pattern": "chore: release HAPPY v${version}",
             "changelog-path": "CHANGELOG.md",
             "extra-files": [
-                "jellyfin-plugin/build.yaml",
+                {
+                    "type": "generic",
+                    "path": "jellyfin-plugin/build.yaml"
+                },
                 "jellyfin-plugin/Directory.Build.props"
             ],
             "changelog-sections": [
