@@ -1,6 +1,6 @@
 {
   "name": "jellyfin-haptic-player",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "HAPPY is a self-hosted haptic player for audio and video files.",
   "license": "GPL-3.0-or-later",
   "scripts": {

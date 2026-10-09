@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/lumbar-spine-support/jellyfin-haptic-player/compare/v1.0.0...v1.1.0) (2026-10-09)
+
+
+### Features
+
+* **dglab:** show the plugin's relay address read-only in the client ([66d8626](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/66d8626af6bcbfacb83d4ca92a18a5fe5e261f1e))
+* **plugin:** improved jellyfin plugin markup ([#38](https://github.com/lumbar-spine-support/jellyfin-haptic-player/issues/38)) ([befcecd](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/befcecd81da66c9c1cca16dde714a0936c4a948e))
+
 ## [1.0.0](https://github.com/lumbar-spine-support/jellyfin-haptic-player/compare/v0.15.0...v1.0.0) (2026-10-09)
 
 
