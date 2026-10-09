@@ -15,6 +15,8 @@ npm run dev:client     # esbuild watch for the client bundle (no CSS; run build:
 npm run build:css      # compile public/css/*.scss
 npm test               # all tests: node:test via tsx over test/server, test/client and test/scripts
 npm run test:jellyfin  # opt-in integration tests against a real Jellyfin (reads gitignored config/test.env)
+npm run dev:jellyfin   # local Jellyfin in Docker (:8097) with the fixtures + plugin from the working tree (docs/developer/local-jellyfin.md)
+npm run test:jellyfin:dev  # integration tests against that local Jellyfin
 npm run test:coverage  # what CI runs (Node 26)
 npm run docs:env       # regenerate the env-var tables in README/docs from Config.DEFAULTS/ENV_NAMES/DESCRIPTIONS
 npm run sandbox        # standalone e-stim waveform sandbox at :8100 (sandbox/)

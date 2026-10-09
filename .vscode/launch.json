@@ -66,6 +66,46 @@
       }
     },
     {
+      // The HAPPY server against the local dev Jellyfin (npm run dev:jellyfin writes config/dev-jellyfin.env).
+      "name": "Server (local Jellyfin)",
+      "request": "launch",
+      "type": "node",
+      "program": "${workspaceFolder}/dist/server/index.js",
+      "preLaunchTask": "npm: build:server",
+      "cwd": "${workspaceFolder}",
+      "outFiles": [
+        "${workspaceFolder}/dist/**/*.js"
+      ],
+      "sourceMaps": true,
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "runtimeArgs": [
+        "--enable-source-maps"
+      ],
+      "envFile": "${workspaceFolder}/config/dev-jellyfin.env",
+      "env": {
+        "CONFIG_PATH": "${workspaceFolder}/config",
+        "LOG_LEVEL": "debug",
+        "DGLAB_ENABLED": "true"
+      }
+    },
+    {
+      "name": "Local Jellyfin Integration Tests",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "test:jellyfin:dev"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
+    },
+    {
       "name": "E-stim Sandbox",
       "type": "node",
       "request": "launch",
@@ -90,6 +130,16 @@
         "Server",
         "Client"
       ]
+    },
+    {
+      // Starts (and on first run sets up) the local Jellyfin with the test fixtures and the plugin.
+      "name": "Debug (local Jellyfin)",
+      "preLaunchTask": "npm: dev:jellyfin",
+      "configurations": [
+        "Server (local Jellyfin)",
+        "Client"
+      ],
+      "stopAll": true
     }
   ]
 }

@@ -15,6 +15,7 @@ These pages explain how HAPPY works inside: which modules exist, how they talk t
 | [client.md](client.md) | App bootstrap, Jellyfin data layer, routing, the two-player playback model |
 | [haptics.md](haptics.md) | Backends, channels and features, the funscript pipeline, the sync loop, the e-stim sandbox |
 | [jellyfin-plugin.md](jellyfin-plugin.md) | The Jellyfin companion plugin: funscript endpoints, matching, building, testing against a real Jellyfin |
+| [local-jellyfin.md](local-jellyfin.md) | `npm run dev:jellyfin`: a local Jellyfin with the test fixtures and the plugin from your working tree |
 
 ### Use cases
 

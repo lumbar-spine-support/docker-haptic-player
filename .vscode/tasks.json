@@ -11,6 +11,44 @@
 			"problemMatcher": [],
 			"label": "npm: build",
 			"detail": "npm run build:server && npm run build:client && npm run build:vendor"
+		},
+		{
+			"type": "npm",
+			"script": "build:client",
+			"problemMatcher": [],
+			"label": "npm: build:client"
+		},
+		{
+			"type": "npm",
+			"script": "build:server",
+			"problemMatcher": ["$tsc"],
+			"label": "npm: build:server"
+		},
+		{
+			// Builds the plugin, starts the local Jellyfin (dev/jellyfin/compose.yaml) and sets it up. Idempotent.
+			"type": "npm",
+			"script": "dev:jellyfin",
+			"problemMatcher": [],
+			"label": "npm: dev:jellyfin"
+		},
+		{
+			"type": "npm",
+			"script": "dev:jellyfin:plugin",
+			"problemMatcher": [],
+			"label": "npm: dev:jellyfin:plugin",
+			"detail": "Rebuild the HAPPY plugin and restart the local Jellyfin"
+		},
+		{
+			"type": "npm",
+			"script": "dev:jellyfin:down",
+			"problemMatcher": [],
+			"label": "npm: dev:jellyfin:down"
+		},
+		{
+			"label": "Local Jellyfin: start and build client",
+			"dependsOrder": "sequence",
+			"dependsOn": ["npm: dev:jellyfin", "npm: build:client"],
+			"problemMatcher": []
 		}
 	]
 }
