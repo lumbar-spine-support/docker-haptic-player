@@ -160,6 +160,8 @@ export interface ClientSettings {
   dglabEnabled: boolean;
   /** Only true when `dglabEnabled` is as well. */
   dglabSandboxEnabled: boolean;
+  /** DG-Lab relay address as browsers and phones reach it; empty for the page's own origin. */
+  dglabRelayUrl: string;
   autoReconnectIntiface: boolean;
   autoReconnectDglab: boolean;
   /** True when the server runs with `LOG_LEVEL=debug`. */

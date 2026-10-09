@@ -21,6 +21,7 @@ Every YAML setting can also be set as an environment variable. Environment varia
 | `HAPTIC_DELAY_LIMIT` | `500` | Maximum absolute haptic delay in milliseconds selectable in the web interface (range is -limit to +limit). |
 | `DGLAB_ENABLED` | `false` | (EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control. |
 | `DGLAB_SANDBOX_ENABLED` | `true` | Show the DG-Lab sandbox page for testing waveform patterns without media. Only has an effect when DG-Lab is enabled. |
+| `DGLAB_RELAY_URL` | *(empty)* | Address of the DG-Lab relay as browsers and phones reach it, e.g. wss://relay.example.com. Empty: the relay built into this server. |
 | `AUTO_RECONNECT_INTIFACE` | `true` | Reconnect to Intiface on page load if it was connected when the page was last used. |
 | `AUTO_RECONNECT_DGLAB` | `true` | Reconnect to the DG-Lab relay on page load if it was connected and last seen less than 5 minutes ago. |
 | `FUNSCRIPT_INTERPOLATION_METHOD` | `pchip` | How positions between funscript points are computed for haptics and the timeline: none, linear, pchip. none holds each position until the next point; strokers follow pchip as linear |

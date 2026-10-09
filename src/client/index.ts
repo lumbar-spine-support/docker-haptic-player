@@ -1,6 +1,7 @@
 import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchClientSettings, logout, artworkUrl, chaptersVttUrl, useJellyfin } from './api';
 import { JellyfinConnection } from './jellyfin/connection';
 import { ensureSignedIn, showMissingServerNotice } from './jellyfin/signIn';
+import { resolveJellyfinUrl } from './jellyfin/serverUrl';
 import { formatVersion } from './utils/formatVersion';
 import { qs } from './utils/html';
 import { storedSetting } from './utils/storedSetting';
@@ -55,6 +56,7 @@ const FALLBACK_SETTINGS: ClientSettings = {
   hapticDelayLimit: 500,
   dglabEnabled: false,
   dglabSandboxEnabled: false,
+  dglabRelayUrl: '',
   autoReconnectIntiface: false,
   autoReconnectDglab: false,
   debugLogging: false,
@@ -244,12 +246,13 @@ class App {
 
   /** Signs in to Jellyfin if needed; false when no server is configured and the app cannot load. */
   private async connectJellyfin(): Promise<boolean> {
-    if (!this.settings.jellyfinUrl) {
+    const serverUrl = resolveJellyfinUrl(this.settings.jellyfinUrl, window.location.href);
+    if (!serverUrl) {
       showMissingServerNotice();
       return false;
     }
     // A rejected token clears the session; reloading shows the sign-in card again.
-    this.jellyfin = new JellyfinConnection(this.settings.jellyfinUrl, () => window.location.reload());
+    this.jellyfin = new JellyfinConnection(serverUrl, () => window.location.reload());
     await ensureSignedIn(this.jellyfin);
     useJellyfin(this.jellyfin, {
       funscriptSuffixes: this.settings.funscriptSuffixes,
@@ -406,7 +409,7 @@ class App {
     }
 
     if (this.settings.debugLogging) setLogLevel('dglab', 'debug');
-    const coyote = new CoyoteBackend(() => this.jellyfin?.endpoint.token ?? '');
+    const coyote = new CoyoteBackend(() => this.jellyfin?.endpoint.token ?? '', this.settings.dglabRelayUrl);
     this.haptics.add(coyote);
     bindDelaySlider(this.createSyncEngine(coyote), 'dglab-delay', DGLAB_DELAY_KEY, 0, this.settings.hapticDelayLimit);
     this.mountDeviceAssignment(coyote, '#dglab-devices');

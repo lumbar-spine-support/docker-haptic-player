@@ -200,8 +200,8 @@
   width: 28px;
   height: 28px;
   background-color: currentColor;
-  -webkit-mask: url('/icon.svg') no-repeat center / contain;
-  mask: url('/icon.svg') no-repeat center / contain;
+  -webkit-mask: url('../icon.svg') no-repeat center / contain;
+  mask: url('../icon.svg') no-repeat center / contain;
   vertical-align: middle;
 }
 
@@ -267,28 +267,28 @@
 }
 
 .device-role-icon-stroker {
-  -webkit-mask-image: url('/img/icon-stroker.svg');
-  mask-image: url('/img/icon-stroker.svg');
+  -webkit-mask-image: url('../img/icon-stroker.svg');
+  mask-image: url('../img/icon-stroker.svg');
 }
 
 .device-role-icon-buttplug {
-  -webkit-mask-image: url('/img/icon-buttplug.svg');
-  mask-image: url('/img/icon-buttplug.svg');
+  -webkit-mask-image: url('../img/icon-buttplug.svg');
+  mask-image: url('../img/icon-buttplug.svg');
 }
 
 .device-role-icon-vibrator {
-  -webkit-mask-image: url('/img/icon-vibrator.svg');
-  mask-image: url('/img/icon-vibrator.svg');
+  -webkit-mask-image: url('../img/icon-vibrator.svg');
+  mask-image: url('../img/icon-vibrator.svg');
 }
 
 .device-role-icon-estim {
-  -webkit-mask-image: url('/img/icon-estim.svg');
-  mask-image: url('/img/icon-estim.svg');
+  -webkit-mask-image: url('../img/icon-estim.svg');
+  mask-image: url('../img/icon-estim.svg');
 }
 
 .device-role-icon-machine {
-  -webkit-mask-image: url('/img/icon-machine.svg');
-  mask-image: url('/img/icon-machine.svg');
+  -webkit-mask-image: url('../img/icon-machine.svg');
+  mask-image: url('../img/icon-machine.svg');
 }
 
 // Drawn with the Bootstrap Icons font, so the masked background must be cleared.
@@ -331,8 +331,8 @@ tr {
     width: 2rem;
     height: 2rem;
     background-color: currentColor;
-    -webkit-mask: url('/icon.svg') no-repeat center / contain;
-    mask: url('/icon.svg') no-repeat center / contain;
+    -webkit-mask: url('../icon.svg') no-repeat center / contain;
+    mask: url('../icon.svg') no-repeat center / contain;
     vertical-align: middle;
   }
 }

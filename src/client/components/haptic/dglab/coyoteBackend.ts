@@ -189,6 +189,40 @@ export function normalizeHost(raw: string): string {
   return raw.trim().replace(/^[a-z]+:\/\//i, '').replace(/\/.*$/, '');
 }
 
+/** The parts of the page's location the relay address falls back to. */
+export interface PageLocation {
+  protocol: string;
+  host: string;
+}
+
+/**
+ * WebSocket endpoint of the DG-Lab relay. `configured` is the relay address from the settings: an
+ * http(s)/ws(s) URL or a bare `host[:port]`, optionally with a path prefix (behind a reverse proxy).
+ * Empty or invalid means the relay is served from the page's own origin.
+ */
+export function relayEndpoint(configured: string, page: PageLocation): URL {
+  const pageScheme = page.protocol === 'https:' ? 'wss' : 'ws';
+  const raw = configured.trim();
+  let url: URL;
+  try {
+    url = new URL(/^[a-z]+:\/\//i.test(raw) ? raw.replace(/^http/i, 'ws') : `${pageScheme}://${raw || page.host}`);
+  } catch {
+    url = new URL(`${pageScheme}://${page.host}`);
+  }
+  url.pathname = `${url.pathname.replace(/\/+$/, '')}${DGLAB_WS_PATH}`;
+  url.search = '';
+  url.hash = '';
+  return url;
+}
+
+/** The address the DG-Lab app dials: the relay endpoint at `host` (the phone's view of it), for one controller. */
+export function relayPairingUrl(endpoint: URL, host: string, targetId: string): string {
+  const url = new URL(endpoint);
+  url.host = host;
+  url.searchParams.set('tid', targetId);
+  return url.toString();
+}
+
 /**
  * DG-Lab Coyote 3.0 backend, driven through the self-hosted V4 relay.
  *
@@ -199,6 +233,8 @@ export function normalizeHost(raw: string): string {
  */
 export class CoyoteBackend implements HapticBackend {
   private readonly socket: DglabV4Socket;
+  /** Where this tab connects; the DG-Lab app dials the same endpoint, possibly by another host. */
+  private readonly endpoint: URL;
   private readonly settings = new FeatureSettings(ASSIGNMENTS_KEY, STRENGTHS_KEY);
   /** Feature id -> output timing for that channel. */
   private readonly schedulers = new Map<string, CoyoteChannelScheduler>();
@@ -236,8 +272,10 @@ export class CoyoteBackend implements HapticBackend {
   /**
    * @param accessToken Jellyfin access token of the signed-in user; the relay only accepts
    *   HAPPY tabs that offer one (as a WebSocket subprotocol, so it never appears in a URL).
+   * @param relayUrl Relay address from the settings (`dglabRelayUrl`); empty for the page's own origin.
    */
-  constructor(accessToken: () => string) {
+  constructor(accessToken: () => string, relayUrl = '') {
+    this.endpoint = relayEndpoint(relayUrl, window.location);
     this.socket = new DglabV4Socket((url) => new DglabSocket({
       url,
       protocols: [DGLAB_PROTOCOL, `${DGLAB_AUTH_PROTOCOL_PREFIX}${accessToken()}`],
@@ -257,11 +295,11 @@ export class CoyoteBackend implements HapticBackend {
   }
 
   /**
-   * The browser's own host, unless it is loopback: the server cannot see the
-   * Docker host's LAN address, so the user has to enter it in that case.
+   * The relay's host as the browser reaches it, unless it is loopback: the browser
+   * cannot know the LAN address a phone needs, so the user has to enter it then.
    */
   get defaultPairingHost(): string {
-    const own = window.location.host;
+    const own = this.endpoint.host;
     return isLoopbackHost(own) ? '' : own;
   }
 
@@ -283,8 +321,7 @@ export class CoyoteBackend implements HapticBackend {
   get pairingUrl(): string | null {
     const tid = this.socket.targetId;
     if (!tid || !this.pairingHost) return null;
-    const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    return `${scheme}://${this.pairingHost}${DGLAB_WS_PATH}?tid=${encodeURIComponent(tid)}`;
+    return relayPairingUrl(this.endpoint, this.pairingHost, tid);
   }
 
   get appCount(): number { return this.socket.appCount; }
@@ -292,8 +329,7 @@ export class CoyoteBackend implements HapticBackend {
   onActivity(listener: (at: number) => void): void { this.socket.onActivity(listener); }
 
   connect(): void {
-    const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    this.socket.connect(`${scheme}://${window.location.host}${DGLAB_WS_PATH}`);
+    this.socket.connect(this.endpoint.toString());
   }
 
   disconnect(): void {

@@ -40,6 +40,7 @@ export namespace Config {
     hapticDelayLimit: number;
     dglabEnabled: boolean;
     dglabSandboxEnabled: boolean;
+    dglabRelayUrl: string;
     autoReconnectIntiface: boolean;
     autoReconnectDglab: boolean;
     funscriptInterpolationMethod: string;
@@ -86,6 +87,7 @@ export namespace Config {
     hapticDelayLimit: 500,
     dglabEnabled: false,
     dglabSandboxEnabled: true,
+    dglabRelayUrl: '',
     autoReconnectIntiface: true,
     autoReconnectDglab: true,
     funscriptInterpolationMethod: DEFAULT_INTERPOLATION_METHOD,
@@ -116,6 +118,7 @@ export namespace Config {
     hapticDelayLimit: 'Maximum absolute haptic delay in milliseconds selectable in the web interface (range is -limit to +limit).',
     dglabEnabled: '(EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control.',
     dglabSandboxEnabled: 'Show the DG-Lab sandbox page for testing waveform patterns without media. Only has an effect when DG-Lab is enabled.',
+    dglabRelayUrl: 'Address of the DG-Lab relay as browsers and phones reach it, e.g. wss://relay.example.com. Empty: the relay built into this server.',
     autoReconnectIntiface: 'Reconnect to Intiface on page load if it was connected when the page was last used.',
     autoReconnectDglab: `Reconnect to the DG-Lab relay on page load if it was connected and last seen less than ${SHARED_DGLAB_DETACH_GRACE_MS / 60_000} minutes ago.`,
     funscriptInterpolationMethod: `How positions between funscript points are computed for haptics and the timeline: ${INTERPOLATION_METHODS.join(', ')}. none holds each position until the next point; strokers follow pchip as linear`,
@@ -144,6 +147,7 @@ export namespace Config {
     hapticDelayLimit: 'HAPTIC_DELAY_LIMIT',
     dglabEnabled: 'DGLAB_ENABLED',
     dglabSandboxEnabled: 'DGLAB_SANDBOX_ENABLED',
+    dglabRelayUrl: 'DGLAB_RELAY_URL',
     autoReconnectIntiface: 'AUTO_RECONNECT_INTIFACE',
     autoReconnectDglab: 'AUTO_RECONNECT_DGLAB',
     funscriptInterpolationMethod: 'FUNSCRIPT_INTERPOLATION_METHOD',

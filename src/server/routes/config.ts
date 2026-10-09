@@ -17,6 +17,7 @@ export function createConfigRouter(clientConfig: Config.ClientConfig): Router {
     hapticDelayLimit: Math.max(0, Math.abs(Number(clientConfig.hapticDelayLimit)) || 0),
     dglabEnabled: Boolean(clientConfig.dglabEnabled),
     dglabSandboxEnabled: Boolean(clientConfig.dglabEnabled) && Boolean(clientConfig.dglabSandboxEnabled),
+    dglabRelayUrl: String(clientConfig.dglabRelayUrl ?? '').trim(),
     autoReconnectIntiface: Boolean(clientConfig.autoReconnectIntiface),
     autoReconnectDglab: Boolean(clientConfig.autoReconnectDglab),
     funscriptInterpolationMethod: isInterpolationMethod(clientConfig.funscriptInterpolationMethod)
