@@ -302,6 +302,15 @@
                                 class="media-popup media-popup-safe-area media-popup-transition media-tooltip-popup">
                                 Repeat
                             </media-tooltip>
+                            <media-queue-add-button class="media-button media-queue-add-button" id="vjs-queue-add-trigger">
+                                <media-icon family="compat" name="queue-add"
+                                    class="media-button-icon media-queue-add-button-icon">
+                                </media-icon>
+                            </media-queue-add-button>
+                            <media-tooltip trigger="vjs-queue-add-trigger" side="top"
+                                class="media-popup media-popup-safe-area media-popup-transition media-tooltip-popup">
+                                Add to queue
+                            </media-tooltip>
                             <media-favorite-button class="media-button media-favorite-button" id="vjs-favorite-trigger">
                                 <media-icon family="compat" name="favorite-off"
                                     class="media-button-icon media-favorite-button-icon">
@@ -311,6 +320,21 @@
                                 class="media-popup media-popup-safe-area media-popup-transition media-tooltip-popup">
                                 Favorite
                             </media-tooltip>
+                            <button commandfor="vjs-queue-popup" class="media-button media-queue-button"
+                                id="vjs-queue-trigger" aria-label="Queue" data-hidden>
+                                <media-icon family="compat" name="queue"
+                                    class="media-button-icon media-queue-button-icon">
+                                </media-icon>
+                            </button>
+                            <media-tooltip trigger="vjs-queue-trigger" side="top"
+                                class="media-popup media-popup-safe-area media-popup-transition media-tooltip-popup">
+                                Queue
+                            </media-tooltip>
+                            <media-popover side="top" align="end" boundary="viewport"
+                                class="media-popup media-popup-safe-area media-popup-transition media-queue-popup"
+                                id="vjs-queue-popup">
+                                <media-queue-panel class="media-queue-panel"></media-queue-panel>
+                            </media-popover>
                             <button commandfor="vjs-WU7c3aPF-h-popup" class="media-button media-settings-button"
                                 id="vjs-SSYvGroJ-0-11-trigger">
                                 <media-icon family="compat" name="gear"

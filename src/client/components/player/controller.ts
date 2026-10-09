@@ -86,6 +86,23 @@ export class PlaybackController {
         this.queue.append(this.known(trackIds));
     }
 
+    /** Reorders what is still to come; indices are relative to it. */
+    moveUpcoming(from: number, to: number): void {
+        this.queue.moveUpcoming(from, to);
+    }
+
+    removeFromQueue(uid: number): void {
+        this.queue.remove(uid);
+    }
+
+    shuffleUpcoming(): void {
+        this.queue.shuffleUpcoming();
+    }
+
+    clearUpcoming(): void {
+        this.queue.clearUpcoming();
+    }
+
     /** Tracks of an album or playlist, for "add to queue" on its page. */
     collection(source: QueueSource): string[] | null {
         if (source.type === 'playlist') {

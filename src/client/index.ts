@@ -9,7 +9,7 @@ import { keepScreenOnWhilePlaying } from './utils/wakeLock';
 import { Router, buildUrl, trackHref, detailHref } from './router';
 import { bindDragOnlyRange, syncRangeFill } from './components/ui/rangeSlider';
 import { resetScrollPosition } from './scroll';
-import { PlaybackSession, PlaybackQueue, PlaybackController } from './components/player';
+import { PlaybackSession, PlaybackQueue, PlaybackController, publishQueue } from './components/player';
 import type { PlayerFooterElement } from './components/player';
 import { ButtplugClientManager } from './components/haptic/buttplugClient';
 import { HapticBackendRegistry } from './components/haptic/backendRegistry';
@@ -174,6 +174,7 @@ class App {
       enqueue: (ids) => this.enqueue(ids),
     });
     this.playback = new PlaybackController(this.library, this.queue, session);
+    publishQueue(this.queue, this.playback, this.library);
     setQueueActions({
       playNext: (ids) => {
         this.playback.playNext(ids);

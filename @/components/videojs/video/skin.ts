@@ -43,6 +43,7 @@ import '@videojs/html/ui/time';
 import '@videojs/html/ui/time-separator';
 import '@videojs/html/ui/captions-button';
 import '@videojs/html/ui/menu';
+import '@videojs/html/ui/popover';
 import '@videojs/html/ui/menu-content';
 import '@videojs/html/ui/menu-item';
 import '@videojs/html/ui/menu-separator';
@@ -79,24 +80,31 @@ import badgeVrFillIconSource from 'bootstrap-icons/icons/badge-vr-fill.svg';
 import chatDotsIconSource from 'bootstrap-icons/icons/chat-dots.svg';
 import checkLgIconSource from 'bootstrap-icons/icons/check-lg.svg';
 import chevronDownIconSource from 'bootstrap-icons/icons/chevron-down.svg';
+import floppyIconSource from 'bootstrap-icons/icons/floppy.svg';
 import fullscreenExitIconSource from 'bootstrap-icons/icons/fullscreen-exit.svg';
 import fullscreenIconSource from 'bootstrap-icons/icons/fullscreen.svg';
 import gearIconSource from 'bootstrap-icons/icons/gear.svg';
+import gripVerticalIconSource from 'bootstrap-icons/icons/grip-vertical.svg';
 import heartIconSource from 'bootstrap-icons/icons/heart.svg';
 import heartFillIconSource from 'bootstrap-icons/icons/heart-fill.svg';
+import musicNoteListIconSource from 'bootstrap-icons/icons/music-note-list.svg';
 import pauseFillIconSource from 'bootstrap-icons/icons/pause-fill.svg';
 import phoneIconSource from 'bootstrap-icons/icons/phone.svg';
 import pipIconSource from 'bootstrap-icons/icons/pip.svg';
 import playFillIconSource from 'bootstrap-icons/icons/play-fill.svg';
+import plusLgIconSource from 'bootstrap-icons/icons/plus-lg.svg';
 import repeatIconSource from 'bootstrap-icons/icons/repeat.svg';
 import repeatOneIconSource from 'bootstrap-icons/icons/repeat-1.svg';
+import shuffleIconSource from 'bootstrap-icons/icons/shuffle.svg';
 import skipBackwardFillIconSource from 'bootstrap-icons/icons/skip-backward-fill.svg';
 import skipForwardFillIconSource from 'bootstrap-icons/icons/skip-forward-fill.svg';
 import speedometerIconSource from 'bootstrap-icons/icons/speedometer.svg';
 import togglesIconSource from 'bootstrap-icons/icons/toggles.svg';
+import trash3IconSource from 'bootstrap-icons/icons/trash3.svg';
 import volumeDownFillIconSource from 'bootstrap-icons/icons/volume-down-fill.svg';
 import volumeMuteFillIconSource from 'bootstrap-icons/icons/volume-mute-fill.svg';
 import volumeUpFillIconSource from 'bootstrap-icons/icons/volume-up-fill.svg';
+import xLgIconSource from 'bootstrap-icons/icons/x-lg.svg';
 
 const stripBootstrapClassesFromSource = (source: string) => source.replace(/\s*class="bi bi-[^"]+"/, '');
 
@@ -109,19 +117,25 @@ registerIcons('compat', {
   'cast-exit': castExitIconCompat,
   check: stripBootstrapClassesFromSource(checkLgIconSource),
   chevron: stripBootstrapClassesFromSource(chevronDownIconSource),
+  close: stripBootstrapClassesFromSource(xLgIconSource),
   'fullscreen-enter': stripBootstrapClassesFromSource(fullscreenIconSource),
   'fullscreen-exit': stripBootstrapClassesFromSource(fullscreenExitIconSource),
   'favorite-off': stripBootstrapClassesFromSource(heartIconSource),
   'favorite-on': stripBootstrapClassesFromSource(heartFillIconSource),
   gear: stripBootstrapClassesFromSource(gearIconSource),
+  grip: stripBootstrapClassesFromSource(gripVerticalIconSource),
   loop: stripBootstrapClassesFromSource(repeatIconSource),
   pause: stripBootstrapClassesFromSource(pauseFillIconSource),
   phone: stripBootstrapClassesFromSource(phoneIconSource),
   'pip-enter': stripBootstrapClassesFromSource(pipIconSource),
   'pip-exit': stripBootstrapClassesFromSource(pipIconSource),
   play: stripBootstrapClassesFromSource(playFillIconSource),
+  queue: stripBootstrapClassesFromSource(musicNoteListIconSource),
+  'queue-add': stripBootstrapClassesFromSource(plusLgIconSource),
   'repeat-one': stripBootstrapClassesFromSource(repeatOneIconSource),
   restart: stripBootstrapClassesFromSource(arrowClockwiseIconSource),
+  save: stripBootstrapClassesFromSource(floppyIconSource),
+  shuffle: stripBootstrapClassesFromSource(shuffleIconSource),
   seek: seekIconCompat,
   'skip-backward': stripBootstrapClassesFromSource(skipBackwardFillIconSource),
   'skip-forward': stripBootstrapClassesFromSource(skipForwardFillIconSource),
@@ -129,6 +143,7 @@ registerIcons('compat', {
   speed: stripBootstrapClassesFromSource(speedometerIconSource),
   spinner: stripBootstrapClassesFromSource(arrowClockwiseIconSource),
   switches: stripBootstrapClassesFromSource(togglesIconSource),
+  trash: stripBootstrapClassesFromSource(trash3IconSource),
   'volume-high': stripBootstrapClassesFromSource(volumeUpFillIconSource),
   'volume-low': stripBootstrapClassesFromSource(volumeDownFillIconSource),
   'volume-off': stripBootstrapClassesFromSource(volumeMuteFillIconSource),
