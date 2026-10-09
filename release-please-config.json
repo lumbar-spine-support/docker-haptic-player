@@ -3,7 +3,7 @@
     "release-type": "node",
     "include-v-in-tag": true,
     "separate-pull-requests": true,
-    "pull-request-footer": "Jellyfin plugin repository: https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/jellyfin-plugin-repository/manifest.json",
+    "pull-request-footer": "Jellyfin plugin repository: https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/refs/heads/jellyfin-plugin-repository/manifest.json",
     "packages": {
         ".": {
             "include-component-in-tag": false,

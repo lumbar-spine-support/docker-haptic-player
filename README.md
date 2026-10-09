@@ -34,7 +34,7 @@
 In Jellyfin, open *Dashboard → Plugins → Repositories* and add HAPPY's plugin repository:
 
 ```
-https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/jellyfin-plugin-repository/manifest.json
+https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/refs/heads/jellyfin-plugin-repository/manifest.json
 ```
 
 Then install **HAPPY** from the plugin *Catalog* and restart Jellyfin. Jellyfin keeps the plugin up to date from now on. Open HAPPY at `<your Jellyfin address>/Happy/Web/` (or *Open HAPPY* on the plugin's settings page) and sign in with your Jellyfin account. Server-wide settings are on the plugin's settings page (*Dashboard → Plugins → HAPPY*).

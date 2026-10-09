@@ -20,7 +20,7 @@ Add HAPPY's plugin repository to Jellyfin once. After that Jellyfin installs the
 
 1. In Jellyfin, open *Dashboard → Plugins → Repositories* and add a repository:
    - Name: `HAPPY`
-   - URL: `https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/jellyfin-plugin-repository/manifest.json`
+   - URL: `https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/refs/heads/jellyfin-plugin-repository/manifest.json`
 2. Open the plugin *Catalog*, select **HAPPY** (category *General*) and install it.
 3. Restart Jellyfin. *Dashboard → Plugins* now lists **HAPPY**.
 4. Run a library scan, or just open HAPPY; the funscript index is built on first use and refreshed after every scan.
