@@ -1,0 +1,20 @@
+[
+  {
+    "guid": "98652011-fd1c-4b30-8359-fcae3b45ed37",
+    "name": "HAPPY",
+    "description": "Indexes .funscript files that sit next to your audio and video files and serves them to the HAPPY haptic player through Jellyfin's own authentication.",
+    "overview": "Funscript companion API for the HAPPY haptic player",
+    "owner": "lumbar-spine-support",
+    "category": "General",
+    "versions": [
+      {
+        "version": "1.0.0.0",
+        "changelog": "## [1.0.0](https://github.com/lumbar-spine-support/docker-haptic-player/compare/v0.15.0...v1.0.0) (2026-10-09)\n\n\n### ⚠ BREAKING CHANGES\n\n* make HAPPY a Jellyfin plugin instead of a standalone Docker container\n\n### Features\n\n* make HAPPY a Jellyfin plugin instead of a standalone Docker container ([0abfa0e](https://github.com/lumbar-spine-support/docker-haptic-player/commit/0abfa0e0286fa56694ce8250587cad92fc1fd951))\n* **plugin:** user can configure which libraries to share with HAPPY ([8872e4e](https://github.com/lumbar-spine-support/docker-haptic-player/commit/8872e4edc62eaad2c8830b7ffa94ffff596483b3))\n* **storyboards:** show preview on thumbnail when dragging the timeline ([3c94712](https://github.com/lumbar-spine-support/docker-haptic-player/commit/3c9471272c5e159ba285b4da1a684c0abdee3c55))\n\nInstall or update HAPPY through its Jellyfin plugin repository: https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/jellyfin-plugin-repository/manifest.json (Dashboard → Plugins → Repositories), or download `happy_1.0.0.0.zip` below.",
+        "targetAbi": "12.1.0.0",
+        "sourceUrl": "https://github.com/lumbar-spine-support/docker-haptic-player/releases/download/v1.0.0/happy_1.0.0.0.zip",
+        "checksum": "57c235e263373538e29d7ec17d1918fd",
+        "timestamp": "2026-10-09T18:31:48Z"
+      }
+    ]
+  }
+]
