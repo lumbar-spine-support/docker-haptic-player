@@ -47,7 +47,7 @@ Server-wide defaults (seek interval, haptic delay, DG-Lab, funscript file names 
 
 ## Moving from the HAPPY container
 
-Earlier versions of HAPPY ran as their own Docker container (`ghcr.io/lumbar-spine-support/jellyfin-haptic-player`). That image gets no more releases. To move over:
+Earlier versions of HAPPY ran as their own Docker container (`ghcr.io/lumbar-spine-support/docker-haptic-player`). That image gets no more releases. To move over:
 
 1. Install the plugin as described above.
 2. Enter the values from your `settings.yaml` or container environment on the plugin's settings page. `JELLYFIN_URL` is no longer needed, since HAPPY now runs on Jellyfin's own address.
