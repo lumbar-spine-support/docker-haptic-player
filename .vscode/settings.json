@@ -8,6 +8,11 @@
   "chat.agent.maxRequests": 100,
   "chat.sessionSync.enabled": true,
   "eslint.enable": false,
+  // TypeScript 7 language server (TypeScriptTeam.native-preview, see extensions.json), using the
+  // workspace's typescript package so the editor reports what `npm run typecheck` reports. The
+  // extension does not yet detect a workspace typescript@7 on its own (microsoft/TypeScript#64565).
+  "js/ts.experimental.useTsgo": true,
+  "js/ts.tsdk.path": "node_modules/typescript",
   "editor.rulers": [
     120
   ]

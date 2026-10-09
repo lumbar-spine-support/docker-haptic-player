@@ -10,8 +10,7 @@
         ],
         "types": [
             "node"
-        ],
-        "noEmit": true
+        ]
     },
     "include": [
         "@/**/*",
@@ -22,7 +21,6 @@
         "dglab-relay/test/**/*"
     ],
     "exclude": [
-        "node_modules",
-        "dist"
+        "node_modules"
     ]
 }
