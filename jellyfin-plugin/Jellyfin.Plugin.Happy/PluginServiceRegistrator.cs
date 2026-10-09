@@ -1,6 +1,8 @@
 using Jellyfin.Plugin.Happy.Funscripts;
+using Jellyfin.Plugin.Happy.Web;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Jellyfin.Plugin.Happy;
@@ -14,5 +16,6 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
         serviceCollection.AddSingleton<FunscriptIndex>();
+        serviceCollection.AddTransient<IStartupFilter, WebConfigStartupFilter>();
     }
 }

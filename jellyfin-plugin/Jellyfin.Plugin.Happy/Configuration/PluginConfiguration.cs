@@ -120,4 +120,20 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets a value indicating whether HAPPY logs debug output to the browser console.
     /// </summary>
     public bool DebugLogging { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether Jellyfin's web client lists HAPPY in its menu
+    /// (a <c>menuLinks</c> entry added to <c>/web/config.json</c>).
+    /// </summary>
+    public bool ShowInJellyfinMenu { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the text of HAPPY's entry in Jellyfin's menu.
+    /// </summary>
+    public string JellyfinMenuName { get; set; } = "HAPPY";
+
+    /// <summary>
+    /// Gets or sets the Material icon name of HAPPY's entry in Jellyfin's menu.
+    /// </summary>
+    public string JellyfinMenuIcon { get; set; } = "vibration";
 }

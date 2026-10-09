@@ -17,6 +17,21 @@
                     <p>Server-wide defaults for the HAPPY haptic player. Settings marked <em>(user)</em> are only the
                         starting value; each user can change them in HAPPY.</p>
 
+                    <h3>Jellyfin menu</h3>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label"><input id="ShowInJellyfinMenu" type="checkbox" is="emby-checkbox" /><span>Show HAPPY in Jellyfin's menu</span></label>
+                        <div class="fieldDescription checkboxFieldDescription">Adds a link to HAPPY to the side menu of Jellyfin's web client for every user. It opens in a new tab. Reload the Jellyfin page after changing this.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="JellyfinMenuName">Menu text</label>
+                        <input id="JellyfinMenuName" type="text" is="emby-input" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="JellyfinMenuIcon">Menu icon</label>
+                        <input id="JellyfinMenuIcon" type="text" is="emby-input" />
+                        <div class="fieldDescription">A <a href="https://fonts.google.com/icons" target="_blank" rel="noopener noreferrer">Material icon</a> name, e.g. vibration.</div>
+                    </div>
+
                     <h3>Playback</h3>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="VideoSeekInterval">Seek interval (seconds)</label>
@@ -134,10 +149,10 @@
                 var form = page.querySelector('#HappyConfigForm');
                 var numbers = ['VideoSeekInterval', 'HapticFrequency', 'HapticDelay', 'HapticDelayLimit'];
                 var flags = ['BlurContent', 'FunscriptColorGradient', 'AutoReconnectIntiface', 'DglabEnabled', 'DglabSandboxEnabled',
-                    'AutoReconnectDglab', 'CardViewForceSquareArtwork', 'CardViewLargePortraitArtwork', 'DebugLogging'];
+                    'AutoReconnectDglab', 'CardViewForceSquareArtwork', 'CardViewLargePortraitArtwork', 'DebugLogging', 'ShowInJellyfinMenu'];
                 var texts = ['ChapterSourcePriority', 'FunscriptInterpolationMethod', 'DglabRelayUrl', 'FunscriptSeparator',
                     'FunscriptSuffixStroker', 'FunscriptSuffixButtplug', 'FunscriptSuffixVibrator', 'FunscriptSuffixEstim',
-                    'FunscriptSuffixMachine'];
+                    'FunscriptSuffixMachine', 'JellyfinMenuName', 'JellyfinMenuIcon'];
                 var field = function (key) { return page.querySelector('#' + key); };
 
                 page.addEventListener('pageshow', function () {
