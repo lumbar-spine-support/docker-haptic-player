@@ -112,6 +112,6 @@ Dependency of dglab-kit.
 
 ## Project License
 
-Copyright (c) 2025 docker-haptic-player (HAPPY) contributors.
+Copyright (c) 2025 jellyfin-haptic-player (HAPPY) contributors.
 
 This project is licensed under the GNU General Public License v3.0 or later — see [LICENSE](LICENSE). Releases up to and including 0.12.0 were published under the MIT License.

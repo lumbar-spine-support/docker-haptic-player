@@ -1,10 +1,10 @@
 # HAPPY ⸺ Jellyfin Haptic Player
 
-![GitHub package.json version](https://img.shields.io/github/package-json/v/lumbar-spine-support/docker-haptic-player?label=stable)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/docker-haptic-player/.github%2Fworkflows%2Frelease.yml?branch=main&logo=docker&label=build)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/docker-haptic-player/.github%2Fworkflows%2Ftest.yml?branch=main&logo=github&label=Tests)
-[![npm audit](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/docker-haptic-player/npm-audit.yml?label=npm%20audit)](https://github.com/lumbar-spine-support/docker-haptic-player/actions/workflows/npm-audit.yml)
-![Codecov](https://img.shields.io/codecov/c/github/lumbar-spine-support/docker-haptic-player)
+![GitHub package.json version](https://img.shields.io/github/package-json/v/lumbar-spine-support/jellyfin-haptic-player?label=stable)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/jellyfin-haptic-player/.github%2Fworkflows%2Frelease.yml?branch=main&logo=docker&label=build)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/jellyfin-haptic-player/.github%2Fworkflows%2Ftest.yml?branch=main&logo=github&label=Tests)
+[![npm audit](https://img.shields.io/github/actions/workflow/status/lumbar-spine-support/jellyfin-haptic-player/npm-audit.yml?label=npm%20audit)](https://github.com/lumbar-spine-support/jellyfin-haptic-player/actions/workflows/npm-audit.yml)
+![Codecov](https://img.shields.io/codecov/c/github/lumbar-spine-support/jellyfin-haptic-player)
 
 ![Preview](./docs/social.png)
 
@@ -34,7 +34,7 @@
 In Jellyfin, open *Dashboard → Plugins → Repositories* and add HAPPY's plugin repository:
 
 ```
-https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/refs/heads/jellyfin-plugin-repository/manifest.json
+https://raw.githubusercontent.com/lumbar-spine-support/jellyfin-haptic-player/refs/heads/jellyfin-plugin-repository/manifest.json
 ```
 
 Then install **HAPPY** from the plugin *Catalog* and restart Jellyfin. Jellyfin keeps the plugin up to date from now on. Open HAPPY at `<your Jellyfin address>/Happy/Web/` (or *Open HAPPY* on the plugin's settings page) and sign in with your Jellyfin account. Server-wide settings are on the plugin's settings page (*Dashboard → Plugins → HAPPY*).
@@ -94,7 +94,7 @@ Note: All docs are also available in HAPPY itself (*Documentation* at the bottom
 
 ## License
 
-Copyright (c) 2025 docker-haptic-player (HAPPY) contributors.
+Copyright (c) 2025 jellyfin-haptic-player (HAPPY) contributors.
 
 This project is licensed under the GNU General Public License v3.0 or later — see [LICENSE](LICENSE). Releases up to and including 0.12.0 were published under the MIT License.
 

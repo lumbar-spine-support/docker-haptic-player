@@ -20,7 +20,7 @@ Add HAPPY's plugin repository to Jellyfin once. After that Jellyfin installs the
 
 1. In Jellyfin, open *Dashboard → Plugins → Repositories* and add a repository:
    - Name: `HAPPY`
-   - URL: `https://raw.githubusercontent.com/lumbar-spine-support/docker-haptic-player/refs/heads/jellyfin-plugin-repository/manifest.json`
+   - URL: `https://raw.githubusercontent.com/lumbar-spine-support/jellyfin-haptic-player/refs/heads/jellyfin-plugin-repository/manifest.json`
 2. Open the plugin *Catalog*, select **HAPPY** (category *General*) and install it.
 3. Restart Jellyfin. *Dashboard → Plugins* now lists **HAPPY**.
 4. Run a library scan, or just open HAPPY; the funscript index is built on first use and refreshed after every scan.
@@ -29,7 +29,7 @@ Jellyfin checks its repositories for updates every day (the *Update Plugins* sch
 
 ### By hand
 
-1. Download `happy_<version>.zip` from a [HAPPY release](https://github.com/lumbar-spine-support/docker-haptic-player/releases) and unzip it into a new folder `HAPPY_<version>` (it contains `Jellyfin.Plugin.Happy.dll` and `meta.json`). Each CI build also uploads the folder as the `jellyfin-plugin-happy` artifact; to build it yourself, run `sh jellyfin-plugin/package.sh` with the .NET 10 SDK, which writes `jellyfin-plugin/artifacts/HAPPY_<version>/`.
+1. Download `happy_<version>.zip` from a [HAPPY release](https://github.com/lumbar-spine-support/jellyfin-haptic-player/releases) and unzip it into a new folder `HAPPY_<version>` (it contains `Jellyfin.Plugin.Happy.dll` and `meta.json`). Each CI build also uploads the folder as the `jellyfin-plugin-happy` artifact; to build it yourself, run `sh jellyfin-plugin/package.sh` with the .NET 10 SDK, which writes `jellyfin-plugin/artifacts/HAPPY_<version>/`.
 2. Copy that folder into the `plugins` directory of Jellyfin's data directory (for the official Docker image that is `/config/plugins/` inside Jellyfin's config volume).
 3. Restart Jellyfin and continue with step 4 above.
 
@@ -47,7 +47,7 @@ Server-wide defaults (seek interval, haptic delay, DG-Lab, funscript file names 
 
 ## Moving from the HAPPY container
 
-Earlier versions of HAPPY ran as their own Docker container (`ghcr.io/lumbar-spine-support/docker-haptic-player`). That image gets no more releases. To move over:
+Earlier versions of HAPPY ran as their own Docker container (`ghcr.io/lumbar-spine-support/jellyfin-haptic-player`). That image gets no more releases. To move over:
 
 1. Install the plugin as described above.
 2. Enter the values from your `settings.yaml` or container environment on the plugin's settings page. `JELLYFIN_URL` is no longer needed, since HAPPY now runs on Jellyfin's own address.

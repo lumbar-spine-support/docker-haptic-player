@@ -9,4 +9,4 @@
 
 ### Features
 
-* make HAPPY a Jellyfin plugin instead of a standalone Docker container ([0abfa0e](https://github.com/lumbar-spine-support/docker-haptic-player/commit/0abfa0e0286fa56694ce8250587cad92fc1fd951))
+* make HAPPY a Jellyfin plugin instead of a standalone Docker container ([0abfa0e](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/0abfa0e0286fa56694ce8250587cad92fc1fd951))

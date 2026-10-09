@@ -1,5 +1,5 @@
 {
-  "name": "docker-haptic-player",
+  "name": "jellyfin-haptic-player",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:26-trixie",
   // disables SELinux relabeling of the bind mount, needed on Fedora/RHEL hosts running SELinux enforcing
   "runArgs": [
