@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<!-- HAPPY test fixture: Jellyfin reads <tag> into Tags and <plot> into Overview (rendered as Markdown by HAPPY). -->
+<movie>
+  <title>Big Buck Bunny</title>
+  <plot><![CDATA[**Don't Mess With The Bunny!**
+
+You can download it from [here](https://peach.blender.org/).
+
+###### Warning
+
+The movie is very funny!
+]]></plot>
+  <year>2008</year>
+  <genre>Animation</genre>
+  <genre>Comedy</genre>
+  <tag>bunny</tag>
+  <tag>sfw</tag>
+  <tag>movie</tag>
+  <tag>forest</tag>
+  <tag>animation</tag>
+  <tag>cartoon</tag>
+  <tag>animal</tag>
+  <tag>rabbit</tag>
+  <tag>nature</tag>
+  <tag>wildlife</tag>
+  <tag>comedic</tag>
+  <tag>fun</tag>
+  <tag>short-film</tag>
+  <tag>blender</tag>
+  <tag>open-source</tag>
+  <tag>3d</tag>
+  <tag>cgi</tag>
+  <tag>adventure</tag>
+  <tag>character</tag>
+  <tag>family-friendly</tag>
+  <tag>humor</tag>
+  <tag>classic</tag>
+  <tag>downloadable</tag>
+  <tag>creative-commons</tag>
+  <tag>grasslands</tag>
+  <tag>daytime</tag>
+  <tag>sound</tag>
+  <tag>music</tag>
+  <tag>scene</tag>
+  <tag>sample</tag>
+  <tag>dramatic</tag>
+  <tag>cinematic</tag>
+  <tag>story</tag>
+  <tag>storytelling</tag>
+  <tag>sunlight</tag>
+  <tag>meadow</tag>
+  <tag>water</tag>
+  <tag>mood</tag>
+  <tag>suspense</tag>
+  <tag>gorgeous</tag>
+  <tag>art</tag>
+  <tag>design</tag>
+  <tag>render</tag>
+  <tag>special-effects</tag>
+  <tag>studio</tag>
+  <tag>atmosphere</tag>
+  <tag>ambient</tag>
+  <tag>soundtrack</tag>
+  <tag>clip</tag>
+  <tag>sample-video</tag>
+</movie>

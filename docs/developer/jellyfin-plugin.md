@@ -74,6 +74,19 @@ HAPPY_JELLYFIN_PASSWORD=…
 - Use a dedicated non-admin user. That exercises the per-user access checks.
 - Tests assert shapes and invariants only, never library contents, and never print names, paths or server addresses. Keep it that way: test output ends up in CI logs and issue reports.
 
+## Demo library from the test fixtures
+
+`test/fixtures/media` doubles as a small Jellyfin library with every kind of metadata HAPPY reads, for manual testing and for `scripts/screenshot-app.js`. Run `git lfs pull` first, then point Jellyfin at the folder (copy or mount it):
+
+| Library | Jellyfin type | What it shows |
+| --- | --- | --- |
+| Videos | *Mixed movies and shows* (or *Movies*), NFO metadata reader on | `<name>.nfo` sidecars give Jellyfin **Tags** (`<tag>`), genres and a Markdown overview (`<plot>`); `VR180_*` clips test both VR layouts; `BigBuckBunny_320x180.*.funscript` cover all script types including subcategories |
+| Audio | *Books* | `BigBuckBunny_dummy1-3.mp3` carry multi-value ID3v2.4 genres (HAPPY shows them as tags), a Markdown comment (the overview, audiobooks only), track numbers for album grouping and cover art |
+
+Both libraries can point at the same folder. Jellyfin's own *Tags* section stays empty for the audio files: no Jellyfin metadata reader fills Tags from audio files, which is why HAPPY also counts genres as tags. If you add or change an NFO after the first scan, use *Refresh metadata → Replace all metadata* on the item or library.
+
+The audio tags are written by `node scripts/tag-fixture-audio.mjs`. It keeps the audio frames and the cover art byte for byte and only rewrites the text frames; ffmpeg cannot write the multi-value genre frames Jellyfin needs.
+
 ## Code map
 
 | Topic | Files |
@@ -83,3 +96,4 @@ HAPPY_JELLYFIN_PASSWORD=…
 | Index and matching | [Funscripts/FunscriptIndex.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptIndex.cs), [Funscripts/FunscriptMatcher.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptMatcher.cs), [Funscripts/FunscriptPostScanTask.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptPostScanTask.cs) |
 | Tests | [Jellyfin.Plugin.Happy.Tests/](../../jellyfin-plugin/Jellyfin.Plugin.Happy.Tests/), [test/integration/jellyfin/](../../test/integration/jellyfin/) |
 | Packaging | [build.yaml](../../jellyfin-plugin/build.yaml), [package.sh](../../jellyfin-plugin/package.sh) |
+| Demo library | [test/fixtures/media/](../../test/fixtures/media/), [scripts/tag-fixture-audio.mjs](../../scripts/tag-fixture-audio.mjs) |

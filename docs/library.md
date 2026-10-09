@@ -28,10 +28,26 @@ Playlists are Jellyfin playlists. Create them in Jellyfin; `.m3u` files in your 
 
 ## Tags and descriptions
 
-- **Tags** are Jellyfin's tags plus genres. The easiest way is a multi-value genre in the file itself (e.g. `sfw; vanilla; funny` in the ID3 genre field), which Jellyfin reads automatically. Tags can also be set in Jellyfin's metadata editor or in NFO files.
+- **Tags** are Jellyfin's tags plus genres. Jellyfin never reads its *Tags* field from tags embedded in a media file, so the file-based route is the genre:
+  - **Audio:** give the genre field several values (most taggers can store multiple values in one field; Mp3tag separates them with `\\`). A single text like `sfw; vanilla` stays one genre, unless you enable custom tag delimiters in the library settings.
+  - **Video:** an embedded genre like `sfw; vanilla; funny` is split into separate genres. For Jellyfin's *Tags*, put an NFO file next to the video (`<video name>.nfo` with `<tag>` entries, see below).
+  - Tags can also be set by hand in Jellyfin's metadata editor.
 - **Descriptions** are Jellyfin's overview of the item. For audio, put the text into the file's comment tag. Markdown is rendered, so you can use [links](https://github.com), **bold text** and more.
 
-Markdown sidecar files (`<name>.md`) are no longer read; move their tags into the genre field and their text into the comment.
+Markdown sidecar files (`<name>.md`) are no longer read; move their tags into the genre field (or an NFO for videos) and their text into the comment (audio) or the NFO's `<plot>` (video).
+
+A video NFO looks like this; Jellyfin reads it when NFO is enabled as a metadata reader of the library (the default):
+
+```xml
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<movie>
+  <title>My video</title>
+  <plot><![CDATA[**Markdown** description]]></plot>
+  <genre>Comedy</genre>
+  <tag>sfw</tag>
+  <tag>funny</tag>
+</movie>
+```
 
 Use [Mp3tag](https://www.mp3tag.de/) (Win) or [Puddletag](https://docs.puddletag.net/) (Linux) to edit these tags, then rescan the library in Jellyfin.
 

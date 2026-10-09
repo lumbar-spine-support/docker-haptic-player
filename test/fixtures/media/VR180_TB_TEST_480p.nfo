@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<!-- HAPPY test fixture: Jellyfin reads <tag> into Tags and <plot> into Overview (rendered as Markdown by HAPPY). -->
+<movie>
+  <title>VR180 test (top-bottom)</title>
+  <plot><![CDATA[Synthetic VR180 **top-bottom** test pattern for the HAPPY VR player.
+]]></plot>
+  <genre>Test</genre>
+  <tag>vr180</tag>
+  <tag>tb</tag>
+  <tag>test-pattern</tag>
+</movie>
