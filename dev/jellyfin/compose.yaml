@@ -34,6 +34,19 @@ services:
       - ../../docs:/happy/docs:ro
     restart: unless-stopped
 
+  # The DG-Lab relay from dglab-relay/, checking sign-ins with the Jellyfin above.
+  dglab-relay:
+    build:
+      context: ../..
+      dockerfile: dglab-relay/Dockerfile
+    image: happy-dglab-relay:dev
+    ports:
+      - "${HAPPY_DEV_RELAY_PORT:-8070}:8070"
+    environment:
+      JELLYFIN_URL: http://jellyfin:8096
+      LOG_LEVEL: debug
+    restart: unless-stopped
+
   # One-shot build of the plugin into jellyfin-plugin/artifacts/dev (no .NET SDK needed on the host).
   plugin-build:
     <<: *no-selinux-relabel

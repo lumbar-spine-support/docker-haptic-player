@@ -1,0 +1,17 @@
+{
+  "name": "happy-dglab-relay",
+  "version": "0.0.0",
+  "private": true,
+  "description": "WebSocket relay between HAPPY and the DG-Lab app (DG-Lab v4 protocol), checking sign-ins with Jellyfin",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:bufferutil --external:utf-8-validate",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

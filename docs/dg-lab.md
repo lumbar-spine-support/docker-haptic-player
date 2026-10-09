@@ -9,14 +9,36 @@ The Coyote is not supported by Intiface. Instead, HAPPY talks to it using the [W
 The app keeps full ownership of the safety limits.
 HAPPY can only ever request a strength at or below the ceiling the app reports. Still, increase limits slowly to avoid hurting yourself. Inform yourself about how current flows between electrodes and how to avoid hurting yourself.
 
-Due to a lack of long-term testing, the feature is off by default. Turn it on with `DGLAB_ENABLED=1` if you want to try it (see [docs/configuration.md](configuration.md)).
-While disabled, the WebSocket endpoint
-does not exist and the settings section is not rendered at all.
+Due to a lack of long-term testing, the feature is off by default. To try it, run the relay (below) and turn on *Enable DG-Lab Coyote 3.0* on the HAPPY plugin's settings page in Jellyfin (*Dashboard → Plugins → HAPPY*). While it is disabled, HAPPY does not show the settings section at all.
+
+## The relay
+
+HAPPY and the DG-Lab app never talk to each other directly. Both connect to a small WebSocket relay that passes the DG-Lab v4.0 messages between them. The relay ships as its own Docker image, so only Coyote owners need to run it:
+
+```yaml
+services:
+  happy-dglab-relay:
+    image: ghcr.io/lumbar-spine-support/happy-dglab-relay:latest
+    ports:
+      - "8070:8070"
+    environment:
+      # Address the relay uses to check sign-ins with Jellyfin, e.g. on a shared Docker network.
+      JELLYFIN_URL: "http://jellyfin:8096"
+    restart: unless-stopped
+```
+
+Then enter the relay's address as your browser and phone reach it under *Relay address* on the plugin's settings page:
+
+- `ws://<host>:8070` when you open Jellyfin over plain HTTP, for example `ws://192.168.1.10:8070`.
+- `wss://…` when Jellyfin is served over HTTPS, because browsers block plain `ws://` from an HTTPS page. Put the relay behind your reverse proxy, either on its own host name (`wss://relay.example.com`) or under a path (`wss://example.com/dglab`). The relay accepts any path that ends in `/ws/dglab`, so the proxy does not need to rewrite it.
+- Empty means `/ws/dglab` on Jellyfin's own address. Use this if your reverse proxy forwards that path to the relay.
+
+The relay only accepts HAPPY tabs that are signed in to Jellyfin; it checks each tab's sign-in with Jellyfin at `JELLYFIN_URL`. The DG-Lab app pairs with the one-time link HAPPY shows. Further settings: `PORT` (default `8070`) and `LOG_LEVEL` (`error`, `warn`, `info`, `debug`).
 
 ## DG-Lab App Setup
 
 1. First go to [DG-Lab Downloads](https://www.dungeon-lab.com/app-download) and download the most recent version of the app.
-2. Follow the app instructions to pair your Coyote. Note that you are not going to pair the Coyote with HAPPY over Bluetooth. HAPPY clients and DG-Lab will both connect to a Websocket relay hosted by the HAPPY server that serves as the middleman for DG-Lab's v4.0 protocol.
+2. Follow the app instructions to pair your Coyote. Note that you are not going to pair the Coyote with HAPPY over Bluetooth. HAPPY clients and DG-Lab will both connect to the HAPPY DG-Lab relay (above), which serves as the middleman for DG-Lab's v4.0 protocol.
 3. Now you should have access to the Coyote settings. HAPPY does not have write access to those settings, so you need to adjust them as you see fit. The most important settings to consider:
     - **Channel Mute**: The button with the sinusoidal icon enables/disables the output of channels A and B separately. You can mute a channel first to test if the funscript values arrive at the DG-Lab app. You will still see the values HAPPY sends over the WebSocket.
     - **Intensity Limit**: Click the cog on the right side and a few options will show. Among them you should see *Intensity Limit*. For Coyote 3.0 it should be a value you can choose between 0 and 200. It depends on the body-region what value is appropriate. HAPPY holds the channel at this limit (times the device strength slider) while a funscript plays, and plays the funscript through the pulse width instead: a position of 100 means full pulse width, 0 means no pulses. Pulse width can change every 25 ms, strength only every 100 ms, so this follows fast scripts more closely.
@@ -34,12 +56,12 @@ Make sure that you applied the settings to both channel A and B in case you are 
    The status badge above each funscript turns yellow or red when the Coyote is unplugged, muted or limited in the app; click it for details.
 4. Have fun and **stay safe**!
 
-There is a single pairing per server. Opening HAPPY in another browser or on another device takes
-over the paired DG-Lab app without pairing again; the previous tab is disconnected. After a server
+There is a single pairing per relay. Opening HAPPY in another browser or on another device takes
+over the paired DG-Lab app without pairing again; the previous tab is disconnected. After a relay
 restart you have to pair again.
 
-With `AUTO_RECONNECT_DGLAB=true`, a page reload reconnects to the relay automatically if DG-Lab was
-connected before and the relay was last heard from less than 5 minutes ago (the time the server keeps
+With *Reconnect to the relay on page load* (on by default), a page reload reconnects to the relay automatically if DG-Lab was
+connected before and the relay was last heard from less than 5 minutes ago (the time the relay keeps
 the paired app). After that the section stays *Disconnected* and you pair again by hand.
 
 ## Sandbox

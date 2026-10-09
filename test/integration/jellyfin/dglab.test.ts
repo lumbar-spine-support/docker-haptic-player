@@ -3,31 +3,30 @@ import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 
 import { login, skip, type JellyfinSession } from './session';
-import { startTestServer } from '../../helpers';
-import { Config } from '../../../src/server/config';
+import { createJellyfinTokenVerifier } from '../../../dglab-relay/src/jellyfinAuth';
+import { createRelayServer, type RelayServer } from '../../../dglab-relay/src/server';
+import { DGLAB_WS_PATH } from '../../../src/shared/dglab';
 
 let session: JellyfinSession;
-let server: Awaited<ReturnType<typeof startTestServer>>;
+let relay: RelayServer;
+let port: number;
 
 test.before(async () => {
     if (skip) return;
     session = await login('dglab');
-    // A real HAPPY server whose relay checks tokens with the configured Jellyfin, not a stub.
-    const { createApp } = await import('../../../src/server/index');
-    server = await startTestServer((config) => createApp(config, {
-        ...Config.DEFAULT_CLIENT_CONFIG,
-        dglabEnabled: true,
-        jellyfinUrl: String(process.env.HAPPY_JELLYFIN_URL).replace(/\/+$/, ''),
-    }));
+    // A real relay that checks tokens with the configured Jellyfin, not a stub.
+    relay = createRelayServer(createJellyfinTokenVerifier(String(process.env.HAPPY_JELLYFIN_URL)));
+    await new Promise<void>((resolve) => relay.server.listen(0, resolve));
+    port = (relay.server.address() as { port: number }).port;
 });
 
 test.after(async () => {
-    await server?.close();
+    await relay?.close();
     await session?.logout();
 });
 
 function connect(token: string): WebSocket {
-    return new WebSocket(`ws://localhost:${server.port}${Config.DGLAB_WS_PATH}`, ['happy', `jellyfin.${token}`]);
+    return new WebSocket(`ws://localhost:${port}${DGLAB_WS_PATH}`, ['happy', `jellyfin.${token}`]);
 }
 
 test('[jellyfin-dglab] the relay accepts a HAPPY tab with a valid Jellyfin token', { skip }, async () => {

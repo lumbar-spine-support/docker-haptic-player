@@ -23,6 +23,7 @@ const COMPOSE_FILE = join(ROOT, 'dev/jellyfin/compose.yaml');
 const ENV_FILE = join(ROOT, 'config/dev-jellyfin.env');
 const PORT = process.env.HAPPY_DEV_JELLYFIN_PORT || '8097';
 const BROWSER_URL = `http://localhost:${PORT}`;
+const RELAY_URL = `ws://localhost:${process.env.HAPPY_DEV_RELAY_PORT || '8070'}`;
 const ADMIN = 'happy-admin';
 const USER = 'happy-user';
 const AUTH = 'MediaBrowser Client="HAPPY dev", Device="dev-jellyfin", DeviceId="happy-dev-jellyfin", Version="1"';
@@ -244,6 +245,18 @@ async function scanLibrary(admin) {
     log('The scan is still running; continuing anyway.');
 }
 
+/** Turns on DG-Lab with the dev relay, unless the relay address was already set by hand. */
+async function ensureDglab(admin) {
+    const pluginId = '98652011fd1c4b308359fcae3b45ed37';
+    const config = await admin(`/Plugins/${pluginId}/Configuration`).catch(() => null);
+    if (!config || config.DglabRelayUrl) return;
+    log(`Enabling DG-Lab with the dev relay at ${RELAY_URL}…`);
+    await admin(`/Plugins/${pluginId}/Configuration`, {
+        method: 'POST',
+        body: { ...config, DglabEnabled: true, DglabRelayUrl: RELAY_URL },
+    });
+}
+
 async function reportPlugin(base, admin, userPassword) {
     const plugins = await admin('/Plugins');
     const happy = plugins.find(p => p.Name === 'HAPPY');
@@ -284,6 +297,7 @@ async function bootstrap() {
     const admin = client(base, adminToken);
     await ensureLibraries(admin);
     await ensureUser(admin, userPassword);
+    await ensureDglab(admin);
     await scanLibrary(admin);
     await reportPlugin(base, admin, userPassword);
 
@@ -300,7 +314,7 @@ async function main() {
         case 'up':
             buildPlugin();
             ensureMountSources();
-            compose('up', '-d', 'jellyfin');
+            compose('up', '-d', '--build', 'jellyfin', 'dglab-relay');
             await bootstrap();
             break;
         case 'plugin':

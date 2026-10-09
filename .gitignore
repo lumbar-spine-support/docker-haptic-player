@@ -19,3 +19,7 @@ config/
 
 # Claude Code worktrees are full checkouts; never commit them.
 .claude/worktrees/
+
+# DG-Lab relay build output and its own install
+dglab-relay/node_modules/
+dglab-relay/dist/

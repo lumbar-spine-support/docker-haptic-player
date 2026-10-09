@@ -1,11 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import WebSocket from 'ws';
-import { startTestServer, TEST_APP_DEPENDENCIES, TEST_JELLYFIN_TOKEN } from '../helpers';
-import { DGLAB_CLOSE_CODE } from '../../src/server/services/dglabRelay';
-import { Config } from '../../src/server/config';
+import { DGLAB_DETACH_GRACE_MS, DGLAB_WS_PATH } from '../../src/shared/dglab';
+import { DGLAB_CLOSE_CODE, DglabRelay } from '../src/relay';
+import { createRelayServer } from '../src/server';
 
-const TAG = '[server:dglab]';
+/** The only token the stub Jellyfin verifier accepts. */
+const TEST_JELLYFIN_TOKEN = '0123456789abcdef0123456789abcdef';
+
+const TAG = '[dglab-relay]';
 
 interface Frame { type: string;[key: string]: unknown }
 
@@ -15,7 +18,7 @@ function protocolsFor(token?: string | null): string[] | undefined {
 }
 
 function open(port: number, query: string, token?: string | null): WebSocket {
-    return new WebSocket(`ws://localhost:${port}${Config.DGLAB_WS_PATH}${query}`, protocolsFor(token));
+    return new WebSocket(`ws://localhost:${port}${DGLAB_WS_PATH}${query}`, protocolsFor(token));
 }
 
 /** Resolves on the next JSON frame matching `type`, or rejects when the socket closes first. */
@@ -39,13 +42,16 @@ function nextClose(ws: WebSocket): Promise<number> {
 
 async function withRelay(
     fn: (ctx: { port: number; token: string }) => Promise<void>,
-    createAppFn?: (config: import('../../src/server/config').Config.ServerConfig) => import('../../src/server/index').HappyApp,
+    relay?: DglabRelay,
 ): Promise<void> {
-    const server = await startTestServer(createAppFn, undefined, { dglabEnabled: true });
+    const relayServer = createRelayServer(async (token) => token === TEST_JELLYFIN_TOKEN, relay);
+    await new Promise<void>((resolve) => relayServer.server.listen(0, resolve));
+    const address = relayServer.server.address();
+    if (!address || typeof address === 'string') throw new Error('no port');
     try {
-        await fn({ port: server.port, token: TEST_JELLYFIN_TOKEN });
+        await fn({ port: address.port, token: TEST_JELLYFIN_TOKEN });
     } finally {
-        await server.close();
+        await relayServer.close();
     }
 }
 
@@ -225,10 +231,6 @@ test(`${TAG} relays opaque payloads in both directions, stamping the sender id`,
 });
 
 test(`${TAG} closes attached apps once the controller's grace period expires`, async () => {
-    const { createApp } = await import('../../src/server/index');
-    const { DglabRelay } = await import('../../src/server/services/dglabRelay');
-    const { Config } = await import('../../src/server/config');
-
     // A controller that never comes back must not pin its apps open forever.
     await withRelay(async ({ port, token }) => {
         const controller = open(port, '', token);
@@ -239,23 +241,11 @@ test(`${TAG} closes attached apps once the controller's grace period expires`, a
         controller.close();
         const code = await nextClose(app);
         assert.equal(code, DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED);
-    }, (config) => {
-        const app = createApp(config, { ...Config.DEFAULT_CLIENT_CONFIG, dglabEnabled: true }, TEST_APP_DEPENDENCIES);
-        app.dglabRelay?.close();
-        app.dglabRelay = new DglabRelay(50);
-        return app;
-    });
+    }, new DglabRelay(50));
 });
 
 async function withFastPing(fn: (ctx: { port: number; token: string }) => Promise<void>): Promise<void> {
-    const { createApp } = await import('../../src/server/index');
-    const { DglabRelay } = await import('../../src/server/services/dglabRelay');
-    await withRelay(fn, (config) => {
-        const app = createApp(config, { ...Config.DEFAULT_CLIENT_CONFIG, dglabEnabled: true }, TEST_APP_DEPENDENCIES);
-        app.dglabRelay?.close();
-        app.dglabRelay = new DglabRelay(Config.DGLAB_DETACH_GRACE_MS, 20);
-        return app;
-    });
+    await withRelay(fn, new DglabRelay(DGLAB_DETACH_GRACE_MS, 20));
 }
 
 test(`${TAG} terminates an app that stops answering native pings`, async () => {
@@ -263,7 +253,7 @@ test(`${TAG} terminates an app that stops answering native pings`, async () => {
         const controller = open(port, '', token);
         const { clientId: tid } = await nextFrame(controller, 'hello');
         // autoPong off simulates a half-open socket that never answers.
-        const app = new WebSocket(`ws://localhost:${port}${Config.DGLAB_WS_PATH}?tid=${tid as string}`, { autoPong: false });
+        const app = new WebSocket(`ws://localhost:${port}${DGLAB_WS_PATH}?tid=${tid as string}`, { autoPong: false });
         const { clientId: appId } = await nextFrame(app, 'hello');
         await nextFrame(controller, 'client_attached');
 
@@ -310,14 +300,19 @@ test(`${TAG} reports bad_request for malformed frames`, async () => {
     });
 });
 
-test(`${TAG} has no endpoint at all when the feature flag is off`, async () => {
-    const server = await startTestServer();
-    try {
-        const ws = open(server.port, '', TEST_JELLYFIN_TOKEN);
-        const err = await new Promise<Error>((resolve) => ws.once('error', resolve));
-        // Express answers the upgrade as a normal request instead of a relay handshake.
-        assert.match(err.message, /Unexpected server response/);
-    } finally {
-        await server.close();
-    }
+test(`${TAG} accepts the endpoint under a reverse proxy prefix`, async () => {
+    await withRelay(async ({ port, token }) => {
+        const controller = new WebSocket(`ws://localhost:${port}/dglab${DGLAB_WS_PATH}`, protocolsFor(token));
+        const hello = await nextFrame(controller, 'hello');
+        assert.equal(typeof hello.clientId, 'string');
+        controller.close();
+    });
+});
+
+test(`${TAG} answers the health check`, async () => {
+    await withRelay(async ({ port }) => {
+        const res = await fetch(`http://localhost:${port}/health`);
+        assert.equal(res.status, 200);
+        assert.equal((await fetch(`http://localhost:${port}/`)).status, 404);
+    });
 });

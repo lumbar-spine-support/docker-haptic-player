@@ -28,4 +28,4 @@ Note that Jellyfin itself may serve the original media file (`/Videos/{id}/strea
 ## Casting and the DG-Lab relay
 
 - **Chromecast and AirPlay:** stream URLs carry your Jellyfin access token, so a remote receiver can play the file without signing in itself.
-- **DG-Lab Coyote:** the relay on the HAPPY server only accepts browser tabs that are signed in to Jellyfin. HAPPY checks the tab's token with Jellyfin when it connects. If HAPPY's container reaches Jellyfin at another address than your browser does, set `JELLYFIN_INTERNAL_URL` (see [Installation](installation.md)). The DG-Lab app itself pairs with the one-time link HAPPY shows, as before.
+- **DG-Lab Coyote:** the [DG-Lab relay](dg-lab.md#the-relay) only accepts browser tabs that are signed in to Jellyfin. It checks the tab's token with Jellyfin (its `JELLYFIN_URL`) when the tab connects. The DG-Lab app itself pairs with the one-time link HAPPY shows.

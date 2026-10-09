@@ -4,16 +4,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import http from 'http';
-import type { AppDependencies, HappyApp } from '../../src/server/index';
+import type { HappyApp } from '../../src/server/index';
 import { Config } from '../../src/server/config';
-
-/** The only token the stub Jellyfin verifier of test servers accepts. */
-export const TEST_JELLYFIN_TOKEN = '0123456789abcdef0123456789abcdef';
-
-/** Dependencies for test apps built by hand with `createApp`. */
-export const TEST_APP_DEPENDENCIES: AppDependencies = {
-    verifyJellyfinToken: async (token) => token === TEST_JELLYFIN_TOKEN,
-};
 
 export interface RequestOptions {
     headers?: Record<string, string>;
@@ -23,7 +15,7 @@ function requestHeaders(opts?: RequestOptions): Record<string, string> {
     return { ...(opts?.headers ?? {}) };
 }
 
-// Start a test server with a temporary config directory and a stub Jellyfin token check.
+// Start a test server with a temporary config directory.
 export async function startTestServer(
     createAppFn?: (config: Config.ServerConfig) => HappyApp,
     overrides?: Partial<Config.ServerConfig>,
@@ -41,10 +33,10 @@ export async function startTestServer(
         ...clientOverrides,
     } as Config.ClientConfig;
 
-    const { createApp, attachWebSocketUpgradeHandlers } = await import('../../src/server/index');
+    const { createApp } = await import('../../src/server/index');
     const app = createAppFn
         ? createAppFn(config)
-        : createApp(config, clientConfig, TEST_APP_DEPENDENCIES);
+        : createApp(config, clientConfig);
 
     const server = await new Promise<http.Server>((resolve) => {
         const srv = app.listen(0, () => {
@@ -62,14 +54,11 @@ export async function startTestServer(
         throw new Error('Invalid server address');
     }
 
-    attachWebSocketUpgradeHandlers(server, app);
-
     return {
         port: addr.port,
         config,
         close: async () => {
             return new Promise((resolve) => {
-                app.dglabRelay?.close();
                 server.closeAllConnections?.();
                 server.close(() => {
                     fs.rmSync(configDir, { recursive: true, force: true });

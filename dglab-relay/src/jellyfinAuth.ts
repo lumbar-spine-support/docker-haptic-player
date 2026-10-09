@@ -1,7 +1,7 @@
-// Verifies Jellyfin access tokens for the few server features that need a signed-in user
-// (the DG-Lab relay). HAPPY keeps no accounts of its own: Jellyfin is the only authority.
+// Verifies the Jellyfin access tokens HAPPY tabs offer the relay. HAPPY keeps no accounts of its
+// own: Jellyfin is the only authority.
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from './logger';
 
 const log = createLogger('[jellyfin-auth]');
 
@@ -29,7 +29,7 @@ export function createJellyfinTokenVerifier(baseUrl: string, fetchFn: typeof fet
     let valid = false;
     try {
       const res = await fetchFn(`${base}/Users/Me`, {
-        headers: { Authorization: `MediaBrowser Client="HAPPY server", Token="${token}"` },
+        headers: { Authorization: `MediaBrowser Client="HAPPY DG-Lab relay", Token="${token}"` },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
       valid = res.ok;

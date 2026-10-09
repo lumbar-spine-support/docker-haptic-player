@@ -35,8 +35,6 @@ On first start a `settings.yaml` is created in the `/config` mount. You may also
 
 HAPPY has no accounts of its own: who may see what is decided by Jellyfin's users and their library access, see [Authentication](authentication.md).
 
-The HAPPY server itself only contacts Jellyfin to check sign-ins for the DG-Lab relay. If the HAPPY container reaches Jellyfin at a different address than your browser does (for example `http://jellyfin:8096` on a shared Docker network), set `JELLYFIN_INTERNAL_URL` to that address.
-
 ## Jellyfin plugin
 
 The plugin indexes `.funscript` files that sit next to your media and serves them to signed-in Jellyfin users. Without it HAPPY still plays your media, but without haptics.

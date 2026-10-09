@@ -11,7 +11,6 @@ Every YAML setting can also be set as an environment variable. Environment varia
 | Setting | Default | Description |
 | --- | --- | --- |
 | `PORT` | `3000` | HTTP port of the web interface. |
-| `JELLYFIN_INTERNAL_URL` | *(empty)* | Address HAPPY itself uses to reach Jellyfin, when it differs from JELLYFIN_URL (e.g. http://jellyfin:8096 on a Docker network). Empty to use JELLYFIN_URL. |
 | `TRUST_PROXY` | `0` | Number of reverse proxy hops to trust for X-Forwarded-* headers (client addresses in the log). 0 for direct LAN access, 1 behind nginx/Traefik |
 | `LOG_LEVEL` | `info` | Verbosity of the console log: error, warn, info, debug |
 | `VIDEO_SEEK_INTERVAL` | `10` | Seek interval in seconds when double-tapping/clicking. |
@@ -21,7 +20,7 @@ Every YAML setting can also be set as an environment variable. Environment varia
 | `HAPTIC_DELAY_LIMIT` | `500` | Maximum absolute haptic delay in milliseconds selectable in the web interface (range is -limit to +limit). |
 | `DGLAB_ENABLED` | `false` | (EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control. |
 | `DGLAB_SANDBOX_ENABLED` | `true` | Show the DG-Lab sandbox page for testing waveform patterns without media. Only has an effect when DG-Lab is enabled. |
-| `DGLAB_RELAY_URL` | *(empty)* | Address of the DG-Lab relay as browsers and phones reach it, e.g. wss://relay.example.com. Empty: the relay built into this server. |
+| `DGLAB_RELAY_URL` | *(empty)* | Address of the HAPPY DG-Lab relay (its own image) as browsers and phones reach it, e.g. wss://relay.example.com. Empty: /ws/dglab on the page's own origin. |
 | `AUTO_RECONNECT_INTIFACE` | `true` | Reconnect to Intiface on page load if it was connected when the page was last used. |
 | `AUTO_RECONNECT_DGLAB` | `true` | Reconnect to the DG-Lab relay on page load if it was connected and last seen less than 5 minutes ago. |
 | `FUNSCRIPT_INTERPOLATION_METHOD` | `pchip` | How positions between funscript points are computed for haptics and the timeline: none, linear, pchip. none holds each position until the next point; strokers follow pchip as linear |

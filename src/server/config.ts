@@ -24,7 +24,6 @@ export namespace Config {
   export interface ServerConfig {
     [key: string]: ConfigEntry;
     port: number;
-    jellyfinInternalUrl: string;
     configDir: string;
     trustProxy: number;
     logLevel: string;
@@ -73,7 +72,6 @@ export namespace Config {
 
   export const DEFAULT_SERVER_CONFIG: ServerConfig = {
     port: 3000,
-    jellyfinInternalUrl: '',
     configDir: DEFAULT_MOUNT,
     trustProxy: 0,
     logLevel: DEFAULT_LOG_LEVEL,
@@ -108,7 +106,6 @@ export namespace Config {
 
   export const DESCRIPTIONS: Record<string, string> = {
     port: 'HTTP port of the web interface.',
-    jellyfinInternalUrl: 'Address HAPPY itself uses to reach Jellyfin, when it differs from JELLYFIN_URL (e.g. http://jellyfin:8096 on a Docker network). Empty to use JELLYFIN_URL.',
     trustProxy: 'Number of reverse proxy hops to trust for X-Forwarded-* headers (client addresses in the log). 0 for direct LAN access, 1 behind nginx/Traefik',
     logLevel: `Verbosity of the console log: ${LOG_LEVELS.join(', ')}`,
     videoSeekInterval: 'Seek interval in seconds when double-tapping/clicking.',
@@ -118,7 +115,7 @@ export namespace Config {
     hapticDelayLimit: 'Maximum absolute haptic delay in milliseconds selectable in the web interface (range is -limit to +limit).',
     dglabEnabled: '(EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control.',
     dglabSandboxEnabled: 'Show the DG-Lab sandbox page for testing waveform patterns without media. Only has an effect when DG-Lab is enabled.',
-    dglabRelayUrl: 'Address of the DG-Lab relay as browsers and phones reach it, e.g. wss://relay.example.com. Empty: the relay built into this server.',
+    dglabRelayUrl: 'Address of the HAPPY DG-Lab relay (its own image) as browsers and phones reach it, e.g. wss://relay.example.com. Empty: /ws/dglab on the page\'s own origin.',
     autoReconnectIntiface: 'Reconnect to Intiface on page load if it was connected when the page was last used.',
     autoReconnectDglab: `Reconnect to the DG-Lab relay on page load if it was connected and last seen less than ${SHARED_DGLAB_DETACH_GRACE_MS / 60_000} minutes ago.`,
     funscriptInterpolationMethod: `How positions between funscript points are computed for haptics and the timeline: ${INTERPOLATION_METHODS.join(', ')}. none holds each position until the next point; strokers follow pchip as linear`,
@@ -137,7 +134,6 @@ export namespace Config {
 
   export const ENV_NAMES: Record<string, string> = {
     port: 'PORT',
-    jellyfinInternalUrl: 'JELLYFIN_INTERNAL_URL',
     trustProxy: 'TRUST_PROXY',
     logLevel: 'LOG_LEVEL',
     videoSeekInterval: 'VIDEO_SEEK_INTERVAL',
@@ -379,7 +375,6 @@ export namespace Config {
     const client = envOverridden.client;
     client.chapterSourcePriority = validateChapterSources(client.chapterSourcePriority);
     client.jellyfinUrl = String(client.jellyfinUrl).trim().replace(/\/+$/, '');
-    server.jellyfinInternalUrl = String(server.jellyfinInternalUrl).trim().replace(/\/+$/, '');
     if (!client.jellyfinUrl) log.warn(`${ENV_NAMES.jellyfinUrl} is not set; HAPPY needs a Jellyfin server for its library.`);
     if (!isInterpolationMethod(client.funscriptInterpolationMethod)) {
       log.warn(`Unknown ${ENV_NAMES.funscriptInterpolationMethod} "${client.funscriptInterpolationMethod}", falling back to "${DEFAULT_INTERPOLATION_METHOD}". Valid methods: ${INTERPOLATION_METHODS.join(', ')}`);

@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createJellyfinTokenVerifier } from '../../src/server/services/jellyfinAuth';
-import { tokenFromProtocols } from '../../src/server/index';
+import { createJellyfinTokenVerifier } from '../src/jellyfinAuth';
+import { tokenFromProtocols } from '../src/server';
 
-const TAG = '[server:jellyfin-auth]';
+const TAG = '[dglab-relay:jellyfin-auth]';
 const BASE = 'https://jellyfin.example.com/';
 const GOOD = '0123456789abcdef0123456789abcdef';
 
