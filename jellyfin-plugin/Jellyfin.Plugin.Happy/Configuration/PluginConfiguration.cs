@@ -10,6 +10,13 @@ namespace Jellyfin.Plugin.Happy.Configuration;
 public class PluginConfiguration : BasePluginConfiguration
 {
     /// <summary>
+    /// Gets or sets the ids of the Jellyfin libraries HAPPY uses. Empty means all libraries.
+    /// </summary>
+#pragma warning disable CA1819 // Jellyfin's XML configuration serializer needs a settable array.
+    public string[] LibraryIds { get; set; } = [];
+#pragma warning restore CA1819
+
+    /// <summary>
     /// Gets or sets the seek interval in seconds when double-tapping or double-clicking the video.
     /// </summary>
     public int VideoSeekInterval { get; set; } = 10;

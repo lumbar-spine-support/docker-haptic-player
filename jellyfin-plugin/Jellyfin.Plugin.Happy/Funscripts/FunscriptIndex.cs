@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using Jellyfin.Data.Enums;
+using Jellyfin.Plugin.Happy.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
@@ -17,7 +18,8 @@ namespace Jellyfin.Plugin.Happy.Funscripts;
 /// <remarks>
 /// Jellyfin does not track <c>.funscript</c> files, so the index walks the library folders itself.
 /// It is rebuilt after every library scan and lazily when older than <see cref="MaxAge"/>, so scripts
-/// added without a media change still show up shortly after.
+/// added without a media change still show up shortly after. Only the libraries selected in the plugin
+/// configuration are indexed (all when none are selected).
 /// </remarks>
 public sealed class FunscriptIndex
 {
@@ -56,7 +58,9 @@ public sealed class FunscriptIndex
     internal IReadOnlyDictionary<Guid, List<FunscriptFile>> Current()
     {
         var snapshot = _snapshot;
-        if (snapshot is not null && Stopwatch.GetElapsedTime(snapshot.BuiltAt) < MaxAge)
+        if (snapshot is not null
+            && Stopwatch.GetElapsedTime(snapshot.BuiltAt) < MaxAge
+            && snapshot.Libraries.SequenceEqual(SelectedLibraries()))
         {
             return snapshot.Scripts;
         }
@@ -73,14 +77,19 @@ public sealed class FunscriptIndex
         var requestedAt = Stopwatch.GetTimestamp();
         lock (_buildLock)
         {
-            if (_snapshot is { } fresh && fresh.BuiltAt >= requestedAt)
+            if (_snapshot is { } fresh && fresh.BuiltAt >= requestedAt && fresh.Libraries.SequenceEqual(SelectedLibraries()))
             {
                 return fresh.Scripts;
             }
 
             var started = Stopwatch.GetTimestamp();
             var separator = Plugin.Instance?.Configuration.FunscriptSeparator is { Length: > 0 } s ? s : ".";
-            var roots = _libraryManager.GetVirtualFolders()
+            var libraries = SelectedLibraries();
+            var folders = _libraryManager.GetVirtualFolders();
+            var selected = folders.Where(f => Guid.TryParse(f.ItemId, out var id) && libraries.Contains(id)).ToList();
+
+            // Like GET /Happy/Config: no selected library that still exists means all libraries.
+            var roots = (selected.Count > 0 ? selected : folders)
                 .SelectMany(f => f.Locations)
                 .Where(Directory.Exists)
                 .Distinct(StringComparer.Ordinal)
@@ -115,7 +124,7 @@ public sealed class FunscriptIndex
                 }
             }
 
-            _snapshot = new Snapshot(scripts, Stopwatch.GetTimestamp());
+            _snapshot = new Snapshot(scripts, libraries, Stopwatch.GetTimestamp());
             _logger.LogInformation(
                 "Indexed funscripts for {ItemCount} of {MediaCount} media items in {RootCount} library folders ({ElapsedMs} ms)",
                 scripts.Count,
@@ -126,5 +135,12 @@ public sealed class FunscriptIndex
         }
     }
 
-    private sealed record Snapshot(Dictionary<Guid, List<FunscriptFile>> Scripts, long BuiltAt);
+    private static IReadOnlyList<Guid> SelectedLibraries()
+        => ClientSettings.ParseLibraryIds(Plugin.Instance?.Configuration.LibraryIds);
+
+    /// <summary>
+    /// One build of the index; <see cref="Libraries"/> are the selected libraries it covers, so a changed
+    /// selection rebuilds it right away.
+    /// </summary>
+    private sealed record Snapshot(Dictionary<Guid, List<FunscriptFile>> Scripts, IReadOnlyList<Guid> Libraries, long BuiltAt);
 }

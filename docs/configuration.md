@@ -6,6 +6,12 @@ HAPPY's server-wide settings live on the plugin's settings page in Jellyfin: *Da
 
 Settings marked *(user)* are only starting values: each user can change them in HAPPY's settings panel, and HAPPY remembers that choice in the browser. Changing them on the plugin page then only affects browsers that have not changed them yet.
 
+## Libraries
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| Libraries | none (all) | The Jellyfin libraries HAPPY shows and finds funscripts in, e.g. only your haptics library and not your movies and TV shows. With none selected, HAPPY uses all libraries. Playlists only show entries from the selected libraries. This narrows what HAPPY shows; it does not grant access: users still only see the libraries Jellyfin gives them access to. A deleted library drops out of the selection; if none of the selected libraries are left, HAPPY uses all of them again. |
+
 ## Playback
 
 | Setting | Default | Description |

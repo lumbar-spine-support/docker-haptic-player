@@ -74,7 +74,19 @@ public class HappyController : ControllerBase
     [Produces(MediaTypeNames.Application.Json)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult<ClientSettings> GetConfig()
-        => ClientSettings.From(Plugin.Instance?.Configuration ?? new PluginConfiguration());
+    {
+        var settings = ClientSettings.From(Plugin.Instance?.Configuration ?? new PluginConfiguration());
+        if (settings.LibraryIds.Count == 0)
+        {
+            return settings;
+        }
+
+        // Libraries deleted since they were selected would make HAPPY ask Jellyfin for unknown parents.
+        var existing = _libraryManager.GetVirtualFolders()
+            .Select(f => Guid.TryParse(f.ItemId, out var id) ? id.ToString("N") : null)
+            .ToHashSet(StringComparer.Ordinal);
+        return settings with { LibraryIds = settings.LibraryIds.Where(existing.Contains).ToArray() };
+    }
 
     /// <summary>
     /// Lists the funscripts of every media item the current user can see.

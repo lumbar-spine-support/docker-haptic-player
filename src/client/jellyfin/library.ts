@@ -1,11 +1,16 @@
 import type { LibraryResponse } from '../../shared/types';
-import type { HappyFunscriptListing, JellyfinItemsResult, JellyfinPlaylist, JellyfinUserDataDto } from './dto';
+import type { HappyFunscriptListing, JellyfinItemDto, JellyfinItemsResult, JellyfinPlaylist, JellyfinUserDataDto } from './dto';
 import { buildLibrary, type MapOptions } from './mapper';
 
 /** What the loader needs from a signed-in Jellyfin session; the browser connection and the integration tests both provide it. */
 export interface JellyfinApi {
     readonly userId: string;
     request(path: string, init?: RequestInit): Promise<Response>;
+}
+
+export interface LoadOptions extends MapOptions {
+    /** Jellyfin libraries to load, from the plugin settings; empty or absent for all. */
+    libraryIds?: readonly string[];
 }
 
 /** Item types that can be played; `MediaType` then decides between audio and video. */
@@ -45,18 +50,34 @@ async function loadPlaylists(api: JellyfinApi): Promise<JellyfinPlaylist[]> {
     }));
 }
 
-/** Loads everything the client holds in memory: all playable items, their funscripts, and playlists. */
-export async function loadLibrary(api: JellyfinApi, options: MapOptions): Promise<LibraryResponse> {
-    const user = encodeURIComponent(api.userId);
+/**
+ * Playable items of the selected libraries (one request each), or of all libraries. Items in more
+ * than one selected library come once; the library view sorts on its own, so order across libraries
+ * does not matter.
+ */
+async function loadItems(api: JellyfinApi, libraryIds: readonly string[]): Promise<JellyfinItemDto[]> {
+    const query = `/Items?userId=${encodeURIComponent(api.userId)}&Recursive=true&IncludeItemTypes=${PLAYABLE_TYPES}`
+        + `&Fields=${ITEM_FIELDS}&SortBy=SortName&EnableImageTypes=Primary&ImageTypeLimit=1&EnableUserData=true`
+        + '&EnableTotalRecordCount=false';
+    if (libraryIds.length === 0) return (await getJson<JellyfinItemsResult>(api, query, 'Library fetch')).Items;
+    const results = await Promise.all(libraryIds.map((id) =>
+        getJson<JellyfinItemsResult>(api, `${query}&ParentId=${encodeURIComponent(id)}`, 'Library fetch')));
+    const items = new Map<string, JellyfinItemDto>();
+    for (const { Items } of results) for (const item of Items) if (!items.has(item.Id)) items.set(item.Id, item);
+    return [...items.values()];
+}
+
+/**
+ * Loads everything the client holds in memory: the playable items of the selected libraries, their
+ * funscripts, and playlists (reduced to entries from those libraries).
+ */
+export async function loadLibrary(api: JellyfinApi, options: LoadOptions): Promise<LibraryResponse> {
     const [items, funscripts, playlists] = await Promise.all([
-        getJson<JellyfinItemsResult>(api,
-            `/Items?userId=${user}&Recursive=true&IncludeItemTypes=${PLAYABLE_TYPES}&Fields=${ITEM_FIELDS}`
-            + '&SortBy=SortName&EnableImageTypes=Primary&ImageTypeLimit=1&EnableUserData=true&EnableTotalRecordCount=false',
-            'Library fetch'),
+        loadItems(api, options.libraryIds ?? []),
         loadFunscripts(api),
         loadPlaylists(api),
     ]);
-    return buildLibrary(items.Items, funscripts, playlists, options);
+    return buildLibrary(items, funscripts, playlists, options);
 }
 
 /**

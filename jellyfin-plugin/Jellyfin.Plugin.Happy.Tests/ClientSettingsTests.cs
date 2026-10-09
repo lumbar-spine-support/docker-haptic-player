@@ -86,4 +86,30 @@ public class ClientSettingsTests
         using var doc = JsonDocument.Parse(JsonSerializer.Serialize(ClientSettings.From(new PluginConfiguration())));
         Assert.Equal("oled", doc.RootElement.GetProperty("theme").GetString());
     }
+
+    [Fact]
+    public void UsesAllLibrariesByDefault()
+    {
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(ClientSettings.From(new PluginConfiguration())));
+        Assert.Equal(0, doc.RootElement.GetProperty("libraryIds").GetArrayLength());
+    }
+
+    [Fact]
+    public void NormalizesLibraryIdsToJellyfinItemIds()
+    {
+        var settings = ClientSettings.From(new PluginConfiguration
+        {
+            LibraryIds =
+            [
+                " 6F2C1B5E-0F4D-4C77-9A4B-2B1E1A9F3D10 ",
+                "6f2c1b5e0f4d4c779a4b2b1e1a9f3d10",
+                "not-a-guid",
+                "",
+                "00000000-0000-0000-0000-000000000000",
+                "a1b2c3d4e5f60718293a4b5c6d7e8f90",
+            ],
+        });
+
+        Assert.Equal(["6f2c1b5e0f4d4c779a4b2b1e1a9f3d10", "a1b2c3d4e5f60718293a4b5c6d7e8f90"], settings.LibraryIds);
+    }
 }

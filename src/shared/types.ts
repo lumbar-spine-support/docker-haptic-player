@@ -186,6 +186,8 @@ export interface ClientSettings {
   funscriptSuffixes: FunscriptSuffixes;
   /** Chapter sources in order of precedence; the first source that provides chapters wins. */
   chapterSourcePriority: ChapterSource[];
+  /** Ids of the Jellyfin libraries HAPPY loads, chosen on the plugin's settings page; empty for all. */
+  libraryIds: string[];
 }
 
 export type QueueSource =

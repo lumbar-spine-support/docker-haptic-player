@@ -102,6 +102,10 @@ public sealed record ClientSettings
     [JsonPropertyName("funscriptSuffixes")]
     public required FunscriptSuffixes FunscriptSuffixes { get; init; }
 
+    /// <summary>Gets the ids (32 hex digits) of the libraries HAPPY uses; empty means all libraries.</summary>
+    [JsonPropertyName("libraryIds")]
+    public IReadOnlyList<string> LibraryIds { get; init; } = [];
+
     /// <summary>Gets the chapter sources in order of precedence.</summary>
     [JsonPropertyName("chapterSourcePriority")]
     public required IReadOnlyList<string> ChapterSourcePriority { get; init; }
@@ -144,6 +148,7 @@ public sealed record ClientSettings
                 Machine = OrDefault(config.FunscriptSuffixMachine, "machine"),
             },
             ChapterSourcePriority = ParseChapterSources(config.ChapterSourcePriority),
+            LibraryIds = ParseLibraryIds(config.LibraryIds).Select(id => id.ToString("N")).ToArray(),
         };
     }
 
@@ -157,6 +162,18 @@ public sealed record ClientSettings
             .Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(source => source.ToLowerInvariant())
             .Where(source => ChapterSources.Contains(source))
+            .Distinct()
+            .ToArray();
+
+    /// <summary>
+    /// Parses the configured library ids, dropping invalid and duplicate entries.
+    /// </summary>
+    /// <param name="value">The configured ids.</param>
+    /// <returns>Valid ids in the configured order; empty means all libraries.</returns>
+    internal static IReadOnlyList<Guid> ParseLibraryIds(IEnumerable<string>? value)
+        => (value ?? [])
+            .Select(id => Guid.TryParse(id?.Trim(), out var guid) ? guid : Guid.Empty)
+            .Where(id => id != Guid.Empty)
             .Distinct()
             .ToArray();
 

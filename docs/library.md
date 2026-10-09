@@ -18,7 +18,7 @@ video/                       --> another Jellyfin library
 
 ## Jellyfin libraries
 
-Add your folders as libraries in Jellyfin (*Dashboard → Libraries*). HAPPY shows every audio and video item the signed-in user can see.
+Add your folders as libraries in Jellyfin (*Dashboard → Libraries*). HAPPY shows every audio and video item the signed-in user can see, or only those of the libraries chosen on the plugin's settings page (see [Configuration](configuration.md#libraries)).
 
 - **Audio**: use the **Books** library type. Jellyfin only turns the comment tag of an audio file into its description for audiobooks; in a Music library the description would be missing. Jellyfin does not build albums for audiobooks, so HAPPY groups tracks into albums itself, by album artist and album tag.
 - **Video**: use **Mixed movies and shows** or **Home videos and photos**. No online metadata is needed; turn the metadata downloaders off if Jellyfin should not rename your files.

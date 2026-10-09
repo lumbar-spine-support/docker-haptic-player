@@ -39,7 +39,7 @@ and hands it to the tab when it returns. A newly connecting app likewise replace
 - Serve the user docs from `docs/*.md`, embedded in the DLL, at `/Happy/Docs` (anonymous)
 - Serve the client settings (`/Happy/Config`) and the version (`/Happy/Info`) to signed-in users
 - Let admins edit the client settings on its dashboard page
-- Index funscripts next to the media and serve them only for items the signed-in user can see
+- Index funscripts next to the media of the selected libraries (`LibraryIds`, all when empty) and serve them only for items the signed-in user can see
 - List HAPPY in Jellyfin's web client by adding a `menuLinks` entry to `/web/config.json` (`Web/WebConfigStartupFilter.cs`)
 
 ### Jellyfin web client integration
@@ -240,9 +240,9 @@ Media elements cannot send headers, so stream and trickplay sheet URLs carry the
 
 `loadLibrary()` (`library.ts`) loads everything once and the client keeps it in memory:
 
-- one `/Items` request for all playable items (`Audio`, `AudioBook`, `Video`, `Movie`, `MusicVideo`, `Episode`) with `Fields=Path,Tags,Genres,Overview,Chapters,Trickplay`; `MediaType` decides audio vs video
+- one `/Items` request for all playable items, or one per library with `ParentId` when the plugin settings select libraries (`libraryIds`; merged, duplicates once) (`Audio`, `AudioBook`, `Video`, `Movie`, `MusicVideo`, `Episode`) with `Fields=Path,Tags,Genres,Overview,Chapters,Trickplay`; `MediaType` decides audio vs video
 - `GET /Happy/Funscripts` from the plugin (a missing plugin logs a warning and the library loads without funscripts)
-- Jellyfin playlists and their entries
+- Jellyfin playlists and their entries (entries outside the loaded items are dropped, so playlists follow the library selection)
 
 `buildLibrary()` (`mapper.ts`) turns that into the existing `LibraryResponse` shape:
 

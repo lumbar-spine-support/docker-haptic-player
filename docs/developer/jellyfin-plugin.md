@@ -50,6 +50,8 @@ The client never sends a path back. A key is a hash of the script's absolute pat
 
 The separator defaults to `.` and is `FunscriptSeparator` in the plugin configuration (*Separator* on the settings page). The client gets the same value as `funscriptSuffixes.separator` from `/Happy/Config`, so matching and parsing always agree. A changed separator takes effect with the next index rebuild.
 
+Only the folders of the libraries in `LibraryIds` (*Libraries* on the settings page) are indexed; empty means all. The index remembers which libraries it was built for and rebuilds as soon as the selection changes. `GET /Happy/Config` returns the selection as `libraryIds` (32-hex item ids, libraries deleted since dropped), and the client loads one `/Items?ParentId=` per library. When no selected library exists any more, both fall back to all libraries.
+
 ## Index lifetime
 
 `FunscriptIndex` walks the library folders itself, because Jellyfin does not track `.funscript` files. It is rebuilt:

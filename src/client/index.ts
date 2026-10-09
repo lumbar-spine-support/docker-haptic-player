@@ -70,6 +70,7 @@ const FALLBACK_SETTINGS: ClientSettings = {
   jellyfinUrl: '',
   funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES,
   chapterSourcePriority: ['embedded', 'funscript'],
+  libraryIds: [],
 };
 
 class App {
@@ -214,6 +215,7 @@ class App {
       useJellyfin(this.jellyfin, {
         funscriptSuffixes: this.settings.funscriptSuffixes,
         chapterSourcePriority: this.settings.chapterSourcePriority,
+        libraryIds: this.settings.libraryIds,
       });
     }
     this.applyTheme();
@@ -283,6 +285,7 @@ class App {
     useJellyfin(this.jellyfin, {
       funscriptSuffixes: this.settings.funscriptSuffixes,
       chapterSourcePriority: this.settings.chapterSourcePriority,
+      libraryIds: this.settings.libraryIds,
     });
     return true;
   }

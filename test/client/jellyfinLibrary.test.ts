@@ -1,12 +1,11 @@
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import type { JellyfinItemDto } from '../../src/client/jellyfin/dto';
-import { JellyfinRequestError, loadLibrary, setFavorite, type JellyfinApi } from '../../src/client/jellyfin/library';
-import type { MapOptions } from '../../src/client/jellyfin/mapper';
+import { JellyfinRequestError, loadLibrary, setFavorite, type JellyfinApi, type LoadOptions } from '../../src/client/jellyfin/library';
 import { DEFAULT_FUNSCRIPT_SUFFIXES } from '../../src/shared/funscriptNames';
 
 const TAG = '[client:jellyfin-library]';
-const OPTIONS: MapOptions = { funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES, chapterSourcePriority: ['embedded', 'funscript'] };
+const OPTIONS: LoadOptions = { funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES, chapterSourcePriority: ['embedded', 'funscript'] };
 const USER = 'user id/1';
 
 const AUDIO: JellyfinItemDto = {
@@ -90,6 +89,48 @@ test(`${TAG} requests are scoped to the user and ask for the fields the mapper n
     // Playlist ids and the user id are URL-encoded.
     assert.ok(paths.includes(`/Playlists/p%201/Items?userId=${encodeURIComponent(USER)}`));
     assert.ok(paths.includes(`/Playlists/p2/Items?userId=${encodeURIComponent(USER)}`));
+});
+
+test(`${TAG} selected libraries are loaded one by one and merged`, async () => {
+    const OTHER: JellyfinItemDto = { ...AUDIO, Id: 'a2', Name: 'Other song', Path: '/other/Other.mp3' };
+    // Library "lib a" holds the audio and the video, "lib-b" the video again and another song.
+    const routes = libraryRoutes();
+    const scoped = fakeApi((path, init) => {
+        if (path.startsWith('/Items?') && !path.includes('IncludeItemTypes=Playlist')) {
+            const parent = new URL(path, 'http://x').searchParams.get('ParentId');
+            if (parent === 'lib a') return json({ Items: [AUDIO, VIDEO] });
+            if (parent === 'lib-b') return json({ Items: [VIDEO, OTHER] });
+            return json({ Items: [] });
+        }
+        return routes(path, init);
+    });
+    const library = await loadLibrary(scoped, { ...OPTIONS, libraryIds: ['lib a', 'lib-b'] });
+
+    const itemCalls = scoped.calls.map((c) => c.path).filter((p) => p.startsWith('/Items?') && !p.includes('Playlist'));
+    assert.deepEqual(itemCalls.map((p) => new URL(p, 'http://x').searchParams.get('ParentId')), ['lib a', 'lib-b']);
+    assert.ok(itemCalls[0].includes('ParentId=lib%20a'));
+    assert.deepEqual(library.tracks.map((t) => t.id), ['a1', 'a2']);
+    assert.deepEqual(library.videos.map((t) => t.id), ['v1']);
+});
+
+test(`${TAG} playlists keep only entries from the selected libraries`, async () => {
+    const routes = libraryRoutes();
+    const api = fakeApi((path, init) => {
+        if (path.includes('ParentId=only-video')) return json({ Items: [VIDEO] });
+        return routes(path, init);
+    });
+    const library = await loadLibrary(api, { ...OPTIONS, libraryIds: ['only-video'] });
+
+    assert.deepEqual(library.tracks, []);
+    assert.deepEqual(library.playlists[0].entries.map((e) => e.trackId), ['v1']);
+});
+
+test(`${TAG} without selected libraries one request loads all of them`, async () => {
+    const api = fakeApi(libraryRoutes());
+    await loadLibrary(api, { ...OPTIONS, libraryIds: [] });
+    const itemCalls = api.calls.map((c) => c.path).filter((p) => p.startsWith('/Items?') && !p.includes('Playlist'));
+    assert.equal(itemCalls.length, 1);
+    assert.ok(!itemCalls[0].includes('ParentId'));
 });
 
 test(`${TAG} without the HAPPY plugin the library loads without funscripts`, async () => {

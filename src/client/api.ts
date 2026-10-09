@@ -3,19 +3,18 @@ import { DEFAULT_FUNSCRIPT_SUFFIXES } from '../shared/funscriptNames';
 import { parseVrFormat } from '../shared/vrFormat';
 import { buildChaptersVtt } from '../shared/webvtt';
 import type { JellyfinConnection } from './jellyfin/connection';
-import { loadLibrary, setFavorite } from './jellyfin/library';
-import type { MapOptions } from './jellyfin/mapper';
+import { loadLibrary, setFavorite, type LoadOptions } from './jellyfin/library';
 import { imageUrl, streamUrl, trickplayVtt } from './jellyfin/urls';
 import { versionFromPluginInfo, type PluginInfo } from './utils/formatVersion';
 
 /** The signed-in Jellyfin session the library, streams and funscripts come from. */
 let jellyfin: JellyfinConnection | null = null;
-let mapOptions: MapOptions = { funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES, chapterSourcePriority: ['embedded', 'funscript'] };
+let loadOptions: LoadOptions = { funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES, chapterSourcePriority: ['embedded', 'funscript'] };
 
 /** Points every media call at a Jellyfin connection; call once the user is signed in. */
-export function useJellyfin(connection: JellyfinConnection, options: MapOptions): void {
+export function useJellyfin(connection: JellyfinConnection, options: LoadOptions): void {
   jellyfin = connection;
-  mapOptions = options;
+  loadOptions = options;
 }
 
 function requireJellyfin(): JellyfinConnection {
@@ -25,7 +24,7 @@ function requireJellyfin(): JellyfinConnection {
 
 /** Loads the whole library from Jellyfin into the client's in-memory model. */
 export function fetchLibrary(): Promise<LibraryResponse> {
-  return loadLibrary(requireJellyfin(), mapOptions);
+  return loadLibrary(requireJellyfin(), loadOptions);
 }
 
 /** Marks or unmarks a track, video or playlist as a Jellyfin favorite; resolves to the stored state. */
