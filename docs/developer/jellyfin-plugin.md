@@ -28,6 +28,12 @@ All routes except the docs require a Jellyfin token (`Authorization: MediaBrowse
 | `GET /Happy/Funscripts` | `{ "<itemId>": [{ "Key": "<16 hex>", "FileName": "clip.stroker.funscript" }] }`. Only items the user can see, and only items that have scripts. |
 | `GET /Happy/Items/{itemId}/Funscripts/{key}` | The raw funscript JSON. Returns 404 for unknown, hidden or script-less items and for unknown keys alike. |
 
+Besides its routes, the plugin rewrites one response of Jellyfin's own: `GET …/web/config.json` gets a `menuLinks` entry `{ "name": "HAPPY", "icon": "vibration", "url": "../Happy/Web/" }`, which jellyfin-web shows in its side menu and top bar for every user.
+- `Web/WebConfigStartupFilter.cs` is an `IStartupFilter` registered in `PluginServiceRegistrator`. It buffers only that response, without compression or conditional request headers, and drops its `ETag`/`Last-Modified` (`Cache-Control: no-cache`).
+- `Web/WebConfigMenuLink.cs` holds the pure transform. It keeps admin-added links, adds the entry once, and returns the input unchanged if it is not a JSON object.
+- Any error serves Jellyfin's file unchanged. The *Show HAPPY in Jellyfin's menu* setting turns it off without a restart.
+- This is data, not script: see "Jellyfin web client integration" in ARCHITECTURE.md for why HAPPY injects no JavaScript into jellyfin-web.
+
 The client never sends a path back. A key is a hash of the script's absolute path, and the server only serves files that are in its own index, so there is nothing to traverse.
 
 ## Matching
@@ -108,6 +114,7 @@ The audio tags are written by `node scripts/tag-fixture-audio.mjs`. It keeps the
 | --- | --- |
 | Plugin entry, configuration, DI | [Plugin.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Plugin.cs), [PluginConfiguration.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Configuration/PluginConfiguration.cs), [PluginServiceRegistrator.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/PluginServiceRegistrator.cs) |
 | Client settings, dashboard page | [Configuration/ClientSettings.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Configuration/ClientSettings.cs), [Configuration/configPage.html](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Configuration/configPage.html), [src/shared/types.ts](../../src/shared/types.ts) (`ClientSettings`) |
+| Jellyfin menu link | [Web/WebConfigStartupFilter.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Web/WebConfigStartupFilter.cs), [Web/WebConfigMenuLink.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Web/WebConfigMenuLink.cs) |
 | Endpoints | [Api/HappyController.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Api/HappyController.cs) (config, info, funscripts), [Api/WebController.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Api/WebController.cs) (web app), [Api/DocsController.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Api/DocsController.cs) (docs) |
 | Embedded files | [Web/StaticFileSource.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Web/StaticFileSource.cs) (DLL resources, or `HAPPY_DEV_WEB_ROOT`/`HAPPY_DEV_DOCS_ROOT` in the dev Jellyfin), [Web/ContentTypes.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Web/ContentTypes.cs) |
 | Index and matching | [Funscripts/FunscriptIndex.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptIndex.cs), [Funscripts/FunscriptMatcher.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptMatcher.cs), [Funscripts/FunscriptPostScanTask.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptPostScanTask.cs) |

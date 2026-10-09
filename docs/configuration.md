@@ -56,6 +56,14 @@ A script belongs to the media file with the same name: `clip.mp4` + `clip.stroke
 | E-stim suffix | `estim` | Suffix of e-stim scripts. |
 | Machine suffix | `machine` | Suffix of machine scripts. |
 
+## Jellyfin menu
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| Show HAPPY in Jellyfin's menu | on | Adds a HAPPY link to the menu of Jellyfin's web client for every user. It opens HAPPY in a new tab. Takes effect when the Jellyfin page is reloaded. |
+| Menu text | `HAPPY` | Text of the link. |
+| Menu icon | `vibration` | A [Material icon](https://fonts.google.com/icons) name. |
+
 ## Troubleshooting
 
 | Setting | Default | Description |

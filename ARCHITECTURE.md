@@ -40,6 +40,16 @@ and hands it to the tab when it returns. A newly connecting app likewise replace
 - Serve the client settings (`/Happy/Config`) and the version (`/Happy/Info`) to signed-in users
 - Let admins edit the client settings on its dashboard page
 - Index funscripts next to the media and serve them only for items the signed-in user can see
+- List HAPPY in Jellyfin's web client by adding a `menuLinks` entry to `/web/config.json` (`Web/WebConfigStartupFilter.cs`)
+
+### Jellyfin web client integration
+
+**HAPPY injects no JavaScript into Jellyfin's web client (jellyfin-web).** Integration is limited to:
+
+- **Data jellyfin-web already understands.** The plugin adds a link to the `menuLinks` of `/web/config.json`, which jellyfin-web renders for every user.
+- **The shared origin.** HAPPY adopts jellyfin-web's stored sign-in (`jellyfin_credentials`).
+
+Playback, haptics and VR stay in HAPPY's own player. VR180 (inline and WebXR) is a hard requirement, and it lives in HAPPY's Video.js player. Jellyfin's player can only be reached through private jellyfin-web internals that change between releases, and Jellyfin's native apps never run injected code. Item-page buttons or haptics in Jellyfin's player would need such injection and are deliberately not done.
 
 ### DG-Lab relay responsibilities
 
@@ -295,8 +305,12 @@ HAPPY keeps no passwords, tokens or cookies of its own.
 - The plugin serves the app (`/Happy/Web/`) and the docs (`/Happy/Docs`) without authentication,
   so the page can show the sign-in card. They hold no media. The settings, the version, the
   funscripts and everything else from Jellyfin need the token.
+- Without its own session, HAPPY first adopts the sign-in of Jellyfin's web client from the
+  shared origin's `localStorage` (`jellyfin_credentials`), checked with `GET /Users/Me`. Such a
+  session is marked *borrowed*.
 - The logout button (shown whenever there is a Jellyfin session) calls `POST /Sessions/Logout`
-  and reloads the page, which shows the sign-in card again.
+  and reloads the page, which shows the sign-in card again. For a borrowed session it only forgets
+  it and returns to `../../web/` ("Leave HAPPY"): logging out would end the web client's session too.
 - A Jellyfin `401` on any client request drops the stored session and reloads into the sign-in card.
 
 ### DG-Lab relay

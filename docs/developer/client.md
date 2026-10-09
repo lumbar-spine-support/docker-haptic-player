@@ -77,9 +77,12 @@ sequenceDiagram
   Note over A: constructor: registry.add(buttplug),<br/>Intiface sync engine, DeviceStatus,<br/>Visualization, Library, PlaybackController
   M->>A: init()
   A->>A: connectJellyfin(): jellyfinUrlFromPage(location)<br/>not under /Happy/Web/ → notice, stop
-  opt no stored Jellyfin session
-    A->>J: ensureSignedIn: sign-in card →<br/>POST /Users/AuthenticateByName
-    J-->>A: AccessToken, User
+  opt no stored HAPPY session
+    A->>J: adoptJellyfinWebSession: jellyfin_credentials token →<br/>GET /Users/Me (borrowed session)
+    opt none, or rejected
+      A->>J: ensureSignedIn: sign-in card →<br/>POST /Users/AuthenticateByName
+      J-->>A: AccessToken, User
+    end
   end
   A->>P: GET /Happy/Config
   P-->>A: ClientSettings (built-in defaults if this fails)
@@ -113,7 +116,7 @@ Intiface drops are retried by `bindIntifaceSettings()` with backoff (1 s doublin
 | File | Role |
 | --- | --- |
 | `serverUrl.ts` | `jellyfinUrlFromPage()`: Jellyfin's address is everything before `/Happy/Web/` in the page URL (case-insensitive), so a base URL such as `/jellyfin` is kept; `null` when the page comes from elsewhere |
-| `connection.ts` | `JellyfinConnection`: sign-in, `localStorage` session keyed to the server URL, `MediaBrowser` authorization header with a stable `DeviceId` (from `crypto.getRandomValues`, since `randomUUID` is missing on plain-HTTP origins), `request()` that forgets the session and calls `onUnauthorized` (a reload) on `401`, sign-out via `POST /Sessions/Logout` |
+| `connection.ts` | `JellyfinConnection`: sign-in, `localStorage` session keyed to the server URL, `MediaBrowser` authorization header with a stable `DeviceId` (from `crypto.getRandomValues`, since `randomUUID` is missing on plain-HTTP origins), `request()` that forgets the session and calls `onUnauthorized` (a reload) on `401`, sign-out via `POST /Sessions/Logout`. `adoptJellyfinWebSession()` takes over jellyfin-web's sign-in (`credentialsFromJellyfinWeb()` reads `jellyfin_credentials`) as a *borrowed* session, which sign-out only forgets |
 | `signIn.ts`, `signIn.html` | Full-screen sign-in card shown by `ensureSignedIn()` until a session exists; `showMissingServerNotice()` when the page is not served from `/Happy/Web/` |
 | `library.ts` | `loadLibrary(api, options)`: one `/Items` request with `Fields=Path,Tags,Genres,Overview,Chapters,Trickplay`, `/Happy/Funscripts` (404 = plugin missing → no funscripts), playlists and their entries. Takes any `JellyfinApi` (`userId` + `request()`), so the integration tests drive it from Node |
 | `mapper.ts` | Pure DTO → `TrackInfo`/`LibraryResponse` mapping: `MediaType` decides audio/video, tags = Tags ∪ Genres, description = Overview, embedded chapters (when `embedded` is in the priority), trickplay resolution closest to 320 px, client-side albums (`shared/albums.ts`) |
@@ -122,7 +125,7 @@ Intiface drops are retried by `bindIntifaceSettings()` with backoff (1 s doublin
 
 `chaptersVttUrl()` and `storyboardVttUrl()` build WebVTT in the browser (`shared/webvtt.ts`) and return `blob:` URLs, cached per chapter list and per track. Blob URLs are same-origin, so `<track>` needs no CORS. Media and images come from the page's own origin. Both `<video>` elements in `public/index.html` and `loadImage()` (playlist collage) still use `crossorigin="anonymous"`, so WebGL (VR) and `canvas.toDataURL()` keep untainted frames even if media came from another origin.
 
-The logout button (`bindLogout()`, bound after the sign-in) shows whenever there is a Jellyfin session; `logout()` signs out of Jellyfin and reloads, which shows the sign-in card. `initDglab()` runs after the sign-in as well: `CoyoteBackend` gets the token through a callback and offers it to the relay as the `jellyfin.<token>` WebSocket subprotocol, so the DG-Lab auto-reconnect never dials without one.
+The logout button (`bindLogout()`, bound after the sign-in) shows whenever there is a Jellyfin session; `logout()` signs out of Jellyfin and reloads, which shows the sign-in card. For a borrowed session it is *Leave HAPPY*: `logout()` only forgets the session and goes to Jellyfin's web client (`JELLYFIN_WEB_URL`, `../../web/`). `initDglab()` runs after the sign-in as well: `CoyoteBackend` gets the token through a callback and offers it to the relay as the `jellyfin.<token>` WebSocket subprotocol, so the DG-Lab auto-reconnect never dials without one.
 
 ## Routing
 
