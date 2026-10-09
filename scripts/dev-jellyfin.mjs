@@ -4,6 +4,7 @@
 //
 //   node scripts/dev-jellyfin.mjs up         build the plugin, start Jellyfin, set it up (idempotent)
 //   node scripts/dev-jellyfin.mjs plugin     rebuild the plugin and restart Jellyfin
+//   node scripts/dev-jellyfin.mjs test-plugin  dotnet test the plugin in the .NET SDK container
 //   node scripts/dev-jellyfin.mjs bootstrap  only run the setup against a running Jellyfin
 //   node scripts/dev-jellyfin.mjs down       stop Jellyfin, keep its data
 //   node scripts/dev-jellyfin.mjs reset      stop Jellyfin and delete its data (fresh wizard on next `up`)
@@ -292,6 +293,10 @@ async function main() {
             compose('restart', 'jellyfin');
             await waitForStartup(await resolveBase());
             log('Plugin reloaded.');
+            break;
+        case 'test-plugin':
+            ensureMountSources();
+            compose('--profile', 'tools', 'run', '--rm', 'plugin-test');
             break;
         case 'bootstrap':
             await bootstrap();

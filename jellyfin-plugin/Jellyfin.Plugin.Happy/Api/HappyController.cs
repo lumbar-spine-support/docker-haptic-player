@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
+using System.Reflection;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.Happy.Configuration;
 using Jellyfin.Plugin.Happy.Funscripts;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
@@ -41,14 +43,38 @@ public class HappyController : ControllerBase
     }
 
     /// <summary>
-    /// Gets the plugin version, so HAPPY can check compatibility.
+    /// Gets the plugin version and build details; HAPPY shows them as its own version.
     /// </summary>
     /// <returns>The plugin info.</returns>
     [HttpGet("Info")]
     [Produces(MediaTypeNames.Application.Json)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult<HappyInfo> GetInfo()
-        => new HappyInfo(Plugin.Instance?.Version.ToString() ?? "0.0.0.0");
+    {
+        var assembly = typeof(HappyController).Assembly;
+        string? Metadata(string key) => assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(a => a.Key == key)?.Value is { Length: > 0 } value ? value : null;
+#if DEBUG
+        const string Channel = "dev";
+#else
+        const string Channel = "stable";
+#endif
+        return new HappyInfo(
+            Plugin.Instance?.Version.ToString() ?? "0.0.0.0",
+            Channel,
+            Metadata("HappyCommit"),
+            Metadata("HappyBuiltAt"));
+    }
+
+    /// <summary>
+    /// Gets the HAPPY client settings configured on the plugin's dashboard page.
+    /// </summary>
+    /// <returns>The client settings.</returns>
+    [HttpGet("Config")]
+    [Produces(MediaTypeNames.Application.Json)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<ClientSettings> GetConfig()
+        => ClientSettings.From(Plugin.Instance?.Configuration ?? new PluginConfiguration());
 
     /// <summary>
     /// Lists the funscripts of every media item the current user can see.

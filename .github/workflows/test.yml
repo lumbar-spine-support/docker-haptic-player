@@ -59,7 +59,9 @@ jobs:
         run: dotnet test jellyfin-plugin/Jellyfin.Plugin.Happy.slnx
 
       - name: Package plugin
-        run: sh jellyfin-plugin/package.sh
+        env:
+          HAPPY_COMMIT: ${{ github.sha }}
+        run: HAPPY_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" sh jellyfin-plugin/package.sh
 
       - name: Upload plugin build
         uses: actions/upload-artifact@v5

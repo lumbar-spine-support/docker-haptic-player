@@ -175,8 +175,10 @@ jobs:
 
       - name: Package plugin
         id: package
+        env:
+          HAPPY_COMMIT: ${{ github.sha }}
         run: |
-          sh jellyfin-plugin/package.sh
+          HAPPY_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" sh jellyfin-plugin/package.sh
           zip="$(ls jellyfin-plugin/artifacts/happy_*.zip)"
           echo "zip=$zip" >> "$GITHUB_OUTPUT"
           echo "name=$(basename "$zip")" >> "$GITHUB_OUTPUT"

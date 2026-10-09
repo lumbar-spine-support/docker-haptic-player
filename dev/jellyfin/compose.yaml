@@ -52,6 +52,22 @@ services:
       - ../..:/src
     entrypoint: ["sh", "jellyfin-plugin/package.sh"]
 
+  # One-shot `dotnet test` of the plugin (npm run test:plugin).
+  plugin-test:
+    <<: *no-selinux-relabel
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    profiles: [tools]
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    working_dir: /src
+    environment:
+      HOME: /tmp
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      NUGET_PACKAGES: /src/jellyfin-plugin/artifacts/nuget
+    volumes:
+      - ../..:/src
+    entrypoint: ["dotnet", "test", "jellyfin-plugin/Jellyfin.Plugin.Happy.slnx"]
+
 volumes:
   config:
   cache:

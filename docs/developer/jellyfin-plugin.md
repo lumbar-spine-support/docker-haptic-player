@@ -17,11 +17,13 @@ flowchart LR
 
 ## Endpoints
 
-All routes require a Jellyfin token (`Authorization: MediaBrowser … Token="…"`), the same one the client uses for the rest of the Jellyfin API. JSON uses Jellyfin's PascalCase.
+All routes except the docs require a Jellyfin token (`Authorization: MediaBrowser … Token="…"`), the same one the client uses for the rest of the Jellyfin API. JSON uses Jellyfin's PascalCase, except `/Happy/Config` and `/Happy/Docs`, which keep the client's camelCase shapes.
 
 | Route | Returns |
 | --- | --- |
-| `GET /Happy/Info` | `{ "Version": "0.15.0.0" }` for compatibility checks |
+| `GET /Happy/Info` | `{ "Version": "0.15.0.0", "Channel": "stable", "Commit": "<sha>", "BuiltAt": "<ISO time>" }`. Commit and build time come from `-p:HappyCommit`/`-p:HappyBuiltAt` (`HAPPY_COMMIT`/`HAPPY_BUILT_AT` for `package.sh`, set in CI) and are `null` otherwise. Debug builds report the channel `dev`. |
+| `GET /Happy/Config` | The client settings (`ClientSettings` in `src/shared/types.ts`), built from the plugin configuration by `Configuration/ClientSettings.cs`, which also repairs invalid values. Admins edit them on the plugin's dashboard page (`Configuration/configPage.html`). |
+| `GET /Happy/Docs`, `/Happy/Docs/{page}`, `/Happy/Docs/assets/{path}` | The user docs (`docs/*.md` and their images), embedded in the DLL. **Anonymous**, like the docs on GitHub; `<img>` tags carry no token. |
 | `GET /Happy/Funscripts` | `{ "<itemId>": [{ "Key": "<16 hex>", "FileName": "clip.stroker.funscript" }] }`. Only items the user can see, and only items that have scripts. |
 | `GET /Happy/Items/{itemId}/Funscripts/{key}` | The raw funscript JSON. Returns 404 for unknown, hidden or script-less items and for unknown keys alike. |
 
@@ -50,6 +52,7 @@ Concurrent callers share one build.
 The plugin targets the Jellyfin version it is built against (`targetAbi` in [build.yaml](../../jellyfin-plugin/build.yaml)). Bump `Jellyfin.Controller`/`Jellyfin.Model` and `targetAbi` together for each new Jellyfin minor release.
 
 ```bash
+npm run test:plugin                  # dotnet test in the .NET SDK container, no local SDK needed
 # With the .NET 10 SDK installed, or inside mcr.microsoft.com/dotnet/sdk:10.0:
 dotnet test jellyfin-plugin/Jellyfin.Plugin.Happy.slnx
 sh jellyfin-plugin/package.sh        # → jellyfin-plugin/artifacts/HAPPY_<version>/ and happy_<version>.zip (needs zip)

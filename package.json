@@ -24,7 +24,8 @@
     "dev:jellyfin": "node scripts/dev-jellyfin.mjs up",
     "dev:jellyfin:plugin": "node scripts/dev-jellyfin.mjs plugin",
     "dev:jellyfin:down": "node scripts/dev-jellyfin.mjs down",
-    "dev:jellyfin:reset": "node scripts/dev-jellyfin.mjs reset"
+    "dev:jellyfin:reset": "node scripts/dev-jellyfin.mjs reset",
+    "test:plugin": "node scripts/dev-jellyfin.mjs test-plugin"
   },
   "dependencies": {
     "@videojs/html": "^10.0.1",

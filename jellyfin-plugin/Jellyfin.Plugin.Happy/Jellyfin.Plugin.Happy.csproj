@@ -4,6 +4,7 @@
     <RootNamespace>Jellyfin.Plugin.Happy</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <DocsRoot>$(MSBuildThisFileDirectory)../../docs/</DocsRoot>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,6 +23,25 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Jellyfin.Plugin.Happy.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Configuration\configPage.html" />
+    <EmbeddedResource Include="Configuration\configPage.html" />
+  </ItemGroup>
+
+  <!-- User docs shown in HAPPY (GET /Happy/Docs), as resources named docs/<path>. docs/developer stays out. -->
+  <ItemGroup>
+    <EmbeddedResource Include="$(DocsRoot)*.md" LogicalName="docs/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(DocsRoot)**/*.png;$(DocsRoot)**/*.jpg;$(DocsRoot)**/*.jpeg;$(DocsRoot)**/*.gif;$(DocsRoot)**/*.svg;$(DocsRoot)**/*.webp"
+                      Exclude="$(DocsRoot)developer/**"
+                      LogicalName="docs/$([System.String]::Copy('%(RecursiveDir)').Replace('\', '/'))%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Build details for GET /Happy/Info: dotnet publish -p:HappyCommit=<sha> -p:HappyBuiltAt=<ISO time>. -->
+  <ItemGroup>
+    <AssemblyMetadata Include="HappyCommit" Value="$(HappyCommit)" Condition="'$(HappyCommit)' != ''" />
+    <AssemblyMetadata Include="HappyBuiltAt" Value="$(HappyBuiltAt)" Condition="'$(HappyBuiltAt)' != ''" />
   </ItemGroup>
 
 </Project>

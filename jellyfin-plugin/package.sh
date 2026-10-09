@@ -14,7 +14,9 @@ zip="artifacts/happy_${version}.zip"
 configuration="${CONFIGURATION:-Release}"
 
 rm -rf "$out" "artifacts/publish"
-dotnet publish Jellyfin.Plugin.Happy/Jellyfin.Plugin.Happy.csproj -c "$configuration" -o "artifacts/publish" --nologo -v quiet
+# HAPPY_COMMIT / HAPPY_BUILT_AT (set in CI) end up in GET /Happy/Info.
+dotnet publish Jellyfin.Plugin.Happy/Jellyfin.Plugin.Happy.csproj -c "$configuration" -o "artifacts/publish" --nologo -v quiet \
+  "-p:HappyCommit=${HAPPY_COMMIT:-}" "-p:HappyBuiltAt=${HAPPY_BUILT_AT:-}"
 mkdir -p "$out"
 cp artifacts/publish/Jellyfin.Plugin.Happy.dll "$out/"
 if [ "$configuration" = Debug ]; then cp artifacts/publish/Jellyfin.Plugin.Happy.pdb "$out/"; fi
