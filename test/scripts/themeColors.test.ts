@@ -32,6 +32,15 @@ describe('theme colours', () => {
         assert.deepEqual(offenders, [], 'use a --happy-* token (or a constant in _variables.scss)');
     });
 
+    it('uses no colour variables from before the theme tokens', () => {
+        const sources = readdirSync('.', { recursive: true, withFileTypes: true })
+            .filter((entry) => entry.isFile() && /\.(scss|css|ts|html)$/.test(entry.name))
+            .map((entry) => join(entry.parentPath, entry.name))
+            .filter((file) => /^(public\/css\/(scss|themes)|src|@)\//.test(file));
+        const offenders = sources.filter((file) => readFileSync(file, 'utf8').includes('--app-color-'));
+        assert.deepEqual(offenders, [], 'use the --happy-* tokens or --bs-danger');
+    });
+
     it('ships a stylesheet for every theme the plugin offers', () => {
         const plugin = readFileSync('jellyfin-plugin/Jellyfin.Plugin.Happy/Configuration/ClientSettings.cs', 'utf8');
         const pluginThemes = /Themes = \[([^\]]*)\]/.exec(plugin)?.[1].match(/"[^"]+"/g)?.map((s) => s.slice(1, -1));

@@ -6,7 +6,7 @@
     }
 
     .media-favorite-button[data-active] .media-favorite-button-icon {
-      color: var(--app-color-danger, #dc3545);
+      color: var(--bs-danger);
     }
   }
 }

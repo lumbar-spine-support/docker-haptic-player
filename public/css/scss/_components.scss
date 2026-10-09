@@ -342,20 +342,20 @@ tr {
 .favorite-btn {
   // Through Bootstrap's button variables, so hover, focus and active states agree.
   --bs-btn-color: var(--bs-secondary-color);
-  --bs-btn-hover-color: var(--app-color-danger-soft);
-  --bs-btn-active-color: var(--app-color-danger);
+  --bs-btn-hover-color: #{$danger-soft};
+  --bs-btn-active-color: var(--bs-danger);
   font-size: 0.9rem;
   text-decoration: none;
 
   &.is-favorite {
-    --bs-btn-color: var(--app-color-danger);
-    --bs-btn-hover-color: var(--app-color-danger);
+    --bs-btn-color: var(--bs-danger);
+    --bs-btn-hover-color: var(--bs-danger);
   }
 }
 
 .favorite-toggle.is-favorite i,
 .library-favorites-toggle.active i {
-  color: var(--app-color-danger);
+  color: var(--bs-danger);
 }
 
 .favorite-cell {
