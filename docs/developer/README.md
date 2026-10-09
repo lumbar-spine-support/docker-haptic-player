@@ -2,7 +2,7 @@
 
 These pages explain how HAPPY works inside: which modules exist, how they talk to each other and what happens step by step in the common use cases. Most of the explanation is in [Mermaid](https://mermaid.js.org/) diagrams, which GitHub and VS Code render directly.
 
-> These pages are for development only. They are **not** served in the app and **not** copied into the Docker image (see `.dockerignore`). The user documentation lives one level up in [docs/](../index.md).
+> These pages are for development only. They are **not** served in the app and **not** embedded in the Jellyfin plugin. The user documentation lives one level up in [docs/](../index.md).
 
 [ARCHITECTURE.md](../../ARCHITECTURE.md) is the short reference with the rules and conventions. These pages are the visual walkthrough.
 
@@ -11,15 +11,15 @@ These pages explain how HAPPY works inside: which modules exist, how they talk t
 | Page | What you learn |
 | --- | --- |
 | [architecture.md](architecture.md) | The big picture: processes, network connections, module layers, build and deployment |
-| [server.md](server.md) | Express pipeline, configuration, WebSocket upgrades and their Jellyfin token check, DG-Lab relay |
 | [client.md](client.md) | App bootstrap, Jellyfin data layer, routing, the two-player playback model |
 | [haptics.md](haptics.md) | Backends, channels and features, the funscript pipeline, the sync loop, the e-stim sandbox |
-| [jellyfin-plugin.md](jellyfin-plugin.md) | The Jellyfin companion plugin: funscript endpoints, matching, building, testing against a real Jellyfin |
+| [jellyfin-plugin.md](jellyfin-plugin.md) | The HAPPY Jellyfin plugin: web app, settings and funscript endpoints, matching, building, releases, testing against a real Jellyfin |
 | [local-jellyfin.md](local-jellyfin.md) | `npm run dev:jellyfin`: a local Jellyfin with the test fixtures and the plugin from your working tree |
+| [dglab-relay/README.md](../../dglab-relay/README.md) | The DG-Lab relay image: behaviour, authentication, configuration, build |
 
 ### Use cases
 
-Each use case follows one user action from start to finish, across client, server and external apps.
+Each use case follows one user action from start to finish, across client, Jellyfin, the relay and external apps.
 
 | Use case | Covers |
 | --- | --- |
@@ -40,7 +40,7 @@ Each use case follows one user action from start to finish, across client, serve
 | **Backend** | One haptic transport behind the `HapticBackend` interface: Intiface (`ButtplugClientManager`) or DG-Lab (`CoyoteBackend`). |
 | **Feature** | One actuator of a device (vibrator, rotator, linear axis, e-stim channel). Features are assigned to channels. |
 | **Active / focused slot** | The two `<video-player>` instances: *active* owns playback and haptics, *focused* is the one on screen. |
-| **Relay** | The server-side WebSocket at `/ws/dglab` that connects a browser tab (controller) with the DG-Lab app. |
+| **Relay** | The DG-Lab relay ([dglab-relay/](../../dglab-relay/README.md)), its own Docker image: a WebSocket at `…/ws/dglab` that connects a browser tab (controller) with the DG-Lab app. |
 
 ## Keeping these docs up to date
 

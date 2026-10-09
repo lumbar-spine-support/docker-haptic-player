@@ -24,11 +24,11 @@ Phone-tethered glasses (e.g. USB-C display glasses driven by a phone) remain uns
 
 ## Key constraints
 
-- Stage 0/1 need no deployment changes. Inline mode needs no secure context: mouse/touch navigation works on `http://<lan-ip>:3000`. Only `DeviceOrientationEvent` (gyroscope) requires HTTPS, and iOS additionally requires `DeviceOrientationEvent.requestPermission()` from a click.
-- WebXR requires a **secure context of the page origin**. A client loading `http://<lan-ip>:3000` has no `navigator.xr`, regardless of where Intiface runs.
-- HTTPS is therefore required for immersive mode. It can stay LAN-only: TLS reverse proxy + local DNS (e.g. `https://happy.example.com`). Media is served from the same origin (`/api/media/:id`), so there is no mixed content or CORS (also required for WebGL texture upload: cross-origin video would taint the texture).
+- Stage 0/1 need no deployment changes. Inline mode needs no secure context: mouse/touch navigation works on `http://<lan-ip>:8096/Happy/Web/` (Jellyfin over plain HTTP). Only `DeviceOrientationEvent` (gyroscope) requires HTTPS, and iOS additionally requires `DeviceOrientationEvent.requestPermission()` from a click.
+- WebXR requires a **secure context of the page origin**. A client loading `http://<lan-ip>:8096/Happy/Web/` has no `navigator.xr`, regardless of where Intiface runs.
+- HTTPS is therefore required for immersive mode. It can stay LAN-only: TLS reverse proxy in front of Jellyfin + local DNS (e.g. `https://jellyfin.example.com/Happy/Web/`). The plugin serves HAPPY from Jellyfin's origin, so media is same-origin: no mixed content or CORS (also required for WebGL texture upload: cross-origin video would taint the texture).
 - Intiface on the client device is simpler: an HTTPS page may connect to `ws://localhost:12345` (localhost is exempt from mixed-content blocking). No `wss` proxy and no change to `normalizeIntifaceAddress()` in `src/client/index.ts`.
-- Non-HTTPS fallback (discouraged): an SSH tunnel on the client (`ssh -N -L 3000:<server>:3000`) and `http://localhost:3000`. DG-Lab pairing then needs the existing pairing-host override in `src/client/components/haptic/dglab/coyoteBackend.ts`, because a phone cannot reach `localhost`.
+- Non-HTTPS fallback (discouraged): an SSH tunnel to Jellyfin's port on the client (`ssh -N -L 8096:<jellyfin-host>:8096`) and `http://localhost:8096/Happy/Web/`. DG-Lab pairing then needs the existing pairing-host override in `src/client/components/haptic/dglab/coyoteBackend.ts`, because a phone cannot reach `localhost`.
 - Never auto-enter immersive VR because a headset is present; only an explicit button click starts a session. Auto-enabling the *inline* panorama for VR files is fine.
 - Device handling is **capability-based**, not user-agent sniffing: `immersive-vr` support decides the headset button, `pointer`/touch events drive inline navigation, `DeviceOrientationEvent` presence decides the gyro toggle.
 
@@ -37,7 +37,8 @@ Phone-tethered glasses (e.g. USB-C display glasses driven by a phone) remain uns
 ```mermaid
 flowchart LR
   subgraph Server[Docker host]
-    RP[TLS reverse proxy<br/>https://happy.example.com] --> HAPPY[HAPPY :3000<br/>media + /ws/dglab relay]
+    RP[TLS reverse proxy<br/>https://jellyfin.example.com] --> JF[Jellyfin :8096<br/>HAPPY plugin: /Happy/Web, media]
+    RP --> RL[DG-Lab relay :8070<br/>/ws/dglab]
   end
   subgraph B[Standalone headset / Cardboard phone]
     HB[Browser<br/>WebXR immersive] -->|ws://localhost| HI[Intiface Central on device]
@@ -128,7 +129,7 @@ Ships independently over plain HTTP; only the gyroscope toggle needs HTTPS.
    - `ARCHITECTURE.md` and `docs/developer/client.md`: VR section describing camera / projection / mode contract / inline view, the drag guard and the Video.js feature split.
 6. **Verification:**
    - `npm run build` and `npm test` pass.
-   - Desktop Chrome/Firefox on `http://<lan-ip>:3000`: VR-named files open as panorama; drag rotates (clamped at the image edges), wheel zooms, click toggles play only without drag, view toggle shows the raw frame; flat files and audio unchanged; fullscreen works; both player slots behave independently.
+   - Desktop Chrome/Firefox on `http://<lan-ip>:8097/Happy/Web/` (the local dev Jellyfin): VR-named files open as panorama; drag rotates (clamped at the image edges), wheel zooms, click toggles play only without drag, view toggle shows the raw frame; flat files and audio unchanged; fullscreen works; both player slots behave independently.
    - Mobile browser: touch drag/pinch, tap toggles controls; over HTTPS the gyro button appears and works (iOS permission prompt).
 
 ## Stage 2: VR headsets (immersive WebXR)
@@ -140,10 +141,9 @@ Starts after Stage 1 has shipped. Adds files and fields only; Stage 0/1 code is 
    - An Intiface Central build for the device architecture (often ARM64) runs and finds the toys via BLE.
    - The page reaches `ws://localhost:12345`.
 2. **Deployment (no code)**:
-   - Local DNS: LAN-only hostname (e.g. `happy.example.com`) → Docker host.
+   - Local DNS: LAN-only hostname (e.g. `jellyfin.example.com`) → Docker host.
    - Any TLS reverse proxy (Caddy, Traefik, nginx, Nginx Proxy Manager, …): Let's Encrypt via **DNS-01** challenge, since the host is not internet-reachable.
-   - Enable WebSocket forwarding (DG-Lab relay), target HAPPY `:3000`; optionally disable response buffering for large range requests.
-   - Set `TRUST_PROXY=1` on the container.
+   - Target Jellyfin `:8096`; optionally disable response buffering for large range requests. Forward `/ws/dglab` (with WebSocket upgrade) to the DG-Lab relay `:8070`, or give the relay its own `wss://` host and set it as *Relay address* in the plugin settings.
    - The DG-Lab phone must use the same local DNS so it resolves the pairing host.
 3. **Immersive session** — `src/client/components/vr/immersive.ts`, implements `VrView`:
    - API: `new ImmersiveVrSession(video, format, { onSelect, onEnd })`, `start()`, `stop()`.
@@ -161,11 +161,11 @@ Starts after Stage 1 has shipped. Adds files and fields only; Stage 0/1 code is 
    - Intiface runs on the client device at `ws://localhost:12345`; no code change needed.
    - DG-Lab: the app stays on a phone; pair via the QR code before entering immersive VR.
 7. **Docs:**
-   - `docs/installation.md`: "VR headset playback" section — why HTTPS is required (and why Intiface on localhost does not replace it), generic reverse proxy + DNS-01 setup, `TRUST_PROXY=1`, headset/Cardboard setup.
+   - `docs/installation.md`: "VR headset playback" section — why HTTPS is required (and why Intiface on localhost does not replace it), generic reverse proxy + DNS-01 setup for Jellyfin and the relay, headset/Cardboard setup.
    - User docs: the headset button. Developer docs: the immersive renderer.
 8. **Verification:**
    - `npm run build` and `npm test` pass.
-   - Desktop Chrome on `http://localhost:3000` with the Immersive Web Emulator extension: headset button appears, correct half per eye, head rotation works, exit returns to the inline view with the previous camera.
+   - Desktop Chrome on the local dev Jellyfin (`http://localhost:8097/Happy/Web/`, `npm run dev:jellyfin`; localhost is a secure context) with the Immersive Web Emulator extension: headset button appears, correct half per eye, head rotation works, exit returns to the inline view with the previous camera.
    - On the headset (and Cardboard) over the HTTPS hostname: enter VR, trigger/tap toggles play/pause, exit returns to the same position; Intiface on localhost and the DG-Lab relay keep driving devices. Haptic sync must not drift over several minutes (the `setTimeout` tick may be throttled while the page is hidden behind the XR session); if it does, drive the sync tick from `XRSession.requestAnimationFrame` while in VR.
 
 ## Out of scope

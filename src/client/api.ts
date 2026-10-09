@@ -8,8 +8,6 @@ import type { MapOptions } from './jellyfin/mapper';
 import { imageUrl, streamUrl, trickplayVtt } from './jellyfin/urls';
 import { versionFromPluginInfo, type PluginInfo } from './utils/formatVersion';
 
-const BASE = new URL('.', window.location.href).pathname;
-
 /** The signed-in Jellyfin session the library, streams and funscripts come from. */
 let jellyfin: JellyfinConnection | null = null;
 let mapOptions: MapOptions = { funscriptSuffixes: DEFAULT_FUNSCRIPT_SUFFIXES, chapterSourcePriority: ['embedded', 'funscript'] };
@@ -112,21 +110,6 @@ export async function fetchClientSettings(): Promise<ClientSettings> {
     throw new Error(`Config fetch failed: ${res.status}`);
   }
   return res.json() as Promise<ClientSettings>;
-}
-
-/**
- * Jellyfin address configured on a HAPPY Node server (`JELLYFIN_URL`), for pages it serves.
- * Pages served by the plugin derive the address from their own URL instead.
- */
-export async function fetchConfiguredJellyfinUrl(): Promise<string> {
-  try {
-    const res = await fetch(`${BASE}api/config`);
-    if (!res.ok) return '';
-    const { jellyfinUrl } = await res.json() as Partial<ClientSettings>;
-    return typeof jellyfinUrl === 'string' ? jellyfinUrl : '';
-  } catch {
-    return '';
-  }
 }
 
 

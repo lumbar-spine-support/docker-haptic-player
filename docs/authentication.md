@@ -6,7 +6,7 @@ HAPPY has no accounts or passwords of its own. Your media, artwork and funscript
 
 ## Signing in
 
-The first time you open HAPPY in a browser it shows a sign-in card with the address of your Jellyfin server (`JELLYFIN_URL`). After signing in you see exactly the libraries that Jellyfin user can access, and the HAPPY plugin only hands out funscripts of those items.
+The first time you open HAPPY in a browser it shows a sign-in card for the Jellyfin server HAPPY runs on. After signing in you see exactly the libraries that Jellyfin user can access, and the HAPPY plugin only hands out funscripts of those items.
 
 The sign-in is remembered in the browser. Each browser shows up once in Jellyfin under *Dashboard → Devices*, where you can also end its session. If Jellyfin rejects the stored session later (because it was ended there, or the user was removed), HAPPY shows the sign-in card again.
 
@@ -21,11 +21,11 @@ Who may use HAPPY, and which media they see, is decided in Jellyfin:
 - Create a Jellyfin user for each person and give them access only to the libraries they should see.
 - Disable or delete a user in Jellyfin to lock them out of HAPPY too.
 
-The HAPPY page itself (the app shell, the built-in docs and the default settings) is served without a sign-in. It contains no media and nothing from your libraries.
+The HAPPY page itself (the app and the built-in docs, under `/Happy/Web/` and `/Happy/Docs/`) is served without a sign-in, so it can show the sign-in card. It contains no media and nothing from your libraries. HAPPY's settings and everything from your libraries need a signed-in user.
 
 Note that Jellyfin itself may serve the original media file (`/Videos/{id}/stream?static=true`) to anyone who knows the item's id, even without a token. Item ids are long random values that HAPPY only hands to signed-in users, but if that matters to you, restrict access to Jellyfin itself (for example with your reverse proxy). Funscripts, trickplay images and the library listing always require a signed-in user.
 
 ## Casting and the DG-Lab relay
 
 - **Chromecast and AirPlay:** stream URLs carry your Jellyfin access token, so a remote receiver can play the file without signing in itself.
-- **DG-Lab Coyote:** the [DG-Lab relay](dg-lab.md#the-relay) only accepts browser tabs that are signed in to Jellyfin. It checks the tab's token with Jellyfin (its `JELLYFIN_URL`) when the tab connects. The DG-Lab app itself pairs with the one-time link HAPPY shows.
+- **DG-Lab Coyote:** the [DG-Lab relay](dg-lab.md#the-relay) only accepts browser tabs that are signed in to Jellyfin. It checks the tab's token with Jellyfin (the relay's `JELLYFIN_URL`) when the tab connects. The DG-Lab app itself pairs with the one-time link HAPPY shows.

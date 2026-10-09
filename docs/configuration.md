@@ -2,38 +2,62 @@
 
 # Configuration
 
-After the first container start, a `settings.yaml` is created in the directory mounted at `/config`. Changing these settings only gets picked up after a server restart, so keep that in mind. If new settings become available or deprecated with updates, the server will automatically append or comment out those settings.
+HAPPY's server-wide settings live on the plugin's settings page in Jellyfin: *Dashboard → Plugins → HAPPY*. Only Jellyfin administrators can change them. Changes apply the next time HAPPY is opened or reloaded; Jellyfin does not need a restart.
 
-Every YAML setting can also be set as an environment variable. Environment variables take precedence over YAML settings, so a `/config` mount is optional if you set everything in your `docker-compose.yml`.
+Settings marked *(user)* are only starting values: each user can change them in HAPPY's settings panel, and HAPPY remembers that choice in the browser. Changing them on the plugin page then only affects browsers that have not changed them yet.
 
-<!-- ENV_OPTIONS -->
+## Playback
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `PORT` | `3000` | HTTP port of the web interface. |
-| `TRUST_PROXY` | `0` | Number of reverse proxy hops to trust for X-Forwarded-* headers (client addresses in the log). 0 for direct LAN access, 1 behind nginx/Traefik |
-| `LOG_LEVEL` | `info` | Verbosity of the console log: error, warn, info, debug |
-| `VIDEO_SEEK_INTERVAL` | `10` | Seek interval in seconds when double-tapping/clicking. |
-| `DEFAULT_BLUR_CONTENT` | `false` | Enable to blur images and videos. Can be toggled in web interface. |
-| `DEFAULT_HAPTIC_FREQUENCY` | `30` | Intiface Haptic update frequency in Hz. Smaller values are usually more stable but less precise. Can be changed in web interface. |
-| `DEFAULT_HAPTIC_DELAY` | `0` | Default haptic delay in milliseconds to sync video and haptics. Can be changed in web interface. |
-| `HAPTIC_DELAY_LIMIT` | `500` | Maximum absolute haptic delay in milliseconds selectable in the web interface (range is -limit to +limit). |
-| `DGLAB_ENABLED` | `false` | (EXPERIMENTAL) Enable DG-Lab Coyote 3.0 component for e-stim toy control. |
-| `DGLAB_SANDBOX_ENABLED` | `true` | Show the DG-Lab sandbox page for testing waveform patterns without media. Only has an effect when DG-Lab is enabled. |
-| `DGLAB_RELAY_URL` | *(empty)* | Address of the HAPPY DG-Lab relay (its own image) as browsers and phones reach it, e.g. wss://relay.example.com. Empty: /ws/dglab on the page's own origin. |
-| `AUTO_RECONNECT_INTIFACE` | `true` | Reconnect to Intiface on page load if it was connected when the page was last used. |
-| `AUTO_RECONNECT_DGLAB` | `true` | Reconnect to the DG-Lab relay on page load if it was connected and last seen less than 5 minutes ago. |
-| `FUNSCRIPT_INTERPOLATION_METHOD` | `pchip` | How positions between funscript points are computed for haptics and the timeline: none, linear, pchip. none holds each position until the next point; strokers follow pchip as linear |
-| `FUNSCRIPT_COLOR_GRADIENT` | `false` | Colour the timeline graph on a heat scale by movement speed (blue = slow, red = fast). Can be toggled in web interface. |
-| `CARD_VIEW_FORCE_SQUARE_ARTWORK` | `false` | If true, the media's artwork is reduced to a square. This ensures a consistent layout. |
-| `CARD_VIEW_LARGE_PORTRAIT_ARTWORK` | `false` | If true, portrait artwork takes up two rows. |
-| `JELLYFIN_URL` | *(empty)* | Address of the Jellyfin server as reached from the browser, e.g. https://jellyfin.example.com. The HAPPY plugin must be installed there. |
-| `FUNSCRIPT_SUFFIX_SEPARATOR` | `.` | Single character that separates filename from funscript suffix |
-| `FUNSCRIPT_SUFFIX_STROKER` | `stroker` | Suffix associated with stroker funscript |
-| `FUNSCRIPT_SUFFIX_BUTTPLUG` | `buttplug` | Suffix associated with buttplug funscript |
-| `FUNSCRIPT_SUFFIX_VIBRATOR` | `vibrator` | Suffix associated with vibrator funscript |
-| `FUNSCRIPT_SUFFIX_ESTIM` | `estim` | Suffix associated with estim funscript |
-| `FUNSCRIPT_SUFFIX_MACHINE` | `machine` | Suffix associated with machine funscript |
-| `CHAPTER_SOURCE_PRIORITY` | `embedded,funscript` | Chapter sources in order of precedence: embedded, funscript. The first source that provides chapters is used. Empty to disable chapters |
+| Seek interval (seconds) | `10` | Seek step when double-tapping or double-clicking the video. |
+| Blur images and videos *(user)* | off | Blur artwork and videos. Can be toggled in HAPPY. |
+| Chapters | Embedded, then funscript | Which chapter sources HAPPY uses and in which order: the first source that provides chapters wins. *No chapters* turns them off. See [Chapters](library.md#chapters). |
 
-<!-- /ENV_OPTIONS -->
+## Haptics
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| Intiface update rate (Hz) *(user)* | `30` | How often HAPPY sends commands to Intiface. Smaller values are usually more stable but less precise. |
+| Haptic delay (ms) *(user)* | `0` | Shifts the haptics against the media to keep them in sync. |
+| Delay slider range (ms) | `500` | The delay sliders in HAPPY go from minus to plus this value. |
+| Interpolation between funscript points | Smooth (pchip) | How positions between funscript points are computed for haptics and the timeline: smooth, linear, or none (hold each position until the next point). Strokers follow smooth as linear. |
+| Colour the timeline by speed *(user)* | off | Colour the timeline graph on a heat scale by movement speed (blue = slow, red = fast). |
+| Reconnect to Intiface on page load | on | Reconnect to Intiface on page load if it was connected when the page was last used. |
+
+## DG-Lab Coyote (experimental)
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| Enable DG-Lab Coyote 3.0 | off | Show the DG-Lab section in HAPPY. While it is off, HAPPY never connects to the relay. |
+| Relay address | *(empty)* | The [DG-Lab relay](dg-lab.md#the-relay) as browsers and phones reach it, e.g. `ws://192.168.1.10:8070` or `wss://relay.example.com`. Empty means `/ws/dglab` on Jellyfin's own address. |
+| Show the waveform sandbox | on | Show the [sandbox](dg-lab.md#sandbox) page for testing waveform patterns without media. |
+| Reconnect to the relay on page load | on | Reconnect to the relay on page load if it was connected and last seen less than 5 minutes ago. |
+
+The relay itself is configured with environment variables, see [DG-Lab Coyote 3.0](dg-lab.md#the-relay).
+
+## Library
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| Crop artwork to squares | off | Reduce artwork to a square, for a consistent layout. |
+| Portrait artwork takes two rows | off | Portrait artwork takes up two rows in the card view. |
+
+## Funscript file names
+
+A script belongs to the media file with the same name: `clip.mp4` + `clip.stroker.funscript`. See [Media Library](library.md#funscripts).
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| Separator | `.` | Single character between the file name and the funscript suffixes. |
+| Stroker suffix | `stroker` | Suffix of stroker scripts. |
+| Buttplug suffix | `buttplug` | Suffix of buttplug scripts. |
+| Vibrator suffix | `vibrator` | Suffix of vibrator scripts. |
+| E-stim suffix | `estim` | Suffix of e-stim scripts. |
+| Machine suffix | `machine` | Suffix of machine scripts. |
+
+## Troubleshooting
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| Debug output in the browser console | off | Log the DG-Lab protocol traffic at debug level in the browser console. |

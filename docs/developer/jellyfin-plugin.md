@@ -1,8 +1,8 @@
 # Jellyfin plugin
 
-HAPPY uses Jellyfin for the library, metadata, artwork, trickplay, chapters, users and streaming. Jellyfin has no idea what a funscript is, so a small companion plugin in [jellyfin-plugin/](../../jellyfin-plugin/) indexes `.funscript` files next to the media and serves them to signed-in users.
+HAPPY uses Jellyfin for the library, metadata, artwork, trickplay, chapters, users and streaming. The HAPPY plugin in [jellyfin-plugin/](../../jellyfin-plugin/) adds everything else HAPPY needs from a server: it serves the built web app, the client settings (edited on its dashboard page), the version and the user docs, and, since Jellyfin has no idea what a funscript is, it indexes `.funscript` files next to the media and serves them to signed-in users. There is no other HAPPY server; only the optional [DG-Lab relay](../../dglab-relay/README.md) runs separately.
 
-The plugin is deliberately dumb. It only maps files to items and checks access. Parsing the script type and subcategory, funscript chapters and VR detection stay in the TypeScript client, where they are already tested.
+The plugin is deliberately dumb. It serves files and settings, maps scripts to items and checks access. Parsing the script type and subcategory, funscript chapters and VR detection stay in the TypeScript client, where they are already tested.
 
 ```mermaid
 flowchart LR
@@ -37,7 +37,7 @@ The client never sends a path back. A key is a hash of the script's absolute pat
 1. A media file with that stem **in the script's own directory** wins.
 2. Otherwise the script is attached to **every** media file with that stem in the same library folder. This matches the old server's "basename anywhere" behaviour without crossing library boundaries.
 
-The separator defaults to `.` and is `FunscriptSeparator` in the plugin's XML configuration. It must match HAPPY's `FUNSCRIPT_SUFFIX_SEPARATOR`.
+The separator defaults to `.` and is `FunscriptSeparator` in the plugin configuration (*Separator* on the settings page). The client gets the same value as `funscriptSuffixes.separator` from `/Happy/Config`, so matching and parsing always agree. A changed separator takes effect with the next index rebuild.
 
 ## Index lifetime
 
@@ -91,7 +91,7 @@ HAPPY_JELLYFIN_PASSWORD=…
 
 ## Demo library from the test fixtures
 
-`test/fixtures/media` doubles as a small Jellyfin library with every kind of metadata HAPPY reads, for manual testing and for `scripts/screenshot-app.js`. `npm run dev:jellyfin` sets it up automatically in a local Jellyfin ([local-jellyfin.md](local-jellyfin.md)). To use your own Jellyfin, run `git lfs pull` first, then point Jellyfin at the folder (copy or mount it):
+`test/fixtures/media` doubles as a small Jellyfin library with every kind of metadata HAPPY reads, for manual testing and for `scripts/screenshot-app.js`. `npm run dev:jellyfin` sets it up automatically in a local Jellyfin ([local-jellyfin.md](local-jellyfin.md)). `npm run screenshot` uses that Jellyfin by default (credentials from `config/dev-jellyfin.env`, page `<url>/Happy/Web/`); `SCREENSHOT_JELLYFIN_URL`/`USER`/`PASSWORD` point it at another Jellyfin that serves only the fixtures. To use your own Jellyfin, run `git lfs pull` first, then point Jellyfin at the folder (copy or mount it):
 
 | Library | Jellyfin type | What it shows |
 | --- | --- | --- |
@@ -107,7 +107,9 @@ The audio tags are written by `node scripts/tag-fixture-audio.mjs`. It keeps the
 | Topic | Files |
 | --- | --- |
 | Plugin entry, configuration, DI | [Plugin.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Plugin.cs), [PluginConfiguration.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Configuration/PluginConfiguration.cs), [PluginServiceRegistrator.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/PluginServiceRegistrator.cs) |
-| Endpoints | [Api/HappyController.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Api/HappyController.cs) |
+| Client settings, dashboard page | [Configuration/ClientSettings.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Configuration/ClientSettings.cs), [Configuration/configPage.html](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Configuration/configPage.html), [src/shared/types.ts](../../src/shared/types.ts) (`ClientSettings`) |
+| Endpoints | [Api/HappyController.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Api/HappyController.cs) (config, info, funscripts), [Api/WebController.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Api/WebController.cs) (web app), [Api/DocsController.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Api/DocsController.cs) (docs) |
+| Embedded files | [Web/StaticFileSource.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Web/StaticFileSource.cs) (DLL resources, or `HAPPY_DEV_WEB_ROOT`/`HAPPY_DEV_DOCS_ROOT` in the dev Jellyfin), [Web/ContentTypes.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Web/ContentTypes.cs) |
 | Index and matching | [Funscripts/FunscriptIndex.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptIndex.cs), [Funscripts/FunscriptMatcher.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptMatcher.cs), [Funscripts/FunscriptPostScanTask.cs](../../jellyfin-plugin/Jellyfin.Plugin.Happy/Funscripts/FunscriptPostScanTask.cs) |
 | Tests | [Jellyfin.Plugin.Happy.Tests/](../../jellyfin-plugin/Jellyfin.Plugin.Happy.Tests/), [test/integration/jellyfin/](../../test/integration/jellyfin/) |
 | Packaging | [build.yaml](../../jellyfin-plugin/build.yaml), [package.sh](../../jellyfin-plugin/package.sh) |

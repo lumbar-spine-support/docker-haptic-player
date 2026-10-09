@@ -96,8 +96,8 @@ public sealed record ClientSettings
     public required IReadOnlyList<string> ChapterSourcePriority { get; init; }
 
     /// <summary>
-    /// Builds the client settings from the plugin configuration, with the same validation the HAPPY
-    /// server applied to its settings file.
+    /// Builds the client settings from the plugin configuration, repairing values the client could
+    /// not use (unknown interpolation methods and chapter sources, empty suffixes, negative ranges).
     /// </summary>
     /// <param name="config">The plugin configuration.</param>
     /// <returns>The client settings.</returns>

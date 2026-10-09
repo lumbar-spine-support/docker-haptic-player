@@ -7,9 +7,6 @@ import { imageUrl, streamUrl, trickplaySheetUrl, trickplayVtt } from '../../../s
 import { DEFAULT_FUNSCRIPT_SUFFIXES } from '../../../src/shared/funscriptNames';
 import type { LibraryResponse, TrackInfo } from '../../../src/shared/types';
 
-// HAPPY serves the client from its own origin; every media request is cross-origin to Jellyfin.
-const ORIGIN = 'http://localhost:3000';
-
 let session: JellyfinSession;
 let library: LibraryResponse;
 let media: TrackInfo[];
@@ -70,34 +67,30 @@ test('[jellyfin-library] funscripts are typed and downloadable', { skip }, async
 });
 
 for (const type of ['audio', 'video'] as const) {
-    test(`[jellyfin-library] ${type} streams answer range requests cross-origin`, { skip }, async (t) => {
+    test(`[jellyfin-library] ${type} streams answer range requests`, { skip }, async (t) => {
         const track = media.find((candidate) => candidate.type === type);
         if (!track) return t.skip(`no ${type} items visible to the test user`);
         const url = streamUrl({ serverUrl: serverUrl(), token: session.token }, track);
-        const res = await fetch(url, { headers: { Range: 'bytes=0-1023', Origin: ORIGIN } });
+        const res = await fetch(url, { headers: { Range: 'bytes=0-1023' } });
         await res.body?.cancel();
         assert.equal(res.status, 206);
         assert.match(String(res.headers.get('content-range')), /^bytes 0-1023\//);
-        const allowed = res.headers.get('access-control-allow-origin');
-        assert.ok(allowed === '*' || allowed === ORIGIN, 'CORS is required for WebGL (VR) and canvas use');
     });
 }
 
-test('[jellyfin-library] cover art loads cross-origin without a token', { skip }, async (t) => {
+test('[jellyfin-library] cover art loads without a token', { skip }, async (t) => {
     const track = media.find((candidate) => candidate.hasArtwork);
     if (!track) return t.skip('no items with artwork');
-    const res = await fetch(imageUrl(serverUrl(), track.id, track.artworkTag), { headers: { Origin: ORIGIN } });
+    const res = await fetch(imageUrl(serverUrl(), track.id, track.artworkTag));
     await res.body?.cancel();
     assert.equal(res.status, 200);
     assert.match(String(res.headers.get('content-type')), /^image\//);
-    assert.ok(res.headers.get('access-control-allow-origin'), 'the playlist collage draws covers onto a canvas');
 });
 
 test('[jellyfin-library] trickplay sheets are reachable', { skip }, async (t) => {
     const track = media.find((candidate) => candidate.trickplay);
     if (!track?.trickplay) return t.skip('trickplay has not been generated for any visible video');
-    const res = await fetch(trickplaySheetUrl({ serverUrl: serverUrl(), token: session.token }, track.id, track.trickplay, 0),
-        { headers: { Origin: ORIGIN } });
+    const res = await fetch(trickplaySheetUrl({ serverUrl: serverUrl(), token: session.token }, track.id, track.trickplay, 0));
     await res.body?.cancel();
     assert.equal(res.status, 200);
     assert.match(String(res.headers.get('content-type')), /^image\//);
@@ -113,7 +106,7 @@ test('[jellyfin-library] the storyboard VTT points at sheets the browser can loa
     const [, target] = cues[0].split('\n');
     const [sheet, fragment] = target.split('#');
     assert.match(fragment, /^xywh=0,0,\d+,\d+$/);
-    const res = await fetch(sheet, { headers: { Origin: ORIGIN } });
+    const res = await fetch(sheet);
     await res.body?.cancel();
     assert.equal(res.status, 200, 'the token in the sheet URL is accepted');
     assert.match(String(res.headers.get('content-type')), /^image\//);

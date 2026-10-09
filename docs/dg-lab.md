@@ -68,13 +68,14 @@ the paired app). After that the section stays *Disconnected* and you pair again 
 
 The **Sandbox** button below the DG-Lab device cards opens a test page. Pick a channel and a pattern (constant, wave, on/off, ramp, strokes, heartbeat, steps) and press **Start**. The chart shows the pattern and the pulses it produces with the current strength and Pulse Frequency from the device card. Use it to find comfortable settings or check the setup without funscript media. Starting pauses any playing media; **Stop** or leaving the page (e.g. through the navbar) silences the Coyote.
 
-The page is available while DG-Lab is enabled; turn it off with `DGLAB_SANDBOX_ENABLED=false`.
+The page is available while DG-Lab is enabled; turn it off with *Show the waveform sandbox* on the plugin's settings page.
 
 ## Debugging
 
 To trace the wire protocol when something misbehaves, set `localStorage['happy-log'] =
-'dglab=debug'` in the browser console and reload, or start the server with `LOG_LEVEL=debug`. Warnings and
-rejected commands are always logged.
+'dglab=debug'` in the browser console and reload, or turn on *Debug output in the browser console* on the
+plugin's settings page for everyone. Warnings and rejected commands are always logged. The relay logs its
+connections when it runs with `LOG_LEVEL=debug`.
 
 `happy-log` is a comma-separated list of `namespace=level` pairs (`debug`, `info`, `warn`, `error`,
 `silent`). A namespace also covers its `:`-children, and `*` sets the default, e.g.

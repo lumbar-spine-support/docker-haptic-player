@@ -1,9 +1,9 @@
 # Documentation
 
 - [Installation](installation.md)
-  <br>Docker Compose, Jellyfin server and the HAPPY plugin
+  <br>The HAPPY plugin for Jellyfin, opening HAPPY, moving from the old container
 - [Configuration](configuration.md)
-  <br>Description of available settings / environment variables
+  <br>Settings on the plugin's settings page in Jellyfin
 - [Authentication](authentication.md)
   <br>Signing in with your Jellyfin account
 - [Media Library](library.md)

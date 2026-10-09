@@ -38,7 +38,7 @@ To test what a release serves instead, start with the variables empty: `HAPPY_DE
 
 VS Code:
 - **HAPPY in local Jellyfin** starts the local Jellyfin, builds the vendor assets and CSS, starts the JS and CSS watches, and opens Chrome at `/Happy/Web/` with breakpoints in the TypeScript sources.
-- The compound **Debug (local Jellyfin)** runs `dev:jellyfin` first, then starts the HAPPY server against it and Chrome. **Local Jellyfin Integration Tests** runs the integration tests. The tasks `npm: dev:jellyfin:plugin` and `npm: dev:jellyfin:down` are in *Run Task*.
+- **Local Jellyfin Integration Tests** runs the integration tests. The tasks `npm: dev:jellyfin:plugin` and `npm: dev:jellyfin:down` are in *Run Task*.
 
 ## What gets set up
 
@@ -52,7 +52,7 @@ VS Code:
   - `happy-user` (non-admin, all libraries). Sign in with this one, and the tests use it too.
   - Passwords are random. They are generated on first setup and kept in `config/dev-jellyfin.env` (gitignored).
 - **Plugin**: `jellyfin-plugin/artifacts/dev` is bind-mounted as `/config/plugins/HAPPY_dev`. `dev:jellyfin` checks at the end that the plugin is *Active* and lists funscripts.
-- **`config/dev-jellyfin.env`**: `HAPPY_JELLYFIN_URL/USER/PASSWORD` for the integration tests, the admin credentials, and `JELLYFIN_URL`/`JELLYFIN_INTERNAL_URL` for the HAPPY server launch config. Your own `config/test.env` is never touched.
+- **`config/dev-jellyfin.env`**: `HAPPY_JELLYFIN_URL/USER/PASSWORD` for the integration tests and `scripts/screenshot-app.js`, and `HAPPY_DEV_ADMIN_USER/PASSWORD`. Your own `config/test.env` is never touched.
 
 From the devcontainer, `localhost:8097` is the devcontainer itself, so the script reaches Jellyfin through the Docker bridge gateway instead. It also tries `host.docker.internal`, and you can override it with `HAPPY_DEV_JELLYFIN_URL`. It writes the address that worked as `HAPPY_JELLYFIN_URL`. Your browser on the host always uses `http://localhost:8097`.
 

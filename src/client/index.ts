@@ -1,4 +1,4 @@
-import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchClientSettings, fetchConfiguredJellyfinUrl, logout, artworkUrl, chaptersVttUrl, useJellyfin } from './api';
+import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchClientSettings, logout, artworkUrl, chaptersVttUrl, useJellyfin } from './api';
 import { JellyfinConnection } from './jellyfin/connection';
 import { ensureSignedIn, showMissingServerNotice } from './jellyfin/signIn';
 import { jellyfinUrlFromPage } from './jellyfin/serverUrl';
@@ -251,10 +251,9 @@ class App {
     });
   }
 
-  /** Signs in to Jellyfin if needed; false when there is no Jellyfin to sign in to and the app cannot load. */
+  /** Signs in to the Jellyfin serving this page; false when the page does not come from the HAPPY plugin. */
   private async connectJellyfin(): Promise<boolean> {
-    const serverUrl = jellyfinUrlFromPage(window.location.href)
-      ?? (await fetchConfiguredJellyfinUrl()).trim().replace(/\/+$/, '');
+    const serverUrl = jellyfinUrlFromPage(window.location.href);
     if (!serverUrl) {
       showMissingServerNotice();
       return false;

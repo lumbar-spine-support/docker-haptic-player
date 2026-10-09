@@ -2,7 +2,7 @@
 
 # Client
 
-The client is a single-page app bundled from [src/client/index.ts](../../src/client/index.ts). It uses no framework: plain TypeScript classes, Bootstrap for layout and Video.js 10 (`<video-player>`) for the players. Signing in happens inside the app (the Jellyfin sign-in card); there is no separate login page.
+The client is a single-page app bundled from [src/client/index.ts](../../src/client/index.ts). It uses no framework: plain TypeScript classes, Bootstrap for layout and Video.js 10 (`<video-player>`) for the players. The HAPPY Jellyfin plugin serves it at `<jellyfin>/Happy/Web/`, so it shares Jellyfin's origin. Signing in happens inside the app (the Jellyfin sign-in card); there is no separate login page.
 
 ## Object graph
 
@@ -68,7 +68,7 @@ sequenceDiagram
   participant M as main()
   participant PS as PlaybackSession
   participant A as App
-  participant S as HAPPY server
+  participant P as HAPPY plugin
   participant J as Jellyfin
 
   M->>PS: create([#player-slot-a, #player-slot-b])
@@ -76,19 +76,19 @@ sequenceDiagram
   M->>A: new App(session)
   Note over A: constructor: registry.add(buttplug),<br/>Intiface sync engine, DeviceStatus,<br/>Visualization, Library, PlaybackController
   M->>A: init()
-  A->>S: GET /api/config
-  S-->>A: ClientSettings incl. jellyfinUrl
-  A->>A: interpolation method, seek step
-  A->>A: bind library, Intiface settings, toggles, zoom
-  A->>A: mount Intiface DeviceAssignment, initHapticControls
-  A->>A: connectJellyfin(): no jellyfinUrl → notice, stop
+  A->>A: connectJellyfin(): jellyfinUrlFromPage(location)<br/>not under /Happy/Web/ → notice, stop
   opt no stored Jellyfin session
     A->>J: ensureSignedIn: sign-in card →<br/>POST /Users/AuthenticateByName
     J-->>A: AccessToken, User
   end
+  A->>P: GET /Happy/Config
+  P-->>A: ClientSettings (built-in defaults if this fails)
   A->>A: useJellyfin(connection, suffixes, chapter priority)
+  A->>A: seek step, artwork options, bind library,<br/>Intiface settings, toggles, zoom
+  A-->>P: when idle: GET /Happy/Info → version badge
+  A->>A: mount Intiface DeviceAssignment, initHapticControls
   opt dglabEnabled
-    A->>A: initDglab: new CoyoteBackend(token callback), sync engine,<br/>DeviceAssignment, bindPairingPanel
+    A->>A: initDglab: new CoyoteBackend(token callback, dglabRelayUrl),<br/>sync engine, DeviceAssignment, bindPairingPanel
   end
   A->>A: playback.onActiveTrack(onActiveTrackChanged)
   A->>A: bindLogout()
@@ -98,7 +98,7 @@ sequenceDiagram
   Note over A: listeners: popstate → route,<br/>pagehide → haptics.stopAll()
 ```
 
-User settings live in `localStorage` (all keys start with `happy-`). Server values from `/api/config` are only **defaults** for keys that have no stored value. Simple values go through `storedSetting(key, fallback)` in `utils/storedSetting.ts`, which parses to the fallback's type.
+The settings need a signed-in user, so `init()` signs in before it fetches them. User settings live in `localStorage` (all keys start with `happy-`). The plugin's values from `/Happy/Config` (edited on its dashboard page) are only **defaults** for keys that have no stored value. Simple values go through `storedSetting(key, fallback)` in `utils/storedSetting.ts`, which parses to the fallback's type.
 
 The settings panel is wired by small modules instead of `App`: `components/settings/intiface.ts` (address, scheme, Connect), `components/settings/haptics.ts` (delay and update-rate sliders), `components/settings/toggle.ts` (blur and color-gradient switches) and `components/haptic/dglab/pairingPanel.ts` (DG-Lab relay and QR code).
 
@@ -112,14 +112,15 @@ Intiface drops are retried by `bindIntifaceSettings()` with backoff (1 s doublin
 
 | File | Role |
 | --- | --- |
-| `connection.ts` | `JellyfinConnection`: sign-in, `localStorage` session keyed to the server URL, `MediaBrowser` authorization header with a stable `DeviceId`, `request()` that forgets the session and calls `onUnauthorized` (a reload) on `401`, sign-out via `POST /Sessions/Logout` |
-| `signIn.ts`, `signIn.html` | Full-screen sign-in card shown by `ensureSignedIn()` until a session exists; `showMissingServerNotice()` when `JELLYFIN_URL` is empty |
+| `serverUrl.ts` | `jellyfinUrlFromPage()`: Jellyfin's address is everything before `/Happy/Web/` in the page URL (case-insensitive), so a base URL such as `/jellyfin` is kept; `null` when the page comes from elsewhere |
+| `connection.ts` | `JellyfinConnection`: sign-in, `localStorage` session keyed to the server URL, `MediaBrowser` authorization header with a stable `DeviceId` (from `crypto.getRandomValues`, since `randomUUID` is missing on plain-HTTP origins), `request()` that forgets the session and calls `onUnauthorized` (a reload) on `401`, sign-out via `POST /Sessions/Logout` |
+| `signIn.ts`, `signIn.html` | Full-screen sign-in card shown by `ensureSignedIn()` until a session exists; `showMissingServerNotice()` when the page is not served from `/Happy/Web/` |
 | `library.ts` | `loadLibrary(api, options)`: one `/Items` request with `Fields=Path,Tags,Genres,Overview,Chapters,Trickplay`, `/Happy/Funscripts` (404 = plugin missing → no funscripts), playlists and their entries. Takes any `JellyfinApi` (`userId` + `request()`), so the integration tests drive it from Node |
 | `mapper.ts` | Pure DTO → `TrackInfo`/`LibraryResponse` mapping: `MediaType` decides audio/video, tags = Tags ∪ Genres, description = Overview, embedded chapters (when `embedded` is in the priority), trickplay resolution closest to 320 px, client-side albums (`shared/albums.ts`) |
 | `urls.ts` | `streamUrl()` (`static=true&ApiKey=`), `imageUrl()` (tag, max 1000 px, no token), `trickplaySheetUrl()`, `trickplayVtt()` |
 | `dto.ts` | The subset of Jellyfin's PascalCase shapes HAPPY reads |
 
-`chaptersVttUrl()` and `storyboardVttUrl()` build WebVTT in the browser (`shared/webvtt.ts`) and return `blob:` URLs, cached per chapter list and per track. Blob URLs are same-origin, so `<track>` needs no CORS. Media and canvas images are cross-origin, so both `<video>` elements in `public/index.html` and `loadImage()` (playlist collage) use `crossorigin="anonymous"`; WebGL (VR) and `canvas.toDataURL()` need it.
+`chaptersVttUrl()` and `storyboardVttUrl()` build WebVTT in the browser (`shared/webvtt.ts`) and return `blob:` URLs, cached per chapter list and per track. Blob URLs are same-origin, so `<track>` needs no CORS. Media and images come from the page's own origin. Both `<video>` elements in `public/index.html` and `loadImage()` (playlist collage) still use `crossorigin="anonymous"`, so WebGL (VR) and `canvas.toDataURL()` keep untainted frames even if media came from another origin.
 
 The logout button (`bindLogout()`, bound after the sign-in) shows whenever there is a Jellyfin session; `logout()` signs out of Jellyfin and reloads, which shows the sign-in card. `initDglab()` runs after the sign-in as well: `CoyoteBackend` gets the token through a callback and offers it to the relay as the `jellyfin.<token>` WebSocket subprotocol, so the DG-Lab auto-reconnect never dials without one.
 
@@ -132,7 +133,7 @@ flowchart TD
   R(["handleRouteChange()"]) --> Tags{"?tag=… present?"}
   Tags -- yes --> SetTags["library.setActiveTags"] --> V
   Tags -- no --> V{"?view="}
-  V -- docs --> Docs["showDocs(id or 'index')<br/>GET /api/docs/:page → Markdown.renderDoc"]
+  V -- docs --> Docs["showDocs(id or 'index')<br/>GET /Happy/Docs/:page → Markdown.renderDoc"]
   V -- "player + id" --> Track["openTrack(id)"]
   V -- "playlist + id" --> PL["showPlaylistDetail"]
   V -- "album + id" --> AL["showAlbumDetail"]

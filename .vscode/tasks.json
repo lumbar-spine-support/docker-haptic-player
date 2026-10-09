@@ -10,7 +10,7 @@
 			},
 			"problemMatcher": [],
 			"label": "npm: build",
-			"detail": "npm run build:server && npm run build:client && npm run build:vendor"
+			"detail": "npm run build:client && npm run build:vendor"
 		},
 		{
 			"type": "npm",
@@ -19,13 +19,6 @@
 			"label": "npm: build:client"
 		},
 		{
-			"type": "npm",
-			"script": "build:server",
-			"problemMatcher": ["$tsc"],
-			"label": "npm: build:server"
-		},
-		{
-			// Builds the plugin, starts the local Jellyfin (dev/jellyfin/compose.yaml) and sets it up. Idempotent.
 			"type": "npm",
 			"script": "dev:jellyfin",
 			"problemMatcher": [],
@@ -45,15 +38,21 @@
 			"label": "npm: dev:jellyfin:down"
 		},
 		{
-			// esbuild watch: rebuilds public/js on every change; the local Jellyfin serves it straight from disk.
 			"type": "npm",
 			"script": "dev:client",
 			"label": "npm: dev:client",
 			"isBackground": true,
 			"problemMatcher": {
 				"owner": "esbuild",
-				"pattern": { "regexp": "^✘ \\[ERROR\\] (.*)$", "message": 1 },
-				"background": { "activatesOnStart": true, "beginsPattern": "^\\[watch\\] build started", "endsPattern": "^(Watching |\\[watch\\] build finished)" }
+				"pattern": {
+					"regexp": "^✘ \\[ERROR\\] (.*)$",
+					"message": 1
+				},
+				"background": {
+					"activatesOnStart": true,
+					"beginsPattern": "^\\[watch\\] build started",
+					"endsPattern": "^(Watching |\\[watch\\] build finished)"
+				}
 			}
 		},
 		{
@@ -63,20 +62,35 @@
 			"isBackground": true,
 			"problemMatcher": {
 				"owner": "sass",
-				"pattern": { "regexp": "^Error: (.*)$", "message": 1 },
-				"background": { "activatesOnStart": true, "beginsPattern": "^\\[\\d", "endsPattern": "(Compiled |Sass is watching)" }
+				"pattern": {
+					"regexp": "^Error: (.*)$",
+					"message": 1
+				},
+				"background": {
+					"activatesOnStart": true,
+					"beginsPattern": "^\\[\\d",
+					"endsPattern": "(Compiled |Sass is watching)"
+				}
 			}
 		},
 		{
-			// Everything the "HAPPY in local Jellyfin" launch needs: Jellyfin with the plugin, vendor assets, CSS and JS watches.
+			// Everything "HAPPY in local Jellyfin" needs: Jellyfin with the plugin and relay, vendor assets, CSS and JS watches.
 			"label": "Local Jellyfin: start with client watch",
 			"dependsOrder": "sequence",
-			"dependsOn": ["npm: dev:jellyfin", "npm: build:vendor", "npm: build:css", "Client watch"],
+			"dependsOn": [
+				"npm: dev:jellyfin",
+				"npm: build:vendor",
+				"npm: build:css",
+				"Client watch"
+			],
 			"problemMatcher": []
 		},
 		{
 			"label": "Client watch",
-			"dependsOn": ["npm: dev:client", "npm: dev:css"],
+			"dependsOn": [
+				"npm: dev:client",
+				"npm: dev:css"
+			],
 			"problemMatcher": []
 		},
 		{

@@ -4,27 +4,28 @@
 
 ## Overview
 
-This is a TypeScript application split into two runtime layers, backed by a Jellyfin server:
+HAPPY is a TypeScript browser application that runs inside a Jellyfin server. There is no HAPPY server of its own:
 
-- **Server (`src/server/`)**: serves the static client, the client-visible configuration, the built-in docs and the optional DG-Lab relay. It has no media library of its own.
 - **Client (`src/client/`)**: signs in to Jellyfin, builds the library model from Jellyfin's API, and renders the Bootstrap UI, routing, playback, haptic synchronization and device control in the browser.
-- **Jellyfin + the HAPPY plugin (`jellyfin-plugin/`)**: Jellyfin owns scanning, metadata, artwork, chapters, trickplay thumbnails, users and streaming. The plugin adds the one thing Jellyfin does not know: funscripts next to the media files.
+- **Jellyfin + the HAPPY plugin (`jellyfin-plugin/`, C#)**: Jellyfin owns scanning, metadata, artwork, chapters, trickplay thumbnails, users and streaming. The plugin serves the built client (`/Happy/Web/`), the client settings (`/Happy/Config`), the version (`/Happy/Info`), the user docs (`/Happy/Docs`) and the one thing Jellyfin does not know: funscripts next to the media files.
+- **DG-Lab relay (`dglab-relay/`)**: an optional, separate Docker image, needed only for the DG-Lab Coyote (below).
 
-The server is intentionally stateless with respect to playback. All live playback, footer state, haptic timing, and Intiface device connection state live in the browser.
+The plugin is intentionally stateless with respect to playback. All live playback, footer state, haptic timing, and Intiface device connection state live in the browser.
 
 Media always plays **directly** (`/Videos|Audio/{id}/stream?static=true`), never transcoded: haptic
 timing follows the media element's own clock, and VR needs the full-resolution frame. Chromecast and
 other remote playback receivers fetch that URL themselves; the Jellyfin access token travels in its
 `ApiKey` query parameter, so no separate media token is needed.
 
-The one carve-out is the optional **DG-Lab V4 relay** (`/ws/dglab`). A browser cannot accept
+The one carve-out is the optional **DG-Lab V4 relay** (`dglab-relay/`). A browser cannot accept
 WebSocket connections, so pairing a phone-hosted DG-Lab app with the player needs a meeting
 point. The relay is a dumb passthrough: it pairs one controller with one app and
 forwards opaque payloads. It never parses a device command, so all haptic logic still lives in
 the browser and all safety limits still live in the DG-Lab app.
 
-HAPPY is single-user, so the relay has exactly one controller slot with a random id created at
-startup. Any tab signed in to Jellyfin that connects takes the slot (the previous one is closed as
+The relay is its own image and release-please component (tags `dglab-relay-v*`), so only Coyote
+owners run it and HAPPY releases do not rebuild it. HAPPY is single-user, so the relay has exactly
+one controller slot with a random id created at startup. Any tab signed in to Jellyfin that connects takes the slot (the previous one is closed as
 `replaced`), so the pairing URL survives reloads and switching devices. The slot also outlives
 its socket by a grace period: switching to the DG-Lab app backgrounds the browser and mobile
 Chrome may close the WebSocket, so the relay keeps the app, accepts one that arrives meanwhile,
@@ -32,18 +33,20 @@ and hands it to the tab when it returns. A newly connecting app likewise replace
 
 ## High-level system architecture
 
-### Server responsibilities
+### Plugin responsibilities
 
-- Load runtime configuration from `config/settings.yaml`
-- Expose API routes for:
-  - `/api/config` (the client-visible half of the configuration only, including `JELLYFIN_URL`)
-  - `/api/version`
-  - `/api/docs` (the user docs shown in the app)
-  - `/ws/dglab` (WebSocket relay, only when `DGLAB_ENABLED` is on)
-- Serve compiled frontend assets from `public/`
-- Serve the shell, `/api/config`, `/api/version` and `/api/docs` publicly: none of them holds media
-- Verify the Jellyfin token of HAPPY tabs on the `/ws/dglab` upgrade
-- Write a level-filtered log of startup and connection events to the docker console
+- Serve the built client from `public/`, embedded in the DLL, at `/Happy/Web/` (anonymous, so the page can show the sign-in card)
+- Serve the user docs from `docs/*.md`, embedded in the DLL, at `/Happy/Docs` (anonymous)
+- Serve the client settings (`/Happy/Config`) and the version (`/Happy/Info`) to signed-in users
+- Let admins edit the client settings on its dashboard page
+- Index funscripts next to the media and serve them only for items the signed-in user can see
+
+### DG-Lab relay responsibilities
+
+- Accept WebSocket connections on any path ending in `/ws/dglab`
+- Verify the Jellyfin token of HAPPY tabs on upgrade (`GET /Users/Me` on its `JELLYFIN_URL`)
+- Pair one controller with one DG-Lab app and forward their messages
+- Write a level-filtered log to the docker console (`LOG_LEVEL`)
 
 ### Client responsibilities
 
@@ -145,7 +148,7 @@ with `PlaybackSession`, `PlaybackQueue` and `PlaybackController`.
 
 ### Sync flow
 
-1. Client fetches config from the HAPPY server and the library from Jellyfin, both through `src/client/api.ts`
+1. Client signs in, then fetches the settings from the plugin and the library from Jellyfin, both through `src/client/api.ts`
 2. Router state determines whether library/detail/player view is shown
 3. Opening a file:
    - updates `currentTrackId`
@@ -207,11 +210,17 @@ builders.
 ### Session
 
 `JellyfinConnection` (`connection.ts`) signs in with `POST /Users/AuthenticateByName` and stores the
-access token, user id and user name in `localStorage`, keyed to the server address in `JELLYFIN_URL`.
+access token, user id and user name in `localStorage`, keyed to the server address. That address
+comes from the page's own URL: `jellyfinUrlFromPage()` (`serverUrl.ts`) takes everything before
+`/Happy/Web/`, so a Jellyfin base URL such as `/jellyfin` is kept.
 API requests send it in a `MediaBrowser … Token="…"` authorization header. A stable per-browser
 `DeviceId` keeps Jellyfin's device list to one entry per browser. A `401` forgets the session and
-reloads, which shows the sign-in card (`signIn.ts`) again. Without `JELLYFIN_URL` the app shows a
-notice instead of loading.
+reloads, which shows the sign-in card (`signIn.ts`) again. A page not served from `/Happy/Web/`
+shows a notice instead of loading. The `DeviceId` comes from `crypto.getRandomValues`, because
+`crypto.randomUUID` is missing on plain-HTTP LAN origins, where Jellyfin often runs.
+
+The plugin's settings (`GET /Happy/Config`) need a signed-in user, so `init()` signs in first and
+only then fetches the settings, the version (`/Happy/Info`) and, on demand, the docs (`/Happy/Docs`).
 
 Media elements cannot send headers, so stream and trickplay sheet URLs carry the token as
 `ApiKey` (Jellyfin 12 ignores the legacy `api_key`). Images (`/Items/{id}/Images/Primary`) need no token.
@@ -231,23 +240,24 @@ Media elements cannot send headers, so stream and trickplay sheet URLs carry the
 - albums are grouped client-side from album artist + album (`src/shared/albums.ts`), because
   Jellyfin only builds album entities for Music libraries
 - funscript type and subcategory are parsed client-side from the plugin's file names
-  (`src/shared/funscriptNames.ts`, honouring `FUNSCRIPT_SUFFIX_*`)
+  (`src/shared/funscriptNames.ts`, honouring the configured `funscriptSuffixes`)
 - embedded chapters come from Jellyfin; funscript `metadata.chapters` are only known once the
-  scripts load, and replace them according to `CHAPTER_SOURCE_PRIORITY`
+  scripts load, and replace them according to the configured `chapterSourcePriority`
   (`PlaybackSession.updateChapters()` swaps the chapter track without reloading the media)
 - trickplay uses the resolution closest to 320 px
 
-### Generated WebVTT and CORS
+### Generated WebVTT and origins
 
 Video.js reads chapters and timeline thumbnails from `<track>` elements. The client builds both
 files itself (`buildChaptersVtt()`, `trickplayVtt()`) and hands them over as `blob:` URLs, which are
 same-origin and need no CORS. The storyboard cues point at Jellyfin's trickplay sheets with `#xywh=`
 fragments.
 
-Jellyfin is a different origin from HAPPY, so both `<video>` elements and the images drawn into the
-playlist collage use `crossorigin="anonymous"`. Without CORS mode the WebGL VR projection could not
-upload frames and `canvas.toDataURL()` would throw on a tainted canvas. Jellyfin answers with
-`Access-Control-Allow-Origin: *`; no cookies are involved.
+The plugin serves HAPPY from Jellyfin's own origin, so media, images and API calls are
+same-origin. Both `<video>` elements and the images drawn into the playlist collage still use
+`crossorigin="anonymous"`, which costs nothing there: the WebGL VR projection and
+`canvas.toDataURL()` need untainted frames, and Jellyfin answers CORS requests with
+`Access-Control-Allow-Origin: *`. No cookies are involved.
 
 ## Gallery rendering with large libraries
 
@@ -282,36 +292,34 @@ Jellyfin is the only account system. The in-app Jellyfin sign-in card (see
 managed in Jellyfin, and the plugin only serves scripts of items the signed-in user can see.
 HAPPY keeps no passwords, tokens or cookies of its own.
 
-- The HAPPY server serves the shell, `/api/config`, `/api/version` and `/api/docs` without
-  authentication. They hold no media; everything else comes from Jellyfin and needs the token.
+- The plugin serves the app (`/Happy/Web/`) and the docs (`/Happy/Docs`) without authentication,
+  so the page can show the sign-in card. They hold no media. The settings, the version, the
+  funscripts and everything else from Jellyfin need the token.
 - The logout button (shown whenever there is a Jellyfin session) calls `POST /Sessions/Logout`
   and reloads the page, which shows the sign-in card again.
 - A Jellyfin `401` on any client request drops the stored session and reloads into the sign-in card.
 
 ### DG-Lab relay
 
-Express middleware never runs on WebSocket upgrades, so `attachWebSocketUpgradeHandlers()` in
-`src/server/index.ts` authenticates them:
+The relay (`dglab-relay/src/server.ts`) authenticates WebSocket upgrades itself:
 
 1. Browsers cannot set headers on a WebSocket, so a HAPPY tab offers its Jellyfin token as a
    subprotocol: `new WebSocket(url, ['happy', 'jellyfin.<token>'])` (`DGLAB_PROTOCOL`,
    `DGLAB_AUTH_PROTOCOL_PREFIX` in `src/shared/dglab.ts`). The token never appears in a URL or a log.
-2. `tokenFromProtocols()` reads it from `Sec-WebSocket-Protocol`; the verifier from
-   `createJellyfinTokenVerifier()` (`src/server/services/jellyfinAuth.ts`) checks it with
-   `GET /Users/Me` on `JELLYFIN_INTERNAL_URL`, or `JELLYFIN_URL` when that is empty. Valid tokens
-   are cached for 60 s and rejections for 5 s; an unreachable Jellyfin (5 s timeout) is not cached.
-   Anything else is refused with `401`.
-3. The relay's `handleProtocols` selects `happy`, so the token is never echoed in the handshake.
+2. The relay reads it from `Sec-WebSocket-Protocol` and checks it with `GET /Users/Me` on its
+   `JELLYFIN_URL` (`dglab-relay/src/jellyfinAuth.ts`). Valid tokens are cached for 60 s and
+   rejections for 5 s; an unreachable Jellyfin (5 s timeout) is not cached. Anything else is
+   refused with `401`.
+3. The relay selects `happy`, so the token is never echoed in the handshake.
 4. DG-Lab apps connect with `?tid=` and no token; the unguessable `tid` is their credential.
 
 `initDglab()` runs after the Jellyfin sign-in so the relay's auto-reconnect already has a token.
-Tests replace the verifier through `createApp(…, { verifyJellyfinToken })` (`AppDependencies`).
 
-### Reverse proxies
-
-`TRUST_PROXY` is the number of reverse-proxy hops Express should trust. It only decides which client
-address the log shows: `0` (default) logs the socket address and ignores `X-Forwarded-*`, `1`
-(behind nginx/Traefik) resolves `X-Forwarded-For`.
+The client dials the `dglabRelayUrl` setting with `/ws/dglab` appended (`relayEndpoint()` in
+`components/haptic/dglab/coyoteBackend.ts`). Empty means `/ws/dglab` on the page's own origin, for
+a reverse proxy that forwards that path to the relay. The pairing URL for the app
+(`relayPairingUrl()`) uses the relay's host unless it is a loopback address, and the per-user
+pairing-host override wins over both. See [dglab-relay/README.md](dglab-relay/README.md).
 
 ## Device connection flow
 
@@ -345,47 +353,33 @@ Buttplug device management lives in `src/client/components/haptic/buttplugClient
 
 ## Key technologies and libraries
 
-- **Node.js 18+** runtime
-- **Express** for HTTP API and static hosting
-- **TypeScript** for client, server, and shared models
+- **Jellyfin plugin** (C#, .NET 10) for serving the app, settings, docs and funscripts
+- **Node.js** with **ws** for the optional DG-Lab relay
+- **TypeScript** for the client, the relay and shared models
 - **esbuild** for browser bundling
 - **Video.js** for audio/video playback UI
 - **Bootstrap 5** + **Bootstrap Icons** for layout/styling
 - **Buttplug** browser client for Intiface connectivity
-- **Jellyfin** for the library, metadata, artwork, trickplay, users and streaming; the HAPPY plugin is C# (.NET 10)
+- **Jellyfin** for the library, metadata, artwork, trickplay, users and streaming
 
 ## Logging
 
-`src/server/utils/logger.ts` is a process-wide, level-filtered wrapper around `console`. It is a
-module-level singleton rather than an injected dependency because most server modules already log
-while the configuration is still being assembled.
-
-- Levels are `error < warn < info < debug`; `LOG_LEVEL` (YAML or environment) selects the threshold
-- `Config.load()` applies `LOG_LEVEL` from the environment first, so config loading itself already
-  honours the requested verbosity; an unknown name falls back to `info` with a warning
-- Every line is prefixed with an ISO timestamp, the padded level, and the module tag
-- `log.isDebug()` guards the loops that would otherwise build per-file strings that are then discarded
-
-What each level covers:
-
-| Level | Content |
-| --- | --- |
-| `error` | Unhandled request errors, failure to listen on the port |
-| `warn` | Missing `JELLYFIN_URL`, read-only config mount, Jellyfin unreachable or erroring while verifying a relay token |
-| `info` | Listening address, first request of a client, DG-Lab relay enabled |
-| `debug` | Every HTTP request with status and duration, the effective configuration |
-
-Connection logging lives in `src/server/middleware/requestLog.ts`. Logging every request at `info`
-would drown the log in asset requests, so `info` is limited to a client (address + user agent)
-that has not been seen for `CLIENT_IDLE_MS`. The same map is swept on that rare path to keep it
-bounded.
+- **Client:** modules log through `createLogger(namespace)` (`src/client/utils/logger.ts`); levels
+  are set per namespace with `setLogLevel()` or the `localStorage['happy-log']` override. The plugin
+  setting *Debug output in the browser console* (`debugLogging`) turns on `dglab=debug`.
+- **Plugin:** logs through Jellyfin's `ILogger`, so its lines end up in Jellyfin's log.
+- **Relay:** `dglab-relay/src/logger.ts` is a level-filtered wrapper around `console` (`LOG_LEVEL`,
+  `error < warn < info < debug`). `error` covers a missing `JELLYFIN_URL`, `warn` Jellyfin errors
+  while verifying a token, `info` the listening address and `debug` controller and app connections.
 
 ## Directory structure
 
 ```text
-config/                 Runtime settings and tokens (local stand-in for the /config volume)
-jellyfin-plugin/        HAPPY plugin for Jellyfin (C#): funscript index and endpoints
-public/                 Built client assets and vendored frontend libraries
+config/                 Local test and dev Jellyfin credentials (not committed)
+dev/jellyfin/           Compose file for the local dev Jellyfin
+dglab-relay/            DG-Lab relay (Node, ws), its own Docker image
+jellyfin-plugin/        HAPPY plugin for Jellyfin (C#): web app, settings, docs, funscript index and endpoints
+public/                 Client shell, SCSS, icons; built client assets and vendored frontend libraries
 scripts/                Build/helper scripts
 src/
   client/               Browser application
@@ -394,10 +388,8 @@ src/
     jellyfin/           Jellyfin session, sign-in card, library loader, mapper, URL builders
     utils/              Formatting and DOM helpers
     index.ts            Main SPA/controller
-  server/               Express app, routes, config, Jellyfin token check and the DG-Lab relay
-  shared/               Shared types and utility logic used by client/server
-test/                   Unit tests (server, client) and opt-in Jellyfin integration tests
-dist/                   Compiled server output
+  shared/               Shared types and pure logic (the relay imports dglab.ts)
+test/                   Unit tests (client, scripts) and opt-in Jellyfin integration tests
 ```
 
 ## Module organization notes
@@ -412,15 +404,14 @@ dist/                   Compiled server output
 - `src/client/router.ts` maps the query string onto views; `components/library/detail.ts` renders playlist/album pages
 - `src/client/components/settings/` and `components/haptic/dglab/pairingPanel.ts` wire the settings panel
 - `src/client/components/haptic/featureSettings.ts` and `emitter.ts` hold the per-backend assignment/strength storage and listener lists shared by both backends
-- `src/server/routes/` keeps each API concern separate
 - `src/client/api.ts` is the single data facade; `src/client/jellyfin/connection.ts` owns the Jellyfin session, `library.ts` the requests, `mapper.ts` the pure DTO → `LibraryResponse` mapping and `urls.ts` the stream, image and trickplay URLs
 - `src/shared/albums.ts` and `src/shared/funscriptNames.ts` hold album grouping and funscript name/chapter parsing
-- `src/server/utils/logger.ts` owns the log level; every server module logs through `createLogger('[tag]')` instead of `console`
-- `src/shared/types.ts` provides the shared contracts: the client's library model and the `/api/config` payload
+- `src/shared/types.ts` provides the shared contracts: the client's library model and the `/Happy/Config` payload (`ClientSettings`, mirrored by the plugin's `Configuration/ClientSettings.cs`)
+- `jellyfin-plugin/Jellyfin.Plugin.Happy/Api/` holds the plugin's controllers: `HappyController` (config, info, funscripts), `WebController` (the app) and `DocsController` (the docs)
 
 ## Documentation
 
-- User docs live in `docs/*.md` and are served in-app at `/docs/<page>`. When a change affects user-facing behavior, settings or setup, update the matching page in the same change.
-- Keep `README.md` a minimal quick start (Intiface basics, Docker Compose, library layout) that links to `docs/`. Do not move details back into it.
+- User docs live in `docs/*.md`, are embedded in the plugin (`/Happy/Docs/<page>`) and are shown in-app at `?view=docs&id=<page>`. When a change affects user-facing behavior, settings or setup, update the matching page in the same change.
+- Keep `README.md` a minimal quick start (plugin install, library layout, Intiface basics, optional relay) that links to `docs/`. Do not move details back into it.
 - Link between docs with relative paths (`library.md#funscripts`, `screenshots/x.jpg`) so they work on GitHub and in the app. Page names must match `[a-z0-9-]+`.
-- Developer docs live in `docs/developer/`. They use Mermaid diagrams, are excluded from the Docker image (`.dockerignore`) and are not served in-app. Update them when a change moves responsibilities between modules; each page ends with a code map listing the files it describes.
+- Developer docs live in `docs/developer/`. They use Mermaid diagrams and are neither embedded in the plugin nor served in-app. Update them when a change moves responsibilities between modules; each page ends with a code map listing the files it describes.

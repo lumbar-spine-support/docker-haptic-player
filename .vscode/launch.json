@@ -30,49 +30,13 @@
       ]
     },
     {
-      "name": "Client",
-      "request": "launch",
-      "type": "chrome",
-      "url": "http://localhost:3000",
-      // In the devcontainer this opens Chrome on the host and debugs it through the forwarded port.
-      "browserLaunchLocation": "ui",
-      "webRoot": "${workspaceFolder}/public",
-      "sourceMaps": true,
-      "sourceMapPathOverrides": {
-        "http://localhost:3000/src/*": "${workspaceFolder}/src/*"
-      },
-      "preLaunchTask": "npm: build:client"
-    },
-    {
-      "name": "Server",
-      "request": "launch",
-      "type": "node",
-      "program": "${workspaceFolder}/dist/server/index.js",
-      "preLaunchTask": "npm: build:server",
-      "cwd": "${workspaceFolder}",
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ],
-      "sourceMaps": true,
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "runtimeArgs": [
-        "--enable-source-maps"
-      ],
-      "env": {
-        "CONFIG_PATH": "${workspaceFolder}/config",
-        "LOG_LEVEL": "debug"
-      }
-    },
-    {
       // HAPPY as the plugin serves it, from the local dev Jellyfin (docs/developer/local-jellyfin.md).
       // The client is served straight from public/, so the watch tasks make edits live after a reload.
       "name": "HAPPY in local Jellyfin",
       "request": "launch",
       "type": "chrome",
       "url": "http://localhost:8097/Happy/Web/",
-      // In the devcontainer this opens Chrome on the host and debugs it through the published port.
+      // In the devcontainer this opens Chrome on the host, which reaches the Jellyfin published on :8097.
       "browserLaunchLocation": "ui",
       "webRoot": "${workspaceFolder}/public",
       "sourceMaps": true,
@@ -81,31 +45,6 @@
         "http://localhost:8097/Happy/*": "${workspaceFolder}/*"
       },
       "preLaunchTask": "Local Jellyfin: start with client watch"
-    },
-    {
-      // The HAPPY server against the local dev Jellyfin (npm run dev:jellyfin writes config/dev-jellyfin.env).
-      "name": "Server (local Jellyfin)",
-      "request": "launch",
-      "type": "node",
-      "program": "${workspaceFolder}/dist/server/index.js",
-      "preLaunchTask": "npm: build:server",
-      "cwd": "${workspaceFolder}",
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ],
-      "sourceMaps": true,
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "runtimeArgs": [
-        "--enable-source-maps"
-      ],
-      "envFile": "${workspaceFolder}/config/dev-jellyfin.env",
-      "env": {
-        "CONFIG_PATH": "${workspaceFolder}/config",
-        "LOG_LEVEL": "debug",
-        "DGLAB_ENABLED": "true"
-      }
     },
     {
       "name": "Local Jellyfin Integration Tests",
@@ -138,25 +77,6 @@
         "uriFormat": "%s",
         "webRoot": "${workspaceFolder}/sandbox"
       }
-    }
-  ],
-  "compounds": [
-    {
-      "name": "Debug",
-      "configurations": [
-        "Server",
-        "Client"
-      ]
-    },
-    {
-      // Starts (and on first run sets up) the local Jellyfin with the test fixtures and the plugin.
-      "name": "Debug (local Jellyfin)",
-      "preLaunchTask": "npm: dev:jellyfin",
-      "configurations": [
-        "Server (local Jellyfin)",
-        "Client"
-      ],
-      "stopAll": true
     }
   ]
 }

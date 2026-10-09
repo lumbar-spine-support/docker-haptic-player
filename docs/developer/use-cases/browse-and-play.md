@@ -34,7 +34,7 @@ sequenceDiagram
   A->>V: mount(container, scripts)
   V->>V: prepareScript() per script, draw timelines
   opt funscripts carry metadata.chapters
-    A->>PS: updateChapters(id, chapters, blob URL)<br/>per CHAPTER_SOURCE_PRIORITY
+    A->>PS: updateChapters(id, chapters, blob URL)<br/>per chapterSourcePriority
   end
   A->>A: publishChannels → DeviceStatus, DeviceAssignment
   A->>A: renderTrackDescription(track.description)

@@ -63,7 +63,7 @@ Sorting applies to the grid and the list view alike, and all media types are sor
 
 ## Cover art in the grid view
 
-In the grid view, cards with widescreen cover art (typical for videos) are twice as wide as other cards. Square and portrait covers are cropped to a square. Set `CARD_VIEW_FORCE_SQUARE_ARTWORK: true` (see [configuration](configuration.md)) to show all covers as squares.
+In the grid view, cards with widescreen cover art (typical for videos) are twice as wide as other cards. Square and portrait covers are cropped to a square. Turn on *Crop artwork to squares* on the plugin's settings page (see [configuration](configuration.md#library)) to show all covers as squares.
 
 Cover art is Jellyfin's primary image of each item: embedded cover art, an image next to the file, or a frame Jellyfin extracted from the video. Audio files without cover art show a black player surface.
 
@@ -97,7 +97,7 @@ file.vibrator.balls.funscript
 Funscripts without a recognised toy suffix (`file.funscript`) are still picked up and listed as
 *Generic*. They can be assigned to any device just like typed scripts.
 
-If your funscripts follow another naming pattern, e.g. `file-prostate.funscript` instead of `file.buttplug.funscript` you can change the separator character and expected suffixes (see [docs/configuration.md](configuration.md)). When you change the separator, set the same `FunscriptSeparator` in the plugin's configuration file (`plugins/configurations/Jellyfin.Plugin.Happy.xml` in Jellyfin's data directory) and restart Jellyfin, so the plugin matches the files to the right media.
+If your funscripts follow another naming pattern, e.g. `file-prostate.funscript` instead of `file.buttplug.funscript` you can change the separator character and expected suffixes on the plugin's settings page (see [Configuration](configuration.md#funscript-file-names)). The plugin matches files with the new separator within about 30 seconds; reload HAPPY afterwards.
 
 ### Where funscripts are found
 
@@ -113,7 +113,7 @@ Jellyfin does not know funscripts; the HAPPY plugin finds them. It looks through
 
 Chapters split the progress bar into segments. Pressing or dragging the bar near a chapter start snaps to it (hold <kbd>Shift</kbd> to seek freely), and the chapter name is shown in the preview while dragging.
 
-HAPPY takes chapters from two sources. `CHAPTER_SOURCE_PRIORITY` (`chapterSourcePriority` in `settings.yaml`) sets their order; the first source that provides chapters wins. Leave it empty to disable chapters.
+HAPPY takes chapters from two sources. *Chapters* on the plugin's settings page sets their order; the first source that provides chapters wins. *No chapters* turns them off (see [Configuration](configuration.md#playback)).
 
 - `funscript`: `metadata.chapters` of the funscripts belonging to the media file, in the format used by [OpenFunscripter](https://github.com/OpenFunscripter/OFS) and [MultiFunPlayer](https://github.com/Yoooi0/MultiFunPlayer). If several funscripts of a file define chapters, they are merged and a warning is logged in the browser console.
   ```json

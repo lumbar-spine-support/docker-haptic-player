@@ -140,7 +140,7 @@ export interface LibraryResponse {
   playlists: PlaylistInfo[];
 }
 
-/** Response shape of GET /api/version */
+/** HAPPY's version, from the plugin's GET /Happy/Info (`versionFromPluginInfo`). */
 export interface VersionInfo {
   version: string;
   /** Release channel of the running build: `stable`, `preview`, or `dev`. */
@@ -149,7 +149,7 @@ export interface VersionInfo {
   builtAt: string | null;
 }
 
-/** Response shape of GET /api/config: server-side defaults used when the client has no stored setting. */
+/** Response shape of the plugin's GET /Happy/Config: defaults used when the client has no stored setting. */
 export interface ClientSettings {
   videoSeekInterval: number;
   blurContent: boolean;
@@ -164,13 +164,13 @@ export interface ClientSettings {
   dglabRelayUrl: string;
   autoReconnectIntiface: boolean;
   autoReconnectDglab: boolean;
-  /** True when the server runs with `LOG_LEVEL=debug`. */
+  /** Debug output in the browser console, switched on the plugin's settings page. */
   debugLogging: boolean;
   funscriptInterpolationMethod: InterpolationMethod;
   funscriptColorGradient: boolean;
   cardViewForceSquareArtwork: boolean;
   cardViewLargePortraitArtwork: boolean;
-  /** Jellyfin server address as reached from the browser; empty when not configured. */
+  /** Unused since the plugin serves HAPPY (the page knows its Jellyfin); always empty. */
   jellyfinUrl: string;
   funscriptSuffixes: FunscriptSuffixes;
   /** Chapter sources in order of precedence; the first source that provides chapters wins. */

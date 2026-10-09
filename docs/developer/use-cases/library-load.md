@@ -12,14 +12,13 @@ HAPPY does not scan anything. Jellyfin scans the files (on its own schedule or w
 sequenceDiagram
   autonumber
   participant B as Browser (App)
-  participant H as HAPPY server
   participant J as Jellyfin
   participant P as HAPPY plugin
   participant F as library folders
 
-  B->>H: GET /api/config
-  H-->>B: jellyfinUrl, funscript suffixes, chapter priority
   Note over B: connectJellyfin(): sign in if needed<br/>(see Log in)
+  B->>P: GET /Happy/Config
+  P-->>B: funscript suffixes, chapter priority, …
   par items
     B->>J: GET /Items?Recursive=true&IncludeItemTypes=…<br/>&Fields=Path,Tags,Genres,Overview,Chapters,Trickplay
     J-->>B: BaseItemDto[]
@@ -46,7 +45,7 @@ sequenceDiagram
 - `filename` is the basename of `Path`, used for VR detection and as the artist fallback.
 - Tags are `Tags` ∪ `Genres`, the description is `Overview`, the cover is `ImageTags.Primary`.
 - Funscript type and subcategory come from `parseFunscriptName()` with the configured suffixes.
-- Embedded chapters are normalized when `embedded` is in `CHAPTER_SOURCE_PRIORITY`. Funscript chapters follow later, when the track is opened (see [Browse and play a track](browse-and-play.md)).
+- Embedded chapters are normalized when `embedded` is in the `chapterSourcePriority` setting. Funscript chapters follow later, when the track is opened (see [Browse and play a track](browse-and-play.md)).
 - Trickplay picks the resolution closest to 320 px.
 
 Albums are built by `buildAlbums()` ([shared/albums.ts](../../../src/shared/albums.ts)) from album artist + album, because Jellyfin only creates album entities for Music libraries. Playlist entries that are not playable items are dropped; playlists without entries disappear.
@@ -67,7 +66,7 @@ flowchart TD
 | --- | --- |
 | HAPPY plugin not installed | `/Happy/Funscripts` is 404; the library loads without funscripts and a warning is logged in the console |
 | Jellyfin token revoked or expired | First request returns 401; `JellyfinConnection` forgets the session and reloads, which shows the sign-in card |
-| `JELLYFIN_URL` empty | The app shows a notice and does not load a library |
+| Page not opened from `<jellyfin>/Happy/Web/` | The app shows a notice and does not load a library |
 | User lacks access to a library | Jellyfin omits its items; the plugin omits their scripts |
 
 ## Code map

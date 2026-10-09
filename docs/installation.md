@@ -2,44 +2,17 @@
 
 # Installation
 
-HAPPY plays media from a [Jellyfin](https://jellyfin.org/) server. Jellyfin scans your files and provides metadata, artwork, chapters, timeline thumbnails, users and streaming; the HAPPY plugin for Jellyfin adds the funscripts. HAPPY itself runs as a separate container and never reads your media folders.
+HAPPY plays media from a [Jellyfin](https://jellyfin.org/) server and runs inside it as a plugin. Jellyfin scans your files and provides metadata, artwork, chapters, timeline thumbnails, users and streaming. The HAPPY plugin adds the funscripts and serves HAPPY itself. There is no separate HAPPY server or container.
 
 You need:
 
-1. A Jellyfin server your browser can reach, with your audio and video in its libraries (see [Media Library](library.md)).
+1. A Jellyfin server (currently 12.1) with your audio and video in its libraries (see [Media Library](library.md)).
 2. The HAPPY plugin installed in that Jellyfin server (below).
-3. The HAPPY container, pointed at Jellyfin with `JELLYFIN_URL`.
-
-## Docker Compose
-
-Create a `docker-compose.yml`:
-
-```yaml
-services:
-  happy:
-    image: ghcr.io/lumbar-spine-support/docker-haptic-player:stable
-    ports:
-      - "8069:3000" # host:container
-    environment:
-      JELLYFIN_URL: "https://jellyfin.example.com"
-    volumes:
-      - ./config:/config # write-access required
-    restart: unless-stopped
-```
-
-`JELLYFIN_URL` is the address of the Jellyfin server **as your browser reaches it**: the browser loads the library and streams directly from Jellyfin, not through HAPPY. Use the same address you open Jellyfin's own web interface with. If Jellyfin is served over HTTPS, serve HAPPY over HTTPS too, because browsers block requests from an HTTPS page to a plain HTTP one.
-
-Start the app with `docker compose up`. After a few seconds it is reachable at `http://<HOST>:8069`. Sign in with your Jellyfin user name and password; HAPPY shows the libraries that user can see in Jellyfin.
-
-On first start a `settings.yaml` is created in the `/config` mount. You may also pass those settings as environment variables to the Docker container as shown above with `JELLYFIN_URL`. To change the port, change the host side of the port mapping; `PORT` is only needed when running with host networking. The image has a built-in health check, so `docker ps` shows the container as `healthy` once it answers requests. See [Configuration](configuration.md) for details on each setting.
-
-HAPPY has no accounts of its own: who may see what is decided by Jellyfin's users and their library access, see [Authentication](authentication.md).
+3. Optionally, for the DG-Lab Coyote only: the [DG-Lab relay](dg-lab.md#the-relay).
 
 ## Jellyfin plugin
 
-The plugin indexes `.funscript` files that sit next to your media and serves them to signed-in Jellyfin users. Without it HAPPY still plays your media, but without haptics.
-
-The plugin also serves HAPPY itself at `<your Jellyfin address>/Happy/Web/` (the plugin's settings page has an *Open HAPPY* button), and HAPPY's settings move to that settings page. The HAPPY container is no longer needed for this.
+The plugin serves HAPPY, its settings and these docs, and indexes the `.funscript` files that sit next to your media for signed-in Jellyfin users.
 
 ### From the HAPPY plugin repository (recommended)
 
@@ -62,15 +35,21 @@ Jellyfin checks its repositories for updates every day (the *Update Plugins* sch
 
 The plugin is built for one Jellyfin version (currently 12.1). After a Jellyfin upgrade, install the matching plugin version; with the repository added, Jellyfin does that for you once a matching version is released.
 
-## Running without Docker
+## Opening HAPPY
 
-If you want to avoid docker, you can install with `npm` and run the server using `node`.
-However, unless you are doing development, this is not recommended.
+Open `<your Jellyfin address>/Happy/Web/` in your browser, for example `http://192.168.1.10:8096/Happy/Web/` or `https://jellyfin.example.com/Happy/Web/`. If Jellyfin runs under a base URL such as `/jellyfin`, keep it: `https://example.com/jellyfin/Happy/Web/`. The plugin's settings page (*Dashboard → Plugins → HAPPY*) also has an *Open HAPPY* button.
 
-```shell
-npm install
-npm run build
-JELLYFIN_URL="https://jellyfin.example.com" node dist/server/index.js
-```
+Sign in with your Jellyfin user name and password. HAPPY shows the libraries that user can see in Jellyfin. HAPPY has no accounts of its own: who may see what is decided by Jellyfin's users and their library access, see [Authentication](authentication.md).
 
-The server should be reachable at `http://localhost:3000`. To adjust settings, you need to use environment variables in your terminal context. See [docs/configuration.md](configuration.md).
+Server-wide defaults (seek interval, haptic delay, DG-Lab, funscript file names and more) are set by a Jellyfin administrator on the plugin's settings page, see [Configuration](configuration.md).
+
+## Moving from the HAPPY container
+
+Earlier versions of HAPPY ran as their own Docker container (`ghcr.io/lumbar-spine-support/docker-haptic-player`). That image gets no more releases. To move over:
+
+1. Install the plugin as described above.
+2. Enter the values from your `settings.yaml` or container environment on the plugin's settings page. `JELLYFIN_URL` is no longer needed, since HAPPY now runs on Jellyfin's own address.
+3. If you use the DG-Lab Coyote, run the [DG-Lab relay](dg-lab.md#the-relay) and enter its address on the settings page.
+4. Stop and remove the old container, and remove it from your reverse proxy.
+
+Settings you changed in HAPPY itself (haptic delays, device assignments and strengths, the Intiface address, blur and similar toggles) are stored in the browser per address. HAPPY now has a different address, so they do not carry over; set them again once. Bookmarks and home screen shortcuts need the new address as well.

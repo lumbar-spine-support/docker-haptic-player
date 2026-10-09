@@ -10,7 +10,7 @@
 //   node scripts/dev-jellyfin.mjs reset      stop Jellyfin and delete its data (fresh wizard on next `up`)
 //
 // Credentials are generated on first setup and kept in config/dev-jellyfin.env (gitignored), which
-// `npm run test:jellyfin:dev` and the "Debug (local Jellyfin)" launch config also read. Nothing here touches config/test.env.
+// `npm run test:jellyfin:dev` and scripts/screenshot-app.js also read. Nothing here touches config/test.env.
 
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -283,9 +283,6 @@ async function bootstrap() {
         HAPPY_JELLYFIN_PASSWORD: userPassword,
         HAPPY_DEV_ADMIN_USER: ADMIN,
         HAPPY_DEV_ADMIN_PASSWORD: adminPassword,
-        // For the HAPPY Node server ("Debug (local Jellyfin)" launch config).
-        JELLYFIN_URL: BROWSER_URL,
-        JELLYFIN_INTERNAL_URL: base,
     });
 
     if (!info.StartupWizardCompleted) await runWizard(base, adminPassword);

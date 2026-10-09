@@ -2,7 +2,7 @@
 
 # Haptics
 
-This page covers everything between "a funscript file exists" and "a toy moves". All of it runs in the browser. The server only lists and serves funscript files. It does **not** interpolate or modify them.
+This page covers everything between "a funscript file exists" and "a toy moves". All of it runs in the browser. The Jellyfin plugin only lists and serves funscript files. It does **not** interpolate or modify them.
 
 ## Concepts
 
@@ -168,7 +168,7 @@ flowchart LR
   Raw --> Fetch
 ```
 
-The plugin only matches files to items; type and subcategory are parsed in the browser with the `FUNSCRIPT_SUFFIX_*` settings from `/api/config`. See [jellyfin-plugin.md](jellyfin-plugin.md#matching).
+The plugin only matches files to items; type and subcategory are parsed in the browser with the `funscriptSuffixes` setting from `/Happy/Config`. See [jellyfin-plugin.md](jellyfin-plugin.md#matching).
 
 `prepareScript(actions, method)` sorts the actions and precomputes one cubic polynomial per segment, so `positionAt(prepared, ms)` is a binary search plus a polynomial evaluation. The methods are:
 
@@ -178,7 +178,7 @@ The plugin only matches files to items; type and subcategory are parsed in the b
 | `linear` (default) | straight line between points | moves to the next point, duration = time until it |
 | `pchip` | smooth, overshoot-free curve | same as `linear` (the device interpolates the move itself) |
 
-The method comes from `FUNSCRIPT_INTERPOLATION_METHOD` (server config). The app prepares each funscript once with `prepareScript()` when it is fetched and caches the result per track as `LoadedScript { channel, prepared }`; the sync engines and the timeline view share these prepared scripts.
+The method comes from `funscriptInterpolationMethod` (plugin settings, `/Happy/Config`). The app prepares each funscript once with `prepareScript()` when it is fetched and caches the result per track as `LoadedScript { channel, prepared }`; the sync engines and the timeline view share these prepared scripts.
 
 ## The sync loop
 
@@ -277,7 +277,7 @@ The timing decisions and frame building live in `CoyoteChannelScheduler` and `lo
 
 #### DG-Lab sandbox page
 
-`?view=dglab-sandbox` (button under the DG-Lab device cards, `DGLAB_SANDBOX_ENABLED`, only with `DGLAB_ENABLED`) plays a looping pattern from `patterns.ts` on one Coyote channel, so users can test strength and pulse settings without funscript media. `DglabSandbox` (`sandboxView.ts`) samples the pattern with `patternSampler()` (interpolation from `shared/interpolation.ts`) and calls `CoyoteBackend.sendToFeature()` at 30 Hz, the same path the sync loop takes. The canvas draws the position and the pulses each 25 ms step would play. Starting pauses media playback; leaving the route (`Router` `before` hook) or stopping calls `stopAll()`.
+`?view=dglab-sandbox` (button under the DG-Lab device cards, `dglabSandboxEnabled`, only with `dglabEnabled`) plays a looping pattern from `patterns.ts` on one Coyote channel, so users can test strength and pulse settings without funscript media. `DglabSandbox` (`sandboxView.ts`) samples the pattern with `patternSampler()` (interpolation from `shared/interpolation.ts`) and calls `CoyoteBackend.sendToFeature()` at 30 Hz, the same path the sync loop takes. The canvas draws the position and the pulses each 25 ms step would play. Starting pauses media playback; leaving the route (`Router` `before` hook) or stopping calls `stopAll()`.
 
 #### E-stim sandbox
 
@@ -299,7 +299,7 @@ The wire protocol, device cache and patch merging come from [dglab-kit](https://
 - Sends each operation only to the app that owns the slot.
 - Sets `p: 1` and `ver: 3` explicitly, plus `im: true` on strength and on the first pulse batch; the kit leaves them out by default.
 - Fire-and-forget: every operation's promise is caught. Timeouts and disconnects are ignored, and other errors are logged once per kind.
-- Tracing via `localStorage['happy-log'] = 'dglab=debug'` or `LOG_LEVEL=debug` on the server, including `custom.action` events. Client code logs through `createLogger(namespace)` in `src/client/utils/logger.ts`; levels are set per namespace with `setLogLevel()` or the `happy-log` override.
+- Tracing via `localStorage['happy-log'] = 'dglab=debug'` or the plugin's `debugLogging` setting, including `custom.action` events. Client code logs through `createLogger(namespace)` in `src/client/utils/logger.ts`; levels are set per namespace with `setLogLevel()` or the `happy-log` override.
 
 ## Safety behaviour
 
