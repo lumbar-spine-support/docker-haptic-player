@@ -23,6 +23,8 @@ Who may use HAPPY, and which media they see, is decided in Jellyfin:
 
 The HAPPY page itself (the app shell, the built-in docs and the default settings) is served without a sign-in. It contains no media and nothing from your libraries.
 
+Note that Jellyfin itself may serve the original media file (`/Videos/{id}/stream?static=true`) to anyone who knows the item's id, even without a token. Item ids are long random values that HAPPY only hands to signed-in users, but if that matters to you, restrict access to Jellyfin itself (for example with your reverse proxy). Funscripts, trickplay images and the library listing always require a signed-in user.
+
 ## Casting and the DG-Lab relay
 
 - **Chromecast and AirPlay:** stream URLs carry your Jellyfin access token, so a remote receiver can play the file without signing in itself.

@@ -15,7 +15,7 @@ The server is intentionally stateless with respect to playback. All live playbac
 Media always plays **directly** (`/Videos|Audio/{id}/stream?static=true`), never transcoded: haptic
 timing follows the media element's own clock, and VR needs the full-resolution frame. Chromecast and
 other remote playback receivers fetch that URL themselves; the Jellyfin access token travels in its
-`api_key` query parameter, so no separate media token is needed.
+`ApiKey` query parameter, so no separate media token is needed.
 
 The one carve-out is the optional **DG-Lab V4 relay** (`/ws/dglab`). A browser cannot accept
 WebSocket connections, so pairing a phone-hosted DG-Lab app with the player needs a meeting
@@ -214,7 +214,7 @@ reloads, which shows the sign-in card (`signIn.ts`) again. Without `JELLYFIN_URL
 notice instead of loading.
 
 Media elements cannot send headers, so stream and trickplay sheet URLs carry the token as
-`api_key`. Images (`/Items/{id}/Images/Primary`) need no token.
+`ApiKey` (Jellyfin 12 ignores the legacy `api_key`). Images (`/Items/{id}/Images/Primary`) need no token.
 
 ### Library model
 

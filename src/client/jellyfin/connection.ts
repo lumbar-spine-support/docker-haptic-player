@@ -54,7 +54,7 @@ export class JellyfinSignInError extends Error {
 
 /**
  * The browser's Jellyfin session. The access token lives in localStorage, keyed to the server
- * address, and is sent as a `MediaBrowser` authorization header (or `api_key` where a URL is
+ * address, and is sent as a `MediaBrowser` authorization header (or `ApiKey` where a URL is
  * all a media element can take).
  */
 export class JellyfinConnection implements JellyfinApi {

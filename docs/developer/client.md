@@ -116,7 +116,7 @@ Intiface drops are retried by `bindIntifaceSettings()` with backoff (1 s doublin
 | `signIn.ts`, `signIn.html` | Full-screen sign-in card shown by `ensureSignedIn()` until a session exists; `showMissingServerNotice()` when `JELLYFIN_URL` is empty |
 | `library.ts` | `loadLibrary(api, options)`: one `/Items` request with `Fields=Path,Tags,Genres,Overview,Chapters,Trickplay`, `/Happy/Funscripts` (404 = plugin missing → no funscripts), playlists and their entries. Takes any `JellyfinApi` (`userId` + `request()`), so the integration tests drive it from Node |
 | `mapper.ts` | Pure DTO → `TrackInfo`/`LibraryResponse` mapping: `MediaType` decides audio/video, tags = Tags ∪ Genres, description = Overview, embedded chapters (when `embedded` is in the priority), trickplay resolution closest to 320 px, client-side albums (`shared/albums.ts`) |
-| `urls.ts` | `streamUrl()` (`static=true&api_key=`), `imageUrl()` (tag, max 1000 px, no token), `trickplaySheetUrl()`, `trickplayVtt()` |
+| `urls.ts` | `streamUrl()` (`static=true&ApiKey=`), `imageUrl()` (tag, max 1000 px, no token), `trickplaySheetUrl()`, `trickplayVtt()` |
 | `dto.ts` | The subset of Jellyfin's PascalCase shapes HAPPY reads |
 
 `chaptersVttUrl()` and `storyboardVttUrl()` build WebVTT in the browser (`shared/webvtt.ts`) and return `blob:` URLs, cached per chapter list and per track. Blob URLs are same-origin, so `<track>` needs no CORS. Media and canvas images are cross-origin, so both `<video>` elements in `public/index.html` and `loadImage()` (playlist collage) use `crossorigin="anonymous"`; WebGL (VR) and `canvas.toDataURL()` need it.
@@ -224,7 +224,7 @@ The `@/components/videojs/` folder holds the ejected Video.js skin and small fea
 | Loop (repeat one) | `features/loop.ts` | `PlaybackSession.setLoop` |
 | Repeat mode | `features/repeat.ts` | `PlaybackController.applyRepeat`, `advance` |
 | Skip prev/next | `features/skip.ts` | `PlaybackController` registers itself with `setSkipTarget` |
-| Chapters & thumbnails | `features/chapters.ts` | `PlaybackSession.loadSlot` → `setMediaChapters` / `setMediaStoryboard` replace default `<track kind="chapters">` and `<track kind="metadata" label="thumbnails">` elements pointing at the client-generated `blob:` WebVTT (chapters; trickplay thumbnails with `#xywh=` cues into Jellyfin's sheets). `<media-time-slider-chapters>`, `<media-time-slider-chapter-title>` and `<media-slider-thumbnail>` render them natively; `ui/chapter-snap.ts` snaps slider presses to `chaptersCues` |
+| Chapters & thumbnails | `features/chapters.ts` | `PlaybackSession.loadSlot` → `setMediaChapters` / `setMediaStoryboard` replace default `<track kind="chapters">` and `<track kind="metadata" label="thumbnails">` elements pointing at the client-generated `blob:` WebVTT (chapters; trickplay thumbnails with `#xywh=` cues into Jellyfin's sheets, cropped to one eye for VR180). `<media-time-slider-chapters>`, `<media-time-slider-chapter-title>` and `<media-slider-thumbnail>` render them natively; `ui/chapter-snap.ts` snaps slider presses to `chaptersCues` |
 | VR180 view | `features/vr.ts`, `ui/vr-buttons.ts` | Reacts to `data-vr-format` set by `PlaybackSession.loadSlot` |
 
 ## VR180 playback

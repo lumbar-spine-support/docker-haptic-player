@@ -151,16 +151,16 @@ test(`${TAG} builds the library with client-side albums and resolved playlists`,
 
 test(`${TAG} stream URLs request the original file with the token in the query`, () => {
     assert.equal(streamUrl(ENDPOINT, { id: VIDEO.Id, type: 'video' }),
-        `${SERVER}/Videos/${VIDEO.Id}/stream?static=true&api_key=secret%20token`);
+        `${SERVER}/Videos/${VIDEO.Id}/stream?static=true&ApiKey=secret%20token`);
     assert.equal(streamUrl(ENDPOINT, { id: AUDIO.Id, type: 'audio' }),
-        `${SERVER}/Audio/${AUDIO.Id}/stream?static=true&api_key=secret%20token`);
+        `${SERVER}/Audio/${AUDIO.Id}/stream?static=true&ApiKey=secret%20token`);
 });
 
 test(`${TAG} image URLs carry the tag and no token`, () => {
     const url = new URL(imageUrl(SERVER, AUDIO.Id, 'tag-1'));
     assert.equal(url.pathname, `/Items/${AUDIO.Id}/Images/Primary`);
     assert.equal(url.searchParams.get('tag'), 'tag-1');
-    assert.equal(url.searchParams.has('api_key'), false);
+    assert.equal(url.searchParams.has('ApiKey'), false);
 });
 
 test(`${TAG} trickplay VTT walks the sheets with #xywh fragments`, () => {
@@ -170,10 +170,29 @@ test(`${TAG} trickplay VTT walks the sheets with #xywh fragments`, () => {
     assert.ok(vtt);
     const cues = vtt.trimEnd().split('\n\n').slice(1).map((cue) => cue.split('\n'));
     assert.equal(cues.length, 10);
-    const sheet = (n: number) => `${SERVER}/Videos/${VIDEO.Id}/Trickplay/320/${n}.jpg?mediaSourceId=cccccccccccccccccccccccccccccccc&api_key=secret+token`;
+    const sheet = (n: number) => `${SERVER}/Videos/${VIDEO.Id}/Trickplay/320/${n}.jpg?mediaSourceId=cccccccccccccccccccccccccccccccc&ApiKey=secret+token`;
     assert.deepEqual(cues[0], ['00:00:00.000 --> 00:00:10.000', `${sheet(0)}#xywh=0,0,320,180`]);
     assert.deepEqual(cues[3], ['00:00:30.000 --> 00:00:40.000', `${sheet(0)}#xywh=320,180,320,180`]);
     assert.deepEqual(cues[4], ['00:00:40.000 --> 00:00:50.000', `${sheet(1)}#xywh=0,0,320,180`]);
     assert.deepEqual(cues[9], ['00:01:30.000 --> 00:01:35.000', `${sheet(2)}#xywh=320,0,320,180`]);
     assert.equal(trickplayVtt(ENDPOINT, { ...track, trickplay: undefined }), null);
+});
+
+test(`${TAG} storyboard cues stop at the last thumbnail Jellyfin generated`, () => {
+    const track = toTrack({ ...VIDEO, RunTimeTicks: 99 * 10_000_000 }, undefined, OPTIONS);
+    assert.ok(track);
+    // 99 s at 10 s per thumbnail would be 10 cues, but only 10 thumbnails exist (0-9), so the
+    // last cue must still be index 9 and nothing points past the end of the last sheet.
+    const cues = trickplayVtt(ENDPOINT, { ...track, durationSeconds: 120 })!.trimEnd().split('\n\n').slice(1);
+    assert.equal(cues.length, 10);
+});
+
+test(`${TAG} VR180 storyboards show one eye of each tile`, () => {
+    const track = toTrack(VIDEO, undefined, OPTIONS);
+    assert.ok(track);
+    const fragments = (vr: Parameters<typeof trickplayVtt>[2]) => trickplayVtt(ENDPOINT, track, vr)!
+        .trimEnd().split('\n\n').slice(1).map((cue) => cue.split('#')[1]);
+    assert.deepEqual(fragments({ fov: 180, layout: 'sbs' }).slice(0, 2), ['xywh=0,0,160,180', 'xywh=320,0,160,180']);
+    assert.deepEqual(fragments({ fov: 180, layout: 'tb' }).slice(0, 2), ['xywh=0,0,320,90', 'xywh=320,0,320,90']);
+    assert.deepEqual(fragments(null).slice(0, 2), ['xywh=0,0,320,180', 'xywh=320,0,320,180']);
 });

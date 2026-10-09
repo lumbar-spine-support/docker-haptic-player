@@ -119,7 +119,7 @@ HAPPY takes chapters from two sources. `CHAPTER_SOURCE_PRIORITY` (`chapterSource
 
 ## Timeline thumbnails
 
-Hovering or dragging the progress bar of a video shows a preview frame together with the time and chapter name. The frames are Jellyfin's **trickplay** images. Enable them per library (*Library settings → Enable trickplay image extraction*) and let the scheduled task *Generate Trickplay Images* run; HAPPY uses them as soon as they exist. Audio files show only time and chapter.
+Hovering or dragging the progress bar of a video shows a preview frame together with the time and chapter name. The frames are Jellyfin's **trickplay** images. Enable them per library (*Library settings → Enable trickplay image extraction*) and let the scheduled task *Generate Trickplay Images* run; HAPPY uses them as soon as they exist. For VR180 videos the preview shows one eye. Audio files show only time and chapter.
 
 ## VR180 videos
 

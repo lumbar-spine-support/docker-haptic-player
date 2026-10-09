@@ -38,7 +38,7 @@ sequenceDiagram
   end
   A->>A: publishChannels → DeviceStatus, DeviceAssignment
   A->>A: renderTrackDescription(track.description)
-  Note over PS: The media element itself streams<br/>/Videos|Audio/{id}/stream?static=true&api_key=…<br/>from Jellyfin with range requests (CORS mode)
+  Note over PS: The media element itself streams<br/>/Videos|Audio/{id}/stream?static=true&ApiKey=…<br/>from Jellyfin with range requests (CORS mode)
 ```
 
 ## 2. Press play

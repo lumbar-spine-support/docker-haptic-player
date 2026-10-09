@@ -14,8 +14,10 @@ export const CLIENT_IDLE_MS = 30 * 60 * 1000;
 
 function safeRequestUrl(originalUrl: string): string {
     const url = new URL(originalUrl, 'http://localhost');
-    // Jellyfin access tokens travel as api_key; never let one reach the log.
-    if (url.searchParams.has('api_key')) url.searchParams.set('api_key', '[redacted]');
+    // Jellyfin access tokens travel as ApiKey (api_key on older servers); never let one reach the log.
+    for (const name of ['ApiKey', 'api_key']) {
+        if (url.searchParams.has(name)) url.searchParams.set(name, '[redacted]');
+    }
     return `${url.pathname}${url.search}`;
 }
 

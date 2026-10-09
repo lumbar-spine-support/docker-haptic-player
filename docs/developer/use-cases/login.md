@@ -49,7 +49,7 @@ sequenceDiagram
 | Token rejected later (401) | `JellyfinConnection.request()` forgets the session and reloads; the sign-in card appears again |
 | Session ended in Jellyfin (*Dashboard → Devices*) or user removed | The next request gets a 401, see above |
 | Logout | The lock button runs `logout()` → `POST /Sessions/Logout` to Jellyfin, then a reload, which shows the card |
-| Chromecast / AirPlay | The stream URL carries the Jellyfin token as `api_key`, so receivers need no sign-in of their own |
+| Chromecast / AirPlay | The stream URL carries the Jellyfin token as `ApiKey`, so receivers need no sign-in of their own |
 | Device list | `DeviceId` is a random id stored once per browser (`happy-jellyfin-device-id`), so Jellyfin lists one device per browser |
 
 ## DG-Lab relay

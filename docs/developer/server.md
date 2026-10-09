@@ -53,7 +53,7 @@ flowchart TD
   Config & Ver & DocsR --> Err["errorMiddleware<br/>HttpError → status + JSON"]
 ```
 
-Media never reaches this server: streams, artwork and funscripts come from Jellyfin and are authorized by the Jellyfin token, which is also what lets Chromecast/AirPlay receivers stream (`api_key` in the URL).
+Media never reaches this server: streams, artwork and funscripts come from Jellyfin and are authorized by the Jellyfin token, which is also what lets Chromecast/AirPlay receivers stream (`ApiKey` in the URL).
 
 ### Routes
 

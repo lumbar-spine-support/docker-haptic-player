@@ -26,13 +26,20 @@ export interface StoryboardLayout {
     tileHeight: number;
     /** Number of sprite sheets that exist; cues beyond them are dropped. */
     sheets: number;
+    /** Number of thumbnails that exist when the last sheet is only partly filled; cues beyond it are dropped. */
+    count?: number;
+    /** Part of each tile shown, from its top-left corner (e.g. one eye of a VR180 frame); defaults to the whole tile. */
+    cropWidth?: number;
+    cropHeight?: number;
 }
 
 /** One cue per interval, each pointing at its tile via a `#xywh=` media fragment. */
 export function buildStoryboardVtt(layout: StoryboardLayout, sheetUrl: (index: number) => string): string {
     const { durationSeconds, intervalSeconds, columns, rows, tileWidth, tileHeight, sheets } = layout;
     const perSheet = columns * rows;
-    const count = Math.min(Math.ceil(durationSeconds / intervalSeconds), sheets * perSheet);
+    const count = Math.min(Math.ceil(durationSeconds / intervalSeconds), sheets * perSheet, layout.count ?? Infinity);
+    const width = layout.cropWidth ?? tileWidth;
+    const height = layout.cropHeight ?? tileHeight;
     const cues: string[] = [];
     for (let i = 0; i < count; i++) {
         const start = i * intervalSeconds;
@@ -40,7 +47,7 @@ export function buildStoryboardVtt(layout: StoryboardLayout, sheetUrl: (index: n
         const tile = i % perSheet;
         const x = (tile % columns) * tileWidth;
         const y = Math.floor(tile / columns) * tileHeight;
-        cues.push(`${formatVttTimestamp(start)} --> ${formatVttTimestamp(end)}\n${sheetUrl(Math.floor(i / perSheet))}#xywh=${x},${y},${tileWidth},${tileHeight}`);
+        cues.push(`${formatVttTimestamp(start)} --> ${formatVttTimestamp(end)}\n${sheetUrl(Math.floor(i / perSheet))}#xywh=${x},${y},${width},${height}`);
     }
     return vttFile(cues);
 }

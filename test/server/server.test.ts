@@ -27,7 +27,7 @@ test(`${TAG} GET /api/config exposes the client config and nothing from the serv
     assert.equal(status, 200);
     assert.equal(body.dglabEnabled, false);
     assert.equal(body.videoSeekInterval, 10);
-    assert.equal('mediaAccessToken' in body, false, 'remote receivers use the Jellyfin api_key now');
+    assert.equal('mediaAccessToken' in body, false, 'remote receivers use the Jellyfin ApiKey now');
     for (const secret of ['jellyfinInternalUrl', 'configDir']) {
         assert.equal(secret in (body as Record<string, unknown>), false, `${secret} must not be exposed`);
     }

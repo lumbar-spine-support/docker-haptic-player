@@ -1,5 +1,6 @@
 import type { Chapter, ClientSettings, Funscript, FunscriptInfo, LibraryResponse, TrackInfo, VersionInfo } from '../shared/types';
 import { DEFAULT_FUNSCRIPT_SUFFIXES } from '../shared/funscriptNames';
+import { parseVrFormat } from '../shared/vrFormat';
 import { buildChaptersVtt } from '../shared/webvtt';
 import type { JellyfinConnection } from './jellyfin/connection';
 import { loadLibrary } from './jellyfin/library';
@@ -63,7 +64,7 @@ export function chaptersVttUrl(track: TrackInfo): string | null {
 export function storyboardVttUrl(track: TrackInfo): string | null {
   if (track.type !== 'video' || !track.trickplay) return null;
   if (!storyboardVtts.has(track.id)) {
-    const vtt = trickplayVtt(requireJellyfin().endpoint, track);
+    const vtt = trickplayVtt(requireJellyfin().endpoint, track, parseVrFormat(track.filename));
     storyboardVtts.set(track.id, vtt ? vttBlobUrl(vtt) : null);
   }
   return storyboardVtts.get(track.id) ?? null;

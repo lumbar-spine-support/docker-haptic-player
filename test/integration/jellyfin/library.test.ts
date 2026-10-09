@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { login, skip, type JellyfinSession } from './session';
 import { loadLibrary } from '../../../src/client/jellyfin/library';
-import { imageUrl, streamUrl, trickplaySheetUrl } from '../../../src/client/jellyfin/urls';
+import { imageUrl, streamUrl, trickplaySheetUrl, trickplayVtt } from '../../../src/client/jellyfin/urls';
 import { DEFAULT_FUNSCRIPT_SUFFIXES } from '../../../src/shared/funscriptNames';
 import type { LibraryResponse, TrackInfo } from '../../../src/shared/types';
 
@@ -100,5 +100,21 @@ test('[jellyfin-library] trickplay sheets are reachable', { skip }, async (t) =>
         { headers: { Origin: ORIGIN } });
     await res.body?.cancel();
     assert.equal(res.status, 200);
+    assert.match(String(res.headers.get('content-type')), /^image\//);
+});
+
+test('[jellyfin-library] the storyboard VTT points at sheets the browser can load', { skip }, async (t) => {
+    const track = media.find((candidate) => candidate.trickplay);
+    if (!track?.trickplay) return t.skip('trickplay has not been generated for any visible video');
+    const vtt = trickplayVtt({ serverUrl: serverUrl(), token: session.token }, track);
+    assert.ok(vtt);
+    const cues = vtt.trimEnd().split('\n\n').slice(1);
+    assert.equal(cues.length, Math.min(track.trickplay.count, Math.ceil(track.durationSeconds / track.trickplay.intervalSeconds)));
+    const [, target] = cues[0].split('\n');
+    const [sheet, fragment] = target.split('#');
+    assert.match(fragment, /^xywh=0,0,\d+,\d+$/);
+    const res = await fetch(sheet, { headers: { Origin: ORIGIN } });
+    await res.body?.cancel();
+    assert.equal(res.status, 200, 'the token in the sheet URL is accepted');
     assert.match(String(res.headers.get('content-type')), /^image\//);
 });
