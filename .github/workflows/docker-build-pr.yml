@@ -1,9 +1,13 @@
-name: Build Docker Image (Pull Request)
+name: Build DG-Lab Relay Image (Pull Request)
 
 on:
   pull_request:
     branches:
       - "**"
+    paths:
+      - "dglab-relay/**"
+      - "src/shared/dglab.ts"
+      - ".github/workflows/docker-build-pr.yml"
   workflow_dispatch: {}
 
 permissions:
@@ -16,16 +20,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-        with:
-          lfs: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build Docker image
+      - name: Build the relay image
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: dglab-relay/Dockerfile
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=dglab-relay
+          cache-to: type=gha,mode=max,scope=dglab-relay

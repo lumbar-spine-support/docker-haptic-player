@@ -1,11 +1,14 @@
-name: Build Docker Image (Preview)
+name: Build DG-Lab Relay Image (Preview)
 
+# HAPPY itself previews as the plugin build artifact of every test run (jellyfin-plugin-happy);
+# only the relay has an image to preview.
 on:
   push:
     branches:
       - dev
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "dglab-relay/**"
+      - "src/shared/dglab.ts"
   workflow_dispatch: {}
 
 permissions:
@@ -23,12 +26,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-        with:
-          lfs: true
-
-      - name: Read package version
-        id: pkg
-        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -49,24 +46,22 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository_owner }}/happy-dglab-relay
           flavor: |
             latest=false
           tags: |
             type=raw,value=preview
             type=raw,value=preview-{{sha}}
 
-      - name: Build and push Docker image
+      - name: Build and push the relay image
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: dglab-relay/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          annotations: index:org.opencontainers.image.description="HAPPY is a self-hosted haptic player for audio and video files."
-          build-args: |
-            APP_VERSION=${{ steps.pkg.outputs.version }}-preview.${{ github.sha }}
-            APP_CHANNEL=preview
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          annotations: index:org.opencontainers.image.description="WebSocket relay between HAPPY and the DG-Lab app."
+          cache-from: type=gha,scope=dglab-relay
+          cache-to: type=gha,mode=max,scope=dglab-relay

@@ -19,6 +19,9 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag_name }}
       version: ${{ steps.release.outputs.version }}
       pr: ${{ steps.release.outputs.pr }}
+      relay_release_created: ${{ steps.release.outputs['dglab-relay--release_created'] }}
+      relay_tag_name: ${{ steps.release.outputs['dglab-relay--tag_name'] }}
+      relay_version: ${{ steps.release.outputs['dglab-relay--version'] }}
     steps:
       - name: Create/update the release PR, or tag a release when it is merged
         id: release
@@ -68,32 +71,47 @@ jobs:
     needs: release
     if: ${{ needs.release.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - name: Set release title
+        run: gh release edit "$RELEASE_TAG" --title "HAPPY v${VERSION}" --repo "${{ github.repository }}"
+
+      - name: Add install instructions to the release notes
+        run: |
+          manifest="https://raw.githubusercontent.com/${{ github.repository }}/jellyfin-plugin-repository/manifest.json"
+          body="$(gh release view "$RELEASE_TAG" --json body --jq .body --repo "${{ github.repository }}")"
+          if [[ "$body" != *"$manifest"* ]]; then
+            notes="$(printf '%s\n\nInstall or update HAPPY through its Jellyfin plugin repository: %s (Dashboard → Plugins → Repositories), or download `happy_%s.0.zip` below.' "$body" "$manifest" "$VERSION")"
+            gh release edit "$RELEASE_TAG" --notes "$notes" --repo "${{ github.repository }}"
+          fi
+
+  # The DG-Lab relay has its own release cycle (component dglab-relay, tags dglab-relay-v*).
+  publish-dglab-relay:
+    needs: release
+    if: ${{ needs.release.outputs.relay_release_created == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.release.outputs.relay_tag_name }}
+      VERSION: ${{ needs.release.outputs.relay_version }}
+      IMAGE: ghcr.io/${{ github.repository_owner }}/happy-dglab-relay
     steps:
       - name: Checkout the tagged release commit
         uses: actions/checkout@v5
         with:
-          ref: ${{ needs.release.outputs.tag_name }}
-          lfs: true
+          ref: ${{ needs.release.outputs.relay_tag_name }}
 
-      - name: Set release title
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
-          VERSION: ${{ needs.release.outputs.version }}
-        run: gh release edit "$RELEASE_TAG" --title "HAPPY v${VERSION}"
-
-      - name: Add Docker package link to release notes
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
-          VERSION: ${{ needs.release.outputs.version }}
+      - name: Title the release and keep "Latest" on HAPPY
         run: |
-          package_link="https://github.com/${{ github.repository }}/pkgs/container/${{ github.event.repository.name }}"
-          image_ref="ghcr.io/${{ github.repository }}:${VERSION}"
+          gh release edit "$RELEASE_TAG" --title "HAPPY DG-Lab relay v${VERSION}" --latest=false
+          happy_tag="$(gh release list --exclude-drafts --exclude-pre-releases --json tagName --jq '[.[] | select(.tagName | startswith("v"))][0].tagName')"
+          if [ -n "$happy_tag" ]; then gh release edit "$happy_tag" --latest; fi
           body="$(gh release view "$RELEASE_TAG" --json body --jq .body)"
-          if [[ "$body" != *"$image_ref"* ]]; then
-            notes="$(printf '%s\n\nDocker image: %s\n\n```\ndocker pull %s\n```' "$body" "$package_link" "$image_ref")"
-            gh release edit "$RELEASE_TAG" --notes "$notes"
+          if [[ "$body" != *"$IMAGE:$VERSION"* ]]; then
+            gh release edit "$RELEASE_TAG" --notes "$(printf '%s\n\n```\ndocker pull %s:%s\n```' "$body" "$IMAGE" "$VERSION")"
           fi
 
       - name: Set up QEMU
@@ -115,29 +133,26 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.IMAGE }}
           flavor: |
             latest=true
           tags: |
-            type=semver,pattern={{version}},value=${{ needs.release.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release.outputs.version }}
-            type=semver,pattern={{major}},value=${{ needs.release.outputs.version }}
-            type=raw,value=stable
+            type=semver,pattern={{version}},value=${{ needs.release.outputs.relay_version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release.outputs.relay_version }}
+            type=semver,pattern={{major}},value=${{ needs.release.outputs.relay_version }}
 
-      - name: Build and push Docker image
+      - name: Build and push the relay image
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: dglab-relay/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          annotations: index:org.opencontainers.image.description="HAPPY is a self-hosted haptic player for audio and video files."
-          build-args: |
-            APP_VERSION=${{ needs.release.outputs.version }}
-            APP_CHANNEL=stable
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          annotations: index:org.opencontainers.image.description="WebSocket relay between HAPPY and the DG-Lab app."
+          cache-from: type=gha,scope=dglab-relay
+          cache-to: type=gha,mode=max,scope=dglab-relay
 
   # Jellyfin installs and updates the plugin from manifest.json on the jellyfin-plugin-repository
   # branch; every version entry points at the zip attached to its GitHub release.
