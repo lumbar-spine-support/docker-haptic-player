@@ -73,4 +73,41 @@ public class WebConfigMenuLinkTests
     [InlineData("GET", "/Happy/Web/config.json", false)]
     public void MatchesOnlyJellyfinWebsConfig(string method, string path, bool expected)
         => Assert.Equal(expected, WebConfigMenuLink.IsWebConfigRequest(method, new PathString(path)));
+
+    [Theory]
+    [InlineData("GET", "/web/", true)]
+    [InlineData("GET", "/web/index.html", true)]
+    [InlineData("GET", "/jellyfin/web/", true)]
+    [InlineData("GET", "/Web/Index.html", true)]
+    [InlineData("GET", "/web", false)]
+    [InlineData("HEAD", "/web/", false)]
+    [InlineData("GET", "/web/config.json", false)]
+    [InlineData("GET", "/web/main.jellyfin.bundle.js", false)]
+    [InlineData("GET", "/Happy/Web/", false)]
+    [InlineData("GET", "/Happy/Web/index.html", false)]
+    public void MatchesOnlyJellyfinWebsPage(string method, string path, bool expected)
+        => Assert.Equal(expected, WebConfigMenuLink.IsWebIndexRequest(method, new PathString(path)));
+
+    [Theory]
+    [InlineData("happy", true, "vibration")]
+    [InlineData(" Happy ", true, "vibration")]
+    [InlineData("", true, "vibration")]
+    [InlineData(null, true, "vibration")]
+    [InlineData(" favorite ", false, "favorite")]
+    public void ResolvesTheIconSetting(string? configured, bool logo, string material)
+    {
+        Assert.Equal(logo, WebConfigMenuLink.UsesLogo(configured));
+        Assert.Equal(material, WebConfigMenuLink.MaterialIcon(configured));
+    }
+
+    [Fact]
+    public void LinksTheLogoStylesheetOnceAtTheEndOfHead()
+    {
+        const string page = "<html><head><title>Jellyfin</title></head><body></body></html>";
+        var once = WebConfigMenuLink.AddStylesheet(page, WebConfigMenuLink.LogoStylesheetUrl);
+
+        Assert.Equal("<html><head><title>Jellyfin</title><link rel=\"stylesheet\" href=\"../Happy/Web/jellyfin-menu.css\"></head><body></body></html>", once);
+        Assert.Equal(once, WebConfigMenuLink.AddStylesheet(once, WebConfigMenuLink.LogoStylesheetUrl));
+        Assert.Equal("<p>no head</p>", WebConfigMenuLink.AddStylesheet("<p>no head</p>", WebConfigMenuLink.LogoStylesheetUrl));
+    }
 }

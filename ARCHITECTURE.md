@@ -47,6 +47,7 @@ and hands it to the tab when it returns. A newly connecting app likewise replace
 **HAPPY injects no JavaScript into Jellyfin's web client (jellyfin-web).** Integration is limited to:
 
 - **Data jellyfin-web already understands.** The plugin adds a link to the `menuLinks` of `/web/config.json`, which jellyfin-web renders for every user.
+- **One stylesheet for HAPPY's own link.** `menuLinks` takes only Material icon names, so for the `happy` icon the plugin links `public/jellyfin-menu.css` into jellyfin-web's `index.html`. It only restyles the icon inside links to `…/Happy/Web/`.
 - **The shared origin.** HAPPY adopts jellyfin-web's stored sign-in (`jellyfin_credentials`).
 
 Playback, haptics and VR stay in HAPPY's own player. VR180 (inline and WebXR) is a hard requirement, and it lives in HAPPY's Video.js player. Jellyfin's player can only be reached through private jellyfin-web internals that change between releases, and Jellyfin's native apps never run injected code. Item-page buttons or haptics in Jellyfin's player would need such injection and are deliberately not done.

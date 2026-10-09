@@ -140,5 +140,5 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>
     /// Gets or sets the Material icon name of HAPPY's entry in Jellyfin's menu.
     /// </summary>
-    public string JellyfinMenuIcon { get; set; } = "vibration";
+    public string JellyfinMenuIcon { get; set; } = "happy";
 }

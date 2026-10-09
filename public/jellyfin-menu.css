@@ -1,0 +1,13 @@
+/*
+ * Loaded into Jellyfin's web client (not HAPPY) by the HAPPY plugin when the menu icon is "happy":
+ * shows HAPPY's logo instead of the Material glyph on the HAPPY link. jellyfin-web draws that glyph
+ * as a ligature (drawer, top bar) or with ::before (legacy drawer); a transparent text fill hides
+ * both while keeping their size, and the logo is a mask tinted with the link's text colour.
+ */
+a[href$="Happy/Web/"] .material-icons,
+a[href$="Happy/Web/"] .MuiIcon-root {
+  -webkit-text-fill-color: transparent;
+  background-color: currentColor;
+  -webkit-mask: url("icon.svg") no-repeat center / contain;
+  mask: url("icon.svg") no-repeat center / contain;
+}

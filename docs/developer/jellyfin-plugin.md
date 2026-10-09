@@ -29,9 +29,13 @@ All routes except the docs require a Jellyfin token (`Authorization: MediaBrowse
 | `GET /Happy/Funscripts` | `{ "<itemId>": [{ "Key": "<16 hex>", "FileName": "clip.stroker.funscript" }] }`. Only items the user can see, and only items that have scripts. |
 | `GET /Happy/Items/{itemId}/Funscripts/{key}` | The raw funscript JSON. Returns 404 for unknown, hidden or script-less items and for unknown keys alike. |
 
-Besides its routes, the plugin rewrites one response of Jellyfin's own: `GET …/web/config.json` gets a `menuLinks` entry `{ "name": "HAPPY", "icon": "vibration", "url": "../Happy/Web/" }`, which jellyfin-web shows in its side menu and top bar for every user.
-- `Web/WebConfigStartupFilter.cs` is an `IStartupFilter` registered in `PluginServiceRegistrator`. It buffers only that response, without compression or conditional request headers, and drops its `ETag`/`Last-Modified` (`Cache-Control: no-cache`).
-- `Web/WebConfigMenuLink.cs` holds the pure transform. It keeps admin-added links, adds the entry once, and returns the input unchanged if it is not a JSON object.
+Besides its routes, the plugin rewrites two responses of Jellyfin's own:
+
+- `GET …/web/config.json` gets a `menuLinks` entry `{ "name": "HAPPY", "icon": "vibration", "url": "../Happy/Web/" }`, which jellyfin-web shows in its side menu and top bar for every user.
+- With the menu icon set to `happy` (the default), `GET …/web/` and `…/web/index.html` get `<link rel="stylesheet" href="../Happy/Web/jellyfin-menu.css">` before `</head>`. [public/jellyfin-menu.css](../../public/jellyfin-menu.css) hides the Material glyph inside links to `…/Happy/Web/` (a transparent text fill, so the icon keeps its size) and paints `icon.svg` as a mask in the link's text colour. jellyfin-web draws that glyph as a ligature (drawer and top bar) or with `::before` (legacy drawer); the CSS covers both. `vibration` stays in `config.json` as the fallback.
+
+- `Web/WebConfigStartupFilter.cs` is an `IStartupFilter` registered in `PluginServiceRegistrator`. It buffers only those responses, without compression or conditional request headers, and drops their `ETag`/`Last-Modified` (`Cache-Control: no-cache`). A failed rewrite serves Jellyfin's original.
+- `Web/WebConfigMenuLink.cs` holds the pure transforms. It keeps admin-added links, adds the entry and the stylesheet once, and returns the input unchanged if it is not a JSON object or has no `</head>`.
 - Any error serves Jellyfin's file unchanged. The *Show HAPPY in Jellyfin's menu* setting turns it off without a restart.
 - This is data, not script: see "Jellyfin web client integration" in ARCHITECTURE.md for why HAPPY injects no JavaScript into jellyfin-web.
 

@@ -68,7 +68,7 @@ A script belongs to the media file with the same name: `clip.mp4` + `clip.stroke
 | --- | --- | --- |
 | Show HAPPY in Jellyfin's menu | on | Adds a HAPPY link to the menu of Jellyfin's web client for every user. It opens HAPPY in a new tab. Takes effect when the Jellyfin page is reloaded. |
 | Menu text | `HAPPY` | Text of the link. |
-| Menu icon | `vibration` | A [Material icon](https://fonts.google.com/icons) name. |
+| Menu icon | `happy` | `happy` shows HAPPY's logo; any other value is a [Material icon](https://fonts.google.com/icons) name, such as `vibration`. |
 
 ## Troubleshooting
 

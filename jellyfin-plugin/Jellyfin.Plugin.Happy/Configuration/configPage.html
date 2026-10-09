@@ -1,26 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <title>HAPPY</title>
 </head>
+
 <body>
-    <div id="HappyConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+    <div id="HappyConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
+        data-require="emby-input,emby-button,emby-select,emby-checkbox">
         <div data-role="content">
             <div class="content-primary">
                 <form id="HappyConfigForm">
                     <div class="sectionTitleContainer flex align-items-center">
                         <h2 class="sectionTitle">HAPPY</h2>
                         <!-- The dashboard lives at <jellyfin>/web/, HAPPY at <jellyfin>/Happy/Web/ (base URL included). -->
-                        <a is="emby-linkbutton" class="raised button-alt headerHelpButton" href="../Happy/Web/" target="_blank">Open HAPPY</a>
+                        <a is="emby-linkbutton" class="raised button-alt headerHelpButton" href="../Happy/Web/"
+                            target="_blank">Open HAPPY</a>
                     </div>
                     <p>Server-wide defaults for the HAPPY haptic player. Settings marked <em>(user)</em> are only the
                         starting value; each user can change them in HAPPY.</p>
 
                     <h3>Jellyfin menu</h3>
                     <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label"><input id="ShowInJellyfinMenu" type="checkbox" is="emby-checkbox" /><span>Show HAPPY in Jellyfin's menu</span></label>
-                        <div class="fieldDescription checkboxFieldDescription">Adds a link to HAPPY to the side menu of Jellyfin's web client for every user. It opens in a new tab. Reload the Jellyfin page after changing this.</div>
+                        <label class="emby-checkbox-label"><input id="ShowInJellyfinMenu" type="checkbox"
+                                is="emby-checkbox" /><span>Show HAPPY in Jellyfin's menu</span></label>
+                        <div class="fieldDescription checkboxFieldDescription">Adds a link to HAPPY to the side menu of
+                            Jellyfin's web client for every user. It opens in a new tab. Reload the Jellyfin page after
+                            changing this.</div>
                     </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="JellyfinMenuName">Menu text</label>
@@ -29,17 +36,21 @@
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="JellyfinMenuIcon">Menu icon</label>
                         <input id="JellyfinMenuIcon" type="text" is="emby-input" />
-                        <div class="fieldDescription">A <a href="https://fonts.google.com/icons" target="_blank" rel="noopener noreferrer">Material icon</a> name, e.g. vibration.</div>
+                        <div class="fieldDescription"><code>happy</code> for HAPPY's logo, or a <a
+                                href="https://fonts.google.com/icons" target="_blank" rel="noopener noreferrer">Material
+                                icon</a> name, e.g. vibration.</div>
                     </div>
 
                     <h3>Playback</h3>
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="VideoSeekInterval">Seek interval (seconds)</label>
+                        <label class="inputLabel inputLabelUnfocused" for="VideoSeekInterval">Seek interval
+                            (seconds)</label>
                         <input id="VideoSeekInterval" type="number" min="1" is="emby-input" />
                         <div class="fieldDescription">Seek step when double-tapping or double-clicking the video.</div>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label"><input id="BlurContent" type="checkbox" is="emby-checkbox" /><span>Blur images and videos (user)</span></label>
+                        <label class="emby-checkbox-label"><input id="BlurContent" type="checkbox"
+                                is="emby-checkbox" /><span>Blur images and videos (user)</span></label>
                     </div>
                     <div class="selectContainer">
                         <label class="selectLabel" for="ChapterSourcePriority">Chapters</label>
@@ -54,7 +65,8 @@
 
                     <h3>Haptics</h3>
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="HapticFrequency">Intiface update rate (Hz, user)</label>
+                        <label class="inputLabel inputLabelUnfocused" for="HapticFrequency">Intiface update rate (Hz,
+                            user)</label>
                         <input id="HapticFrequency" type="number" min="1" max="100" is="emby-input" />
                         <div class="fieldDescription">Smaller values are usually more stable but less precise.</div>
                     </div>
@@ -63,12 +75,14 @@
                         <input id="HapticDelay" type="number" is="emby-input" />
                     </div>
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="HapticDelayLimit">Delay slider range (ms)</label>
+                        <label class="inputLabel inputLabelUnfocused" for="HapticDelayLimit">Delay slider range
+                            (ms)</label>
                         <input id="HapticDelayLimit" type="number" min="0" is="emby-input" />
                         <div class="fieldDescription">The delay sliders go from minus to plus this value.</div>
                     </div>
                     <div class="selectContainer">
-                        <label class="selectLabel" for="FunscriptInterpolationMethod">Interpolation between funscript points</label>
+                        <label class="selectLabel" for="FunscriptInterpolationMethod">Interpolation between funscript
+                            points</label>
                         <select id="FunscriptInterpolationMethod" is="emby-select">
                             <option value="pchip">Smooth (pchip)</option>
                             <option value="linear">Linear</option>
@@ -76,26 +90,32 @@
                         </select>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label"><input id="FunscriptColorGradient" type="checkbox" is="emby-checkbox" /><span>Colour the timeline by speed (user)</span></label>
+                        <label class="emby-checkbox-label"><input id="FunscriptColorGradient" type="checkbox"
+                                is="emby-checkbox" /><span>Colour the timeline by speed (user)</span></label>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label"><input id="AutoReconnectIntiface" type="checkbox" is="emby-checkbox" /><span>Reconnect to Intiface on page load</span></label>
+                        <label class="emby-checkbox-label"><input id="AutoReconnectIntiface" type="checkbox"
+                                is="emby-checkbox" /><span>Reconnect to Intiface on page load</span></label>
                     </div>
 
                     <h3>DG-Lab Coyote (experimental)</h3>
                     <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label"><input id="DglabEnabled" type="checkbox" is="emby-checkbox" /><span>Enable DG-Lab Coyote 3.0</span></label>
+                        <label class="emby-checkbox-label"><input id="DglabEnabled" type="checkbox"
+                                is="emby-checkbox" /><span>Enable DG-Lab Coyote 3.0</span></label>
                     </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="DglabRelayUrl">Relay address</label>
                         <input id="DglabRelayUrl" type="text" placeholder="wss://relay.example.com" is="emby-input" />
-                        <div class="fieldDescription">The HAPPY DG-Lab relay as browsers and phones reach it. Use wss:// when Jellyfin is served over HTTPS.</div>
+                        <div class="fieldDescription">The HAPPY DG-Lab relay as browsers and phones reach it. Use wss://
+                            when Jellyfin is served over HTTPS.</div>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label"><input id="DglabSandboxEnabled" type="checkbox" is="emby-checkbox" /><span>Show the waveform sandbox</span></label>
+                        <label class="emby-checkbox-label"><input id="DglabSandboxEnabled" type="checkbox"
+                                is="emby-checkbox" /><span>Show the waveform sandbox</span></label>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label"><input id="AutoReconnectDglab" type="checkbox" is="emby-checkbox" /><span>Reconnect to the relay on page load</span></label>
+                        <label class="emby-checkbox-label"><input id="AutoReconnectDglab" type="checkbox"
+                                is="emby-checkbox" /><span>Reconnect to the relay on page load</span></label>
                     </div>
 
                     <h3>Appearance</h3>
@@ -110,28 +130,35 @@
 
                     <h3>Library</h3>
                     <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label"><input id="CardViewForceSquareArtwork" type="checkbox" is="emby-checkbox" /><span>Crop artwork to squares</span></label>
+                        <label class="emby-checkbox-label"><input id="CardViewForceSquareArtwork" type="checkbox"
+                                is="emby-checkbox" /><span>Crop artwork to squares</span></label>
                     </div>
                     <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label"><input id="CardViewLargePortraitArtwork" type="checkbox" is="emby-checkbox" /><span>Portrait artwork takes two rows</span></label>
+                        <label class="emby-checkbox-label"><input id="CardViewLargePortraitArtwork" type="checkbox"
+                                is="emby-checkbox" /><span>Portrait artwork takes two rows</span></label>
                     </div>
 
                     <h3>Funscript file names</h3>
-                    <p class="fieldDescription">A script belongs to the media file with the same name: <code>clip.mp4</code> + <code>clip.stroker.funscript</code>.</p>
+                    <p class="fieldDescription">A script belongs to the media file with the same name:
+                        <code>clip.mp4</code> + <code>clip.stroker.funscript</code>.
+                    </p>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="FunscriptSeparator">Separator</label>
                         <input id="FunscriptSeparator" type="text" maxlength="1" is="emby-input" />
                     </div>
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="FunscriptSuffixStroker">Stroker suffix</label>
+                        <label class="inputLabel inputLabelUnfocused" for="FunscriptSuffixStroker">Stroker
+                            suffix</label>
                         <input id="FunscriptSuffixStroker" type="text" is="emby-input" />
                     </div>
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="FunscriptSuffixButtplug">Buttplug suffix</label>
+                        <label class="inputLabel inputLabelUnfocused" for="FunscriptSuffixButtplug">Buttplug
+                            suffix</label>
                         <input id="FunscriptSuffixButtplug" type="text" is="emby-input" />
                     </div>
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="FunscriptSuffixVibrator">Vibrator suffix</label>
+                        <label class="inputLabel inputLabelUnfocused" for="FunscriptSuffixVibrator">Vibrator
+                            suffix</label>
                         <input id="FunscriptSuffixVibrator" type="text" is="emby-input" />
                     </div>
                     <div class="inputContainer">
@@ -139,16 +166,19 @@
                         <input id="FunscriptSuffixEstim" type="text" is="emby-input" />
                     </div>
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="FunscriptSuffixMachine">Machine suffix</label>
+                        <label class="inputLabel inputLabelUnfocused" for="FunscriptSuffixMachine">Machine
+                            suffix</label>
                         <input id="FunscriptSuffixMachine" type="text" is="emby-input" />
                     </div>
 
                     <h3>Troubleshooting</h3>
                     <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label"><input id="DebugLogging" type="checkbox" is="emby-checkbox" /><span>Debug output in the browser console</span></label>
+                        <label class="emby-checkbox-label"><input id="DebugLogging" type="checkbox"
+                                is="emby-checkbox" /><span>Debug output in the browser console</span></label>
                     </div>
 
-                    <button is="emby-button" type="submit" class="raised button-submit block emby-button"><span>Save</span></button>
+                    <button is="emby-button" type="submit"
+                        class="raised button-submit block emby-button"><span>Save</span></button>
                 </form>
             </div>
         </div>
@@ -191,4 +221,5 @@
         </script>
     </div>
 </body>
+
 </html>
