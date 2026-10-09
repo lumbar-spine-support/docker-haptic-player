@@ -30,7 +30,7 @@ body.blur-content media-container {
 }
 
 .settings-section {
-  margin-bottom: 0; // var(--bs-offcanvas-padding-y);
+  margin-bottom: max(var(--bs-offcanvas-padding-y), 2rem);
 }
 
 .settings-header {
@@ -39,7 +39,6 @@ body.blur-content media-container {
   gap: 0.5rem;
   font-size: 1.1rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
 }
 
 .settings-label {

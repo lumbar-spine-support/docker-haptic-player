@@ -147,7 +147,8 @@
             <div id="detail-title" class="fw-bold fs-3 mb-1"></div>
             <div id="detail-subtitle" class="text-muted mb-1"></div>
             <div id="detail-meta" class="text-muted small mb-3"></div>
-            <button id="btn-detail-favorite" type="button" class="btn btn-sm btn-outline-primary favorite-toggle mb-3 d-none">
+            <button id="btn-detail-favorite" type="button"
+              class="btn btn-sm btn-outline-primary favorite-toggle mb-3 d-none">
               <i class="bi bi-heart" aria-hidden="true"></i><span class="ms-1" data-favorite-label>Favorite</span>
             </button>
             <img id="detail-cover" src="" alt="" class="rounded mx-auto d-block"
@@ -250,13 +251,11 @@
         <div class="row g-2 align-items-end mb-2">
           <div class="col-12 col-md">
             <label for="dglab-sandbox-channel" class="form-label small mb-1">Channel</label>
-            <select id="dglab-sandbox-channel"
-              class="form-select form-select-sm text-light border-secondary"></select>
+            <select id="dglab-sandbox-channel" class="form-select form-select-sm text-light border-secondary"></select>
           </div>
           <div class="col-12 col-md">
             <label for="dglab-sandbox-pattern" class="form-label small mb-1">Pattern</label>
-            <select id="dglab-sandbox-pattern"
-              class="form-select form-select-sm text-light border-secondary"></select>
+            <select id="dglab-sandbox-pattern" class="form-select form-select-sm text-light border-secondary"></select>
           </div>
           <div class="col-12 col-md-auto">
             <button id="btn-dglab-sandbox-toggle" type="button" class="btn btn-sm btn-primary w-100"
@@ -308,8 +307,7 @@
           <span id="intiface-status" class="badge bg-secondary">Disconnected</span>
         </h6>
         <div class="input-group input-group-sm mb-3">
-          <select id="intiface-scheme"
-            class="form-select form-select-sm text-light border-secondary flex-grow-0 w-auto"
+          <select id="intiface-scheme" class="form-select form-select-sm text-light border-secondary flex-grow-0 w-auto"
             aria-label="Intiface websocket scheme">
             <option value="ws://" selected>ws://</option>
             <option value="wss://">wss://</option>
@@ -345,7 +343,6 @@
       </div>
 
       <div class="settings-section" id="dglab-section">
-        <hr>
         <h6 class="settings-header">
           <span>Dungeon Lab</span>
           <span id="dglab-status" class="badge bg-secondary">Disconnected</span>
@@ -385,7 +382,6 @@
       </div>
 
       <div class="settings-section">
-        <hr>
         <h6 class="settings-header">Appearance</h6>
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" role="switch" id="blur-content-toggle" />
