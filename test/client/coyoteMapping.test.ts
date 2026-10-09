@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { DglabSocketDeviceType, V4Channel } from 'dglab-kit';
 import type { Device } from '../../src/client/components/haptic/dglab/v4/socket';
-import { channelAlerts, channelCeiling, isChannelMuted, isLoopbackHost, normalizeHost } from '../../src/client/components/haptic/dglab/coyoteBackend';
+import { channelAlerts, channelCeiling, isChannelMuted, isLoopbackHost } from '../../src/client/components/haptic/dglab/coyoteBackend';
 import { BATCH_FRAMES, BUFFER_MS, CoyoteChannelScheduler, STRENGTH_DURATION_MS, lookaheadFrames, mapIntensity, type PulseCommand } from '../../src/client/components/haptic/dglab/channelScheduler';
 import { decodeFrame } from '../../src/client/components/haptic/dglab/waveform';
 import { WAVEFORM_PATTERNS, patternCycleMs, patternSampler } from '../../src/client/components/haptic/dglab/patterns';
@@ -94,12 +94,6 @@ test(`${TAG} muted channels and a missing ceiling are warnings, a healthy channe
     ]);
     assert.deepEqual(channelAlerts(device(25, 24, false), V4Channel.A), []);
 });
-test(`${TAG} a pairing host is reduced to bare host and port`, () => {
-    assert.equal(normalizeHost(' ws://192.168.1.10:3000/ws/dglab '), '192.168.1.10:3000');
-    assert.equal(normalizeHost('http://happy.lan/'), 'happy.lan');
-    assert.equal(normalizeHost('192.168.1.10:3000'), '192.168.1.10:3000');
-});
-
 test(`${TAG} loopback hosts are recognised so the UI can warn about them`, () => {
     for (const host of ['localhost:3000', 'LOCALHOST', '127.0.0.1:3000', '[::1]:3000']) {
         assert.equal(isLoopbackHost(host), true, host);

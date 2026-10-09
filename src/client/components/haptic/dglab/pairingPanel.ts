@@ -6,15 +6,15 @@ import { pairingDeepLink, pairingQR } from './v4/pairing';
 const lastState = storedSetting('happy-dglab-last-state', 'disconnected');
 const lastSeen = storedSetting('happy-dglab-last-seen', 0);
 
-/** DG-Lab status badge, relay connect controls, pairing host and QR code, plus the optional auto-reconnect. */
+/** DG-Lab status badge, read-only relay address, connect controls and QR code, plus the optional auto-reconnect. */
 export function bindPairingPanel(coyote: CoyoteBackend, autoReconnect: boolean): void {
     const statusEl = document.getElementById('dglab-status');
     const connectBtn = document.getElementById('btn-dglab-connect') as HTMLButtonElement | null;
     const disconnectBtn = document.getElementById('btn-dglab-disconnect') as HTMLButtonElement | null;
-    const resetBtn = document.getElementById('btn-dglab-reset') as HTMLButtonElement | null;
     const pairingEl = document.getElementById('dglab-pairing');
     const linkEl = document.getElementById('dglab-pair-link') as HTMLAnchorElement | null;
-    const hostEl = document.getElementById('dglab-host') as HTMLInputElement | null;
+    const relayEl = document.getElementById('dglab-relay') as HTMLInputElement | null;
+    const relayHint = document.getElementById('dglab-relay-hint');
     const hostGroup = document.getElementById('dglab-host-group');
     const urlGroup = document.getElementById('dglab-url-group');
     const urlEl = document.getElementById('dglab-url') as HTMLInputElement | null;
@@ -50,7 +50,7 @@ export function bindPairingPanel(coyote: CoyoteBackend, autoReconnect: boolean):
             const updateUrl = (data: string) => { if (qrUrl === url) qrEl.src = data; };
             pairingQR(url, updateUrl);
         }
-        if (hostEl && document.activeElement !== hostEl) hostEl.value = coyote.pairingHost;
+        relayHint?.classList.toggle('d-none', on || !coyote.relayIsLoopback);
     };
 
     coyote.onStateChange((state) => {
@@ -79,19 +79,8 @@ export function bindPairingPanel(coyote: CoyoteBackend, autoReconnect: boolean):
 
     urlEl?.addEventListener('focus', () => urlEl.select());
 
-    hostEl?.addEventListener('change', () => {
-        coyote.setPairingHost(hostEl.value);
-        sync();
-    });
-
-    resetBtn?.addEventListener('click', () => {
-        coyote.resetPairingHost();
-        if (hostEl) {
-            hostEl.blur();
-            hostEl.value = coyote.pairingHost;
-        }
-        sync();
-    });
+    if (relayEl) relayEl.value = coyote.relayAddress;
+    relayEl?.addEventListener('focus', () => relayEl.select());
 
     sync();
 

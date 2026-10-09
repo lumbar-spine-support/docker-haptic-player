@@ -38,9 +38,9 @@ test('relay endpoint: an invalid address falls back to the page origin', () => {
     assert.equal(relayEndpoint('https://', page).toString(), 'wss://happy.example.com/ws/dglab');
 });
 
-test('relay pairing URL: the phone dials the same endpoint by its own host', () => {
-    const endpoint = relayEndpoint('wss://localhost:8070', page);
-    assert.equal(relayPairingUrl(endpoint, '192.168.1.10:8070', 'abc-123'), 'wss://192.168.1.10:8070/ws/dglab?tid=abc-123');
+test('relay pairing URL: the phone dials the same endpoint', () => {
+    const endpoint = relayEndpoint('ws://192.168.1.10:8070', page);
+    assert.equal(relayPairingUrl(endpoint, 'abc-123'), 'ws://192.168.1.10:8070/ws/dglab?tid=abc-123');
     const proxied = relayEndpoint('https://example.com/dglab', page);
-    assert.equal(relayPairingUrl(proxied, 'example.com', 't'), 'wss://example.com/dglab/ws/dglab?tid=t');
+    assert.equal(relayPairingUrl(proxied, 't'), 'wss://example.com/dglab/ws/dglab?tid=t');
 });

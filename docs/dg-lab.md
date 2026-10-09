@@ -33,6 +33,8 @@ Then enter the relay's address as your browser and phone reach it under *Relay a
 - `wss://…` when Jellyfin is served over HTTPS, because browsers block plain `ws://` from an HTTPS page. Put the relay behind your reverse proxy, either on its own host name (`wss://relay.example.com`) or under a path (`wss://example.com/dglab`). The relay accepts any path that ends in `/ws/dglab`, so the proxy does not need to rewrite it.
 - Empty means `/ws/dglab` on Jellyfin's own address. Use this if your reverse proxy forwards that path to the relay.
 
+This setting is the only place the relay address is set. HAPPY shows it read-only in the DG-Lab section of the settings sidebar, and the DG-Lab app dials the same address, so it must be one that phones can reach too (not `localhost`).
+
 The relay only accepts HAPPY tabs that are signed in to Jellyfin; it checks each tab's sign-in with Jellyfin at `JELLYFIN_URL`. The DG-Lab app pairs with the one-time link HAPPY shows. Further settings: `PORT` (default `8070`) and `LOG_LEVEL` (`error`, `warn`, `info`, `debug`).
 
 ## DG-Lab App Setup

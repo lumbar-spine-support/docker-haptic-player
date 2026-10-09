@@ -17,7 +17,7 @@ flowchart LR
 
 - The relay runs, and *Enable DG-Lab Coyote 3.0* (`dglabEnabled`) is on in the plugin settings. Without it the client removes the DG-Lab section from the settings panel and never opens a relay socket (`App.initDglab`).
 - The browser reaches the relay at `relayEndpoint(dglabRelayUrl, location)`: the configured address with `/ws/dglab` appended, or `/ws/dglab` on the page's own origin when the setting is empty.
-- The phone must reach the relay too. The pairing URL uses the relay's host as the browser sees it. When that is a loopback address, the browser cannot know the LAN address, so the user enters the host in the pairing host field (`happy-dglab-pairing-host`), which also overrides a non-loopback default.
+- The phone must reach the relay too. The pairing URL is that same endpoint; the plugin setting is the single source of truth and the client shows it read-only. When it is a loopback address there is no pairing URL and the panel tells the user to change *Relay address* in the plugin settings.
 
 ## Sequence
 
@@ -40,7 +40,7 @@ sequenceDiagram
   R->>R: take the single controller slot, close previous tab
   R-->>SK: hello(clientId)
   SK-->>UI: state connected
-  UI->>UI: badge "Waiting for app"<br/>pairingUrl = relayPairingUrl(endpoint, pairingHost, clientId)<br/>show deep link and QR code
+  UI->>UI: badge "Waiting for app"<br/>pairingUrl = relayPairingUrl(endpoint, clientId)<br/>show deep link and QR code
   U->>P: scan QR code or open deep link
   P->>R: WebSocket upgrade …/ws/dglab?tid=clientId
   R->>R: attachApp: tid known, replaces any previous app

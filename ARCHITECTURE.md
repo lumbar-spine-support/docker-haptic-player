@@ -346,8 +346,8 @@ The relay (`dglab-relay/src/server.ts`) authenticates WebSocket upgrades itself:
 The client dials the `dglabRelayUrl` setting with `/ws/dglab` appended (`relayEndpoint()` in
 `components/haptic/dglab/coyoteBackend.ts`). Empty means `/ws/dglab` on the page's own origin, for
 a reverse proxy that forwards that path to the relay. The pairing URL for the app
-(`relayPairingUrl()`) uses the relay's host unless it is a loopback address, and the per-user
-pairing-host override wins over both. See [dglab-relay/README.md](dglab-relay/README.md).
+(`relayPairingUrl()`) is the same endpoint, and there is none when it is a loopback address. The
+plugin setting is the only source of the relay address; the client shows it read-only. See [dglab-relay/README.md](dglab-relay/README.md).
 
 ## Device connection flow
 

@@ -348,13 +348,13 @@
           <span id="dglab-status" class="badge bg-secondary">Disconnected</span>
         </h6>
         <div id="dglab-host-group" class="input-group input-group-sm">
-          <span class="input-group-text text-light border-secondary">ws://</span>
-          <input id="dglab-host" type="text" class="form-control form-control-sm border-secondary"
-            placeholder="192.168.1.10:3000" aria-label="Address the DG-Lab app should connect to" />
-          <button id="btn-dglab-reset" class="btn btn-sm btn-outline-primary" type="button">
-            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-          </button>
+          <input id="dglab-relay" type="text" class="form-control form-control-sm border-secondary" readonly
+            aria-label="DG-Lab relay address, set in the HAPPY plugin settings"
+            title="Set by your Jellyfin admin under Relay address in the HAPPY plugin settings" />
           <button id="btn-dglab-connect" class="btn btn-sm btn-outline-primary" type="button">Enable</button>
+        </div>
+        <div id="dglab-relay-hint" class="text-muted small mt-1 d-none">
+          Phones cannot reach a loopback address. Set <em>Relay address</em> in the HAPPY plugin settings.
         </div>
         <div id="dglab-url-group" class="input-group input-group-sm d-none">
           <input id="dglab-url" type="text" class="form-control form-control-sm border-secondary" readonly

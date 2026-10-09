@@ -42,7 +42,7 @@ erDiagram
 | Backend | Feature id format | Kinds | Stored in `localStorage` |
 | --- | --- | --- | --- |
 | Intiface (`ButtplugClientManager`) | device name, kind, feature index joined by `#` | `scalar`, `rotate`, `linear` | `happy-feature-assignments`, `happy-device-strengths`, `happy-stroker-ranges` |
-| DG-Lab (`CoyoteBackend`) | `dglab`, slot id, channel 0/1 joined by `#` | `estim` | `happy-dglab-assignments`, `happy-dglab-strengths`, `happy-dglab-pulse-rate`, `happy-dglab-pairing-host` |
+| DG-Lab (`CoyoteBackend`) | `dglab`, slot id, channel 0/1 joined by `#` | `estim` | `happy-dglab-assignments`, `happy-dglab-strengths`, `happy-dglab-pulse-rate` |
 
 ## Backend interface
 
@@ -89,7 +89,7 @@ classDiagram
     +connect()
     +disconnect()
     +pairingUrl
-    +pairingHost
+    +relayAddress
     +appCount
   }
   class HapticBackendRegistry {

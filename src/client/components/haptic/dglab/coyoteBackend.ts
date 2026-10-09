@@ -34,7 +34,8 @@ const FREQUENCY_KEY = 'happy-dglab-pulse-rate';
 const LEGACY_FREQUENCY_KEY = 'happy-dglab-frequency';
 /** The removed Pulse Width setting; dropped so it does not linger in storage. */
 const LEGACY_PULSE_WIDTH_KEY = 'happy-dglab-pulse-width';
-const PAIRING_HOST_KEY = 'happy-dglab-pairing-host';
+/** The removed per-browser pairing host; the plugin's relay address is the only one now. */
+const LEGACY_PAIRING_HOST_KEY = 'happy-dglab-pairing-host';
 
 /** Feature ids are namespaced so they never collide with Buttplug ids. */
 const FEATURE_PREFIX = 'dglab';
@@ -184,11 +185,6 @@ export function isLoopbackHost(host: string): boolean {
   return name === 'localhost' || name === '127.0.0.1' || name === '::1';
 }
 
-/** Reduce user input to a bare `host[:port]`, since that is all the URL needs. */
-export function normalizeHost(raw: string): string {
-  return raw.trim().replace(/^[a-z]+:\/\//i, '').replace(/\/.*$/, '');
-}
-
 /** The parts of the page's location the relay address falls back to. */
 export interface PageLocation {
   protocol: string;
@@ -215,10 +211,9 @@ export function relayEndpoint(configured: string, page: PageLocation): URL {
   return url;
 }
 
-/** The address the DG-Lab app dials: the relay endpoint at `host` (the phone's view of it), for one controller. */
-export function relayPairingUrl(endpoint: URL, host: string, targetId: string): string {
+/** The address the DG-Lab app dials: the relay endpoint, for one controller. */
+export function relayPairingUrl(endpoint: URL, targetId: string): string {
   const url = new URL(endpoint);
-  url.host = host;
   url.searchParams.set('tid', targetId);
   return url.toString();
 }
@@ -233,7 +228,7 @@ export function relayPairingUrl(endpoint: URL, host: string, targetId: string): 
  */
 export class CoyoteBackend implements HapticBackend {
   private readonly socket: DglabV4Socket;
-  /** Where this tab connects; the DG-Lab app dials the same endpoint, possibly by another host. */
+  /** Where this tab connects; the DG-Lab app dials the same endpoint. */
   private readonly endpoint: URL;
   private readonly settings = new FeatureSettings(ASSIGNMENTS_KEY, STRENGTHS_KEY);
   /** Feature id -> output timing for that channel. */
@@ -253,9 +248,6 @@ export class CoyoteBackend implements HapticBackend {
   private lastDeviceKey = '';
   /** Displayed metadata last reported, so the UI only re-renders on real changes. */
   private lastStateKey = '';
-  /** Empty means "use the browser's own host". */
-  private hostOverride = '';
-
   /** Pulse rate in Hz per device name. */
   private readonly frequencies = new Map<string, number>();
 
@@ -289,39 +281,21 @@ export class CoyoteBackend implements HapticBackend {
 
   // --- Connection ---
 
-  /** Host the DG-Lab app should dial. */
-  get pairingHost(): string {
-    return this.hostOverride || this.defaultPairingHost;
+  /** Relay endpoint from the plugin settings (`dglabRelayUrl`); shown read-only, never edited here. */
+  get relayAddress(): string {
+    return this.endpoint.toString();
   }
 
-  /**
-   * The relay's host as the browser reaches it, unless it is loopback: the browser
-   * cannot know the LAN address a phone needs, so the user has to enter it then.
-   */
-  get defaultPairingHost(): string {
-    const own = this.endpoint.host;
-    return isLoopbackHost(own) ? '' : own;
+  /** A loopback relay address is meaningless to a phone, so it cannot be paired with. */
+  get relayIsLoopback(): boolean {
+    return isLoopbackHost(this.endpoint.host);
   }
 
-  setPairingHost(host: string): void {
-    const normalized = normalizeHost(host);
-    // Comparing against the default, not the current value, so re-typing the
-    // default clears the override instead of pinning it.
-    this.hostOverride = normalized === this.defaultPairingHost ? '' : normalized;
-    this.persistPairingHost();
-  }
-
-  /** Drops any override and goes back to the automatically detected host. */
-  resetPairingHost(): void {
-    this.hostOverride = '';
-    this.persistPairingHost();
-  }
-
-  /** Relay URL the DG-Lab app must be pointed at; null until the relay says hello. */
+  /** Relay URL the DG-Lab app must be pointed at; null until the relay says hello, or when it is loopback. */
   get pairingUrl(): string | null {
     const tid = this.socket.targetId;
-    if (!tid || !this.pairingHost) return null;
-    return relayPairingUrl(this.endpoint, this.pairingHost, tid);
+    if (!tid || this.relayIsLoopback) return null;
+    return relayPairingUrl(this.endpoint, tid);
   }
 
   get appCount(): number { return this.socket.appCount; }
@@ -594,11 +568,6 @@ export class CoyoteBackend implements HapticBackend {
     this.deviceStateChanged.emit();
   }
 
-  private persistPairingHost(): void {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(PAIRING_HOST_KEY, this.hostOverride);
-  }
-
   private loadPersisted(): void {
     if (typeof window === 'undefined') return;
     for (const [name, value] of Object.entries(readJsonRecord(FREQUENCY_KEY))) {
@@ -606,6 +575,6 @@ export class CoyoteBackend implements HapticBackend {
     }
     window.localStorage.removeItem(LEGACY_FREQUENCY_KEY);
     window.localStorage.removeItem(LEGACY_PULSE_WIDTH_KEY);
-    this.hostOverride = normalizeHost(window.localStorage.getItem(PAIRING_HOST_KEY) ?? '');
+    window.localStorage.removeItem(LEGACY_PAIRING_HOST_KEY);
   }
 }

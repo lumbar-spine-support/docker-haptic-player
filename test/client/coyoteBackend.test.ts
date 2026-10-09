@@ -122,7 +122,8 @@ test(`${TAG} a configured relay address replaces the page origin`, (t) => {
     const backend = new CoyoteBackend(() => 't', 'http://192.168.1.10:8070');
     backend.connect();
     assert.equal(FakeWebSocket.instances[0].url, 'ws://192.168.1.10:8070/ws/dglab');
-    assert.equal(backend.defaultPairingHost, '192.168.1.10:8070');
+    assert.equal(backend.relayAddress, 'ws://192.168.1.10:8070/ws/dglab');
+    assert.equal(backend.relayIsLoopback, false);
     backend.disconnect();
 });
 
@@ -169,36 +170,28 @@ test(`${TAG} relay traffic is reported as activity`, (t) => {
     backend.disconnect();
 });
 
-test(`${TAG} a loopback page has no default pairing host and no pairing URL until one is entered`, (t) => {
+test(`${TAG} a loopback relay address has no pairing URL, since a phone cannot reach it`, (t) => {
     t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
-    const storage = installGlobals(t, { protocol: 'http:', host: 'localhost:8096' });
+    installGlobals(t, { protocol: 'http:', host: 'localhost:8096' });
     const backend = new CoyoteBackend(() => 't');
-    assert.equal(backend.defaultPairingHost, '');
-    assert.equal(backend.pairingHost, '');
+    assert.equal(backend.relayAddress, 'ws://localhost:8096/ws/dglab');
+    assert.equal(backend.relayIsLoopback, true);
     backend.connect();
     FakeWebSocket.instances[0].open();
     FakeWebSocket.instances[0].receive({ type: 'hello', clientId: 'ctl' });
     assert.equal(backend.pairingUrl, null);
-
-    backend.setPairingHost('  http://192.168.1.5:8096/web/  ');
-    assert.equal(backend.pairingHost, '192.168.1.5:8096');
-    assert.equal(storage.map.get('happy-dglab-pairing-host'), '192.168.1.5:8096');
-    assert.equal(backend.pairingUrl, 'ws://192.168.1.5:8096/ws/dglab?tid=ctl');
-
-    backend.resetPairingHost();
-    assert.equal(backend.pairingHost, '');
-    assert.equal(storage.map.get('happy-dglab-pairing-host'), '');
     backend.disconnect();
 });
 
-test(`${TAG} re-entering the default pairing host clears the override`, (t) => {
-    const storage = installGlobals(t);
-    const backend = new CoyoteBackend(() => 't');
-    backend.setPairingHost('other.lan');
-    assert.equal(backend.pairingHost, 'other.lan');
-    backend.setPairingHost('happy.example.com');
-    assert.equal(backend.pairingHost, 'happy.example.com');
-    assert.equal(storage.map.get('happy-dglab-pairing-host'), '');
+test(`${TAG} the pairing URL follows the configured relay address`, (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+    installGlobals(t);
+    const backend = new CoyoteBackend(() => 't', 'wss://relay.example.com/dglab');
+    backend.connect();
+    FakeWebSocket.instances[0].open();
+    FakeWebSocket.instances[0].receive({ type: 'hello', clientId: 'ctl' });
+    assert.equal(backend.pairingUrl, 'wss://relay.example.com/dglab/ws/dglab?tid=ctl');
+    backend.disconnect();
 });
 
 test(`${TAG} persisted settings are loaded and legacy keys dropped`, (t) => {
@@ -212,7 +205,8 @@ test(`${TAG} persisted settings are loaded and legacy keys dropped`, (t) => {
         },
     });
     const backend = new CoyoteBackend(() => 't');
-    assert.equal(backend.pairingHost, 'saved.lan:1234');
+    assert.equal(storage.map.has('happy-dglab-pairing-host'), false);
+    assert.equal(backend.relayAddress, 'wss://happy.example.com/ws/dglab');
     assert.equal(storage.map.has('happy-dglab-frequency'), false);
     assert.equal(storage.map.has('happy-dglab-pulse-width'), false);
     backend.connect();
