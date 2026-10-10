@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
     compareVersions,
+    isBeta,
     md5,
+    nextBetaVersion,
+    pruneBetas,
     readPluginInfo,
     upsertVersion,
     type ManifestPackage,
@@ -91,5 +94,43 @@ describe('jellyfin plugin manifest', () => {
 
     it('computes the hex MD5 Jellyfin checks downloads against', () => {
         assert.equal(md5(Buffer.from('')), 'd41d8cd98f00b204e9800998ecf8427e');
+    });
+
+    it('tells beta builds from stable releases by the fourth part', () => {
+        assert.equal(isBeta('1.1.0.0'), false);
+        assert.equal(isBeta('1.1.0'), false);
+        assert.equal(isBeta('1.1.0.37'), true);
+    });
+
+    it('keeps the newest betas above the newest stable and returns the pruned ones', () => {
+        const pkg: ManifestPackage = { ...INFO, versions: ['1.1.0.0', '1.1.0.3', '1.1.0.2', '1.1.0.1', '1.0.0.0'].map(v => entry(v)) };
+        const { manifest: [kept], removed } = pruneBetas([pkg], INFO.guid, 2);
+        assert.deepEqual(kept.versions.map(v => v.version), ['1.1.0.0', '1.1.0.3', '1.1.0.2', '1.0.0.0']);
+        assert.deepEqual(removed.map(v => v.version), ['1.1.0.1']);
+    });
+
+    it('drops every beta once a newer stable is released', () => {
+        const pkg: ManifestPackage = { ...INFO, versions: ['1.2.0.0', '1.1.0.5', '1.1.0.4', '1.1.0.0'].map(v => entry(v)) };
+        const { manifest: [kept], removed } = pruneBetas([pkg], INFO.guid, 5);
+        assert.deepEqual(kept.versions.map(v => v.version), ['1.2.0.0', '1.1.0.0']);
+        assert.deepEqual(removed.map(v => v.sourceUrl), ['https://example.com/happy_1.1.0.5.zip', 'https://example.com/happy_1.1.0.4.zip']);
+    });
+
+    it('numbers the next beta on top of the newest stable', () => {
+        const pkg = (...versions: string[]): ManifestPackage[] => [{ ...INFO, versions: versions.map(v => entry(v)) }];
+        assert.equal(nextBetaVersion([], INFO.guid, '1.1.0.0'), '1.1.0.1');
+        assert.equal(nextBetaVersion(pkg('1.1.0.0'), INFO.guid, '1.1.0.0'), '1.1.0.1');
+        assert.equal(nextBetaVersion(pkg('1.1.0.9', '1.1.0.10', '1.1.0.0'), INFO.guid, '1.1.0.0'), '1.1.0.11');
+        // Released on main while dev's build.yaml still says 1.1.0: betas go on top of 1.2.0.
+        assert.equal(nextBetaVersion(pkg('1.2.0.0', '1.1.0.4', '1.1.0.0'), INFO.guid, '1.1.0.0'), '1.2.0.1');
+        assert.equal(nextBetaVersion(pkg('1.1.0.0'), INFO.guid, '1.2.0.0'), '1.2.0.1');
+    });
+
+    it('leaves the manifest alone when there is nothing to prune', () => {
+        const manifest: ManifestPackage[] = [{ ...INFO, versions: [entry('1.1.0.1'), entry('1.1.0.0')] }];
+        const result = pruneBetas(manifest, INFO.guid, 5);
+        assert.equal(result.manifest, manifest);
+        assert.deepEqual(result.removed, []);
+        assert.deepEqual(pruneBetas(manifest, 'unknown', 0).removed, []);
     });
 });

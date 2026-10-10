@@ -168,28 +168,26 @@ jobs:
       - name: Attach the zip to the release
         run: gh release upload "$RELEASE_TAG" "${{ steps.package.outputs.zip }}" --clobber
 
-      - name: Checkout the plugin repository branch
-        run: |
-          if git fetch --depth=1 origin "$REPOSITORY_BRANCH"; then
-            git worktree add -B "$REPOSITORY_BRANCH" repository FETCH_HEAD
-          else
-            git worktree add --orphan -b "$REPOSITORY_BRANCH" repository
-          fi
-
-      - name: Add the release to manifest.json
+      # Stable releases go into both manifests; in manifest-beta.json the release replaces the
+      # betas before it (happy-plugin-beta.yml publishes those), whose zips are then deleted.
+      - name: Add the release to manifest.json and manifest-beta.json
         run: |
           gh release view "$RELEASE_TAG" --json body --jq .body > "$RUNNER_TEMP/changelog.md"
-          node --import tsx scripts/jellyfin-plugin-manifest.ts \
-            --manifest repository/manifest.json \
-            --zip "${{ steps.package.outputs.zip }}" \
-            --url "https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/${{ steps.package.outputs.name }}" \
-            --changelog-file "$RUNNER_TEMP/changelog.md"
+          cat > "$RUNNER_TEMP/add-release.sh" <<'SH'
+          set -eu
+          for manifest in manifest.json manifest-beta.json; do
+            set -- --manifest "repository/$manifest" --zip "$ZIP" --url "$URL" --changelog-file "$RUNNER_TEMP/changelog.md"
+            if [ "$manifest" = manifest-beta.json ]; then
+              set -- "$@" --seed repository/manifest.json --prune-betas 5 --pruned-file "$RUNNER_TEMP/pruned.txt"
+            fi
+            node --import tsx scripts/jellyfin-plugin-manifest.ts "$@"
+          done
+          SH
+          sh scripts/update-plugin-repository.sh "chore: add ${RELEASE_TAG} to the Jellyfin plugin manifests" \
+            sh "$RUNNER_TEMP/add-release.sh"
+        env:
+          ZIP: ${{ steps.package.outputs.zip }}
+          URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.release.outputs.tag_name }}/${{ steps.package.outputs.name }}
 
-      - name: Push manifest.json
-        working-directory: repository
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add manifest.json
-          git commit -m "chore: add ${RELEASE_TAG} to the Jellyfin plugin manifest"
-          git push origin "HEAD:refs/heads/$REPOSITORY_BRANCH"
+      - name: Delete the zips of pruned betas
+        run: sh scripts/delete-pruned-betas.sh "$RUNNER_TEMP/pruned.txt"

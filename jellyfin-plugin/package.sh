@@ -3,12 +3,16 @@
 # and zip it as artifacts/happy_<version>.zip for the plugin repository (docs/developer/jellyfin-plugin.md).
 # Runs anywhere the .NET 10 SDK is available (e.g. mcr.microsoft.com/dotnet/sdk:10.0); the zip also needs `zip`.
 # OUT=<dir> CONFIGURATION=Debug writes an unversioned folder and no zip (the local dev Jellyfin, scripts/dev-jellyfin.mjs).
+# HAPPY_VERSION=<x.y.z.w> overrides the version from build.yaml (beta builds, x.y.z.<build number>).
 set -eu
 cd "$(dirname "$0")"
 
 # Values are quoted; anything after the closing quote (the release-please marker) is ignored.
 field() { sed -n "s/^$1: \"\([^\"]*\)\".*$/\1/p" build.yaml; }
-version=$(field version)
+version="${HAPPY_VERSION:-$(field version)}"
+case "$version" in
+  *[!0-9.]* | *..* | .* | *.) echo "Invalid version: $version" >&2; exit 1 ;;
+esac
 out="${OUT:-artifacts/HAPPY_${version}}"
 zip="artifacts/happy_${version}.zip"
 configuration="${CONFIGURATION:-Release}"
@@ -16,6 +20,7 @@ configuration="${CONFIGURATION:-Release}"
 rm -rf "$out" "artifacts/publish"
 # HAPPY_COMMIT / HAPPY_BUILT_AT (set in CI) end up in GET /Happy/Info.
 dotnet publish Jellyfin.Plugin.Happy/Jellyfin.Plugin.Happy.csproj -c "$configuration" -o "artifacts/publish" --nologo -v quiet \
+  "-p:Version=$version" "-p:AssemblyVersion=$version" "-p:FileVersion=$version" \
   "-p:HappyCommit=${HAPPY_COMMIT:-}" "-p:HappyBuiltAt=${HAPPY_BUILT_AT:-}"
 mkdir -p "$out"
 cp artifacts/publish/Jellyfin.Plugin.Happy.dll thumb.png "$out/"

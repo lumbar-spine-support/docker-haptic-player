@@ -1,0 +1,132 @@
+name: Publish HAPPY Plugin (Beta)
+
+# Every push to dev becomes a beta build of the HAPPY Jellyfin plugin: version <latest stable>.<n>
+# (e.g. 1.1.0.3), zip attached to the rolling `beta` pre-release, listed in manifest-beta.json on the
+# jellyfin-plugin-repository branch next to the stable releases. See docs/developer/jellyfin-plugin.md.
+on:
+  push:
+    branches:
+      - dev
+    paths-ignore:
+      - "dglab-relay/**"
+      - "docs/developer/**"
+      - "dev/**"
+      - "sandbox/**"
+      - "*.md"
+      - ".github/workflows/dglab-relay-*.yml"
+      - ".devcontainer/**"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# A newer dev push supersedes a beta that is still building.
+concurrency:
+  group: happy-plugin-beta
+  cancel-in-progress: true
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY_BRANCH: jellyfin-plugin-repository
+      RELEASE_TAG: beta
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          # The plugin embeds the docs, whose images are in LFS; the changelog compares with main.
+          lfs: true
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install dependencies and build the client
+        run: |
+          npm ci
+          npm run build:client
+          npm run build:vendor
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Pick the beta version
+        id: version
+        run: |
+          manifest="$RUNNER_TEMP/manifest-beta.json"
+          seed="$RUNNER_TEMP/manifest.json"
+          if git fetch --depth=1 origin "$REPOSITORY_BRANCH"; then
+            git show FETCH_HEAD:manifest-beta.json > "$manifest" 2>/dev/null || rm -f "$manifest"
+            git show FETCH_HEAD:manifest.json > "$seed" 2>/dev/null || rm -f "$seed"
+          fi
+          version="$(node --import tsx scripts/jellyfin-plugin-manifest.ts --manifest "$manifest" --seed "$seed" --next-beta)"
+          echo "Beta version $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Package plugin
+        id: package
+        env:
+          HAPPY_VERSION: ${{ steps.version.outputs.version }}
+          HAPPY_COMMIT: ${{ github.sha }}
+        run: |
+          HAPPY_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" sh jellyfin-plugin/package.sh
+          zip="jellyfin-plugin/artifacts/happy_${HAPPY_VERSION}.zip"
+          test -f "$zip"
+          echo "zip=$zip" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$zip")" >> "$GITHUB_OUTPUT"
+
+      - name: Write the changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # PRs are rebased onto main, so compare patches, not commits: list what dev has and main does not.
+          changes="$(git log --no-merges --cherry-pick --right-only --format='- %s (%h)' origin/main...HEAD | head -n 30)"
+          {
+            printf 'Beta build %s from dev (commit %s). Not released yet, may be unstable.\n' "$VERSION" "${GITHUB_SHA::7}"
+            if [ -n "$changes" ]; then printf '\nChanges since the last release:\n\n%s\n' "$changes"; fi
+          } > "$RUNNER_TEMP/changelog.md"
+          cat "$RUNNER_TEMP/changelog.md"
+
+      - name: Attach the zip to the beta release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          manifest="https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/$REPOSITORY_BRANCH/manifest-beta.json"
+          notes="$(printf 'Rolling pre-release with the latest beta builds of HAPPY from the dev branch. Current: %s (commit %s).\n\nTo test them, add the beta plugin repository to Jellyfin (Dashboard → Plugins → Repositories): %s\n\nSee docs/installation.md (Beta channel) for how to switch back to stable releases.' "$VERSION" "$GITHUB_SHA" "$manifest")"
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --prerelease --latest=false --target "$GITHUB_SHA" --title "HAPPY beta" --notes "$notes"
+          else
+            gh release edit "$RELEASE_TAG" --notes "$notes"
+          fi
+          gh release upload "$RELEASE_TAG" "${{ steps.package.outputs.zip }}" --clobber
+
+      - name: Add the beta to manifest-beta.json
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          sh scripts/update-plugin-repository.sh "chore: add beta ${VERSION} to the Jellyfin plugin beta manifest" \
+            node --import tsx scripts/jellyfin-plugin-manifest.ts \
+              --manifest repository/manifest-beta.json \
+              --seed repository/manifest.json \
+              --zip "${{ steps.package.outputs.zip }}" \
+              --url "https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/${{ steps.package.outputs.name }}" \
+              --changelog-file "$RUNNER_TEMP/changelog.md" \
+              --version "$VERSION" \
+              --prune-betas 5 \
+              --pruned-file "$RUNNER_TEMP/pruned.txt"
+
+      - name: Delete the zips of pruned betas
+        run: sh scripts/delete-pruned-betas.sh "$RUNNER_TEMP/pruned.txt"
