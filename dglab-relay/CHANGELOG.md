@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/lumbar-spine-support/jellyfin-haptic-player/compare/dglab-relay-v1.0.0...dglab-relay-v1.1.0) (2026-10-10)
+
+
+### Features
+
+* **dglab-relay:** log connection health to diagnose unstable links ([9a24323](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/9a243236b314ebcff74e476992fa79193e4f5092))
+
 ## 1.0.0 (2026-10-09)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "happy-dglab-relay",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "WebSocket relay between HAPPY and the DG-Lab app (DG-Lab v4 protocol), checking sign-ins with Jellyfin",
   "license": "GPL-3.0-or-later",
