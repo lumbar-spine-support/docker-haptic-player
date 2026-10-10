@@ -3,7 +3,7 @@ import { JellyfinRequestError } from './jellyfin/library';
 import { JellyfinConnection } from './jellyfin/connection';
 import { ensureSignedIn, showMissingServerNotice } from './jellyfin/signIn';
 import { jellyfinUrlFromPage } from './jellyfin/serverUrl';
-import { formatVersion } from './utils/formatVersion';
+import { versionBadge } from './utils/formatVersion';
 import { qs } from './utils/html';
 import { storedSetting } from './utils/storedSetting';
 import { keepScreenOnWhilePlaying } from './utils/wakeLock';
@@ -345,8 +345,12 @@ class App {
     if (!this.versionBadge) return;
     try {
       const info = await fetchVersion();
-      this.versionBadge.textContent = `v${formatVersion(info.version)}`;
-      this.versionBadge.title = info.commit ? `${info.version} (commit ${info.commit})` : info.version;
+      const badge = versionBadge(info);
+      this.versionBadge.textContent = badge.text;
+      this.versionBadge.title = badge.title;
+      // Beta and dev builds stand out from releases (Bootstrap's warning badge).
+      this.versionBadge.classList.toggle('bg-secondary', !badge.prerelease);
+      this.versionBadge.classList.toggle('text-bg-warning', badge.prerelease);
     } catch {
       this.versionBadge.classList.add('d-none');
     }

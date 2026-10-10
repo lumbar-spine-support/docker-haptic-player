@@ -152,7 +152,7 @@ export interface LibraryResponse {
 /** HAPPY's version, from the plugin's GET /Happy/Info (`versionFromPluginInfo`). */
 export interface VersionInfo {
   version: string;
-  /** Release channel of the running build: `stable`, `preview`, or `dev`. */
+  /** Release channel of the running build: `stable`, `beta` (dev builds from the beta plugin repository), or `dev` (Debug). */
   channel: string;
   commit: string | null;
   builtAt: string | null;

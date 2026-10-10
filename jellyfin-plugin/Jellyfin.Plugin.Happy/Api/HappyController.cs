@@ -55,13 +55,14 @@ public class HappyController : ControllerBase
         string? Metadata(string key) => assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
             .FirstOrDefault(a => a.Key == key)?.Value is { Length: > 0 } value ? value : null;
 #if DEBUG
-        const string Channel = "dev";
+        const bool Debug = true;
 #else
-        const string Channel = "stable";
+        const bool Debug = false;
 #endif
+        var version = Plugin.Instance?.Version;
         return new HappyInfo(
-            Plugin.Instance?.Version.ToString() ?? "0.0.0.0",
-            Channel,
+            version?.ToString() ?? "0.0.0.0",
+            HappyInfo.ChannelOf(version, Debug),
             Metadata("HappyCommit"),
             Metadata("HappyBuiltAt"));
     }
