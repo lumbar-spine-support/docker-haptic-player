@@ -125,6 +125,8 @@ export interface PlaylistInfo {
   entries: PlaylistEntry[];
   /** Marked as a favorite by the signed-in Jellyfin user. */
   isFavorite: boolean;
+  /** Jellyfin lets the signed-in user delete it (their own playlists). */
+  canDelete: boolean;
 }
 
 /** A single action entry inside a Funscript file. */

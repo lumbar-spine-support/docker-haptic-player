@@ -44,6 +44,8 @@ export interface JellyfinItemDto {
     /** Media source id → resolution (thumbnail width) → sheet layout. */
     Trickplay?: Record<string, Record<string, JellyfinTrickplayDto>> | null;
     UserData?: JellyfinUserDataDto | null;
+    /** Only with `Fields=CanDelete`. */
+    CanDelete?: boolean;
 }
 
 export interface JellyfinItemsResult {

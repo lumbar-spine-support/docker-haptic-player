@@ -5,7 +5,7 @@ import { buildChaptersVtt } from '../shared/webvtt';
 import type { JellyfinConnection } from './jellyfin/connection';
 import { loadLibrary, setFavorite, type LoadOptions } from './jellyfin/library';
 import { toPlaylist } from './jellyfin/mapper';
-import { canOverwritePlaylist, createPlaylist, loadPlaylist, replacePlaylistItems } from './jellyfin/playlists';
+import { canOverwritePlaylist, createPlaylist, deletePlaylist, loadPlaylist, replacePlaylistItems } from './jellyfin/playlists';
 import { imageUrl, streamUrl, trickplayVtt } from './jellyfin/urls';
 import { versionFromPluginInfo, type PluginInfo } from './utils/formatVersion';
 
@@ -55,6 +55,11 @@ export async function overwriteJellyfinPlaylist(
   if (!(await canOverwritePlaylist(api, playlist.id, loaded))) return null;
   await replacePlaylistItems(api, playlist.id, trackIds);
   return toPlaylist(await loadPlaylist(api, playlist.id), tracksById);
+}
+
+/** Deletes a playlist from Jellyfin (for every app, not just HAPPY). */
+export function deleteJellyfinPlaylist(playlistId: string): Promise<void> {
+  return deletePlaylist(requireJellyfin(), playlistId);
 }
 
 /** Fetches one funscript through the HAPPY Jellyfin plugin. The raw JSON also carries chapter metadata. */

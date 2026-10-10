@@ -500,6 +500,12 @@ export class Library {
         return this.playlists.find((p) => p.id === id);
     }
 
+    /** Drops a playlist deleted from HAPPY, without reloading the library. */
+    removePlaylist(id: string): void {
+        this.playlists = this.playlists.filter((p) => p.id !== id);
+        if (this.loaded) this.render();
+    }
+
     /** Adds a playlist saved from HAPPY, or replaces it after an overwrite, without reloading the library. */
     upsertPlaylist(playlist: PlaylistInfo): void {
         const at = this.playlists.findIndex((p) => p.id === playlist.id);
@@ -913,27 +919,28 @@ export class Library {
             event.preventDefault();
             this.callbacks.openPlaylist(playlist.id);
         });
-        this.addCardActions(col, playlist, () => playlist.entries.map((entry) => entry.trackId), playlist.name);
+        this.addCardActions(col, playlist, () => playlist.entries.map((entry) => entry.trackId), playlist.name,
+            playlist.canDelete ? playlist.id : undefined);
         return col;
     }
 
     /** Heart (for Jellyfin items) and queue menu next to the card's meta line. */
-    private addCardActions(col: HTMLElement, item: FavoriteItem | null, trackIds: () => string[], label: string): void {
+    private addCardActions(col: HTMLElement, item: FavoriteItem | null, trackIds: () => string[], label: string, deletablePlaylistId?: string): void {
         const group = document.createElement('span');
         group.className = 'd-flex align-items-center gap-2 flex-shrink-0';
         if (item) group.appendChild(createFavoriteButton(item));
-        group.appendChild(createQueueMenu(trackIds, label));
+        group.appendChild(createQueueMenu(trackIds, label, deletablePlaylistId));
         col.querySelector('[data-card-actions]')?.appendChild(group);
     }
 
     /** Last cell of a list row: a heart for Jellyfin items (not client-side albums) and the queue menu. */
-    private appendRowActionsCell(tr: HTMLElement, item: FavoriteItem | null, trackIds: () => string[], label: string): void {
+    private appendRowActionsCell(tr: HTMLElement, item: FavoriteItem | null, trackIds: () => string[], label: string, deletablePlaylistId?: string): void {
         const td = document.createElement('td');
         td.className = 'align-middle text-end pe-2 favorite-cell';
         const group = document.createElement('span');
         group.className = 'd-inline-flex align-items-center gap-3';
         if (item) group.appendChild(createFavoriteButton(item));
-        group.appendChild(createQueueMenu(trackIds, label));
+        group.appendChild(createQueueMenu(trackIds, label, deletablePlaylistId));
         td.appendChild(group);
         tr.appendChild(td);
     }
@@ -973,7 +980,8 @@ export class Library {
             hapticIcons: renderHapticIcons(this.playlistFunscriptTypes(playlist, tracksById)),
         });
         applyPlaylistCover(tr.querySelector('img'), playlist.entries.map((entry) => tracksById.get(entry.trackId)));
-        this.appendRowActionsCell(tr, playlist, () => playlist.entries.map((entry) => entry.trackId), playlist.name);
+        this.appendRowActionsCell(tr, playlist, () => playlist.entries.map((entry) => entry.trackId), playlist.name,
+            playlist.canDelete ? playlist.id : undefined);
         return tr;
     }
 

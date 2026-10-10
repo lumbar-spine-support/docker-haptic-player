@@ -53,12 +53,18 @@ export async function canOverwritePlaylist(api: JellyfinApi, playlistId: string,
         && ItemIds.every((itemId, index) => itemId === loadedItemIds[index]);
 }
 
+/** Deletes a playlist from Jellyfin, for every app. Jellyfin only lets owners (and admins) do it. */
+export async function deletePlaylist(api: JellyfinApi, playlistId: string): Promise<void> {
+    const res = await api.request(`/Items/${encodeURIComponent(playlistId)}`, { method: 'DELETE' });
+    if (!res.ok) throw new JellyfinRequestError(res.status, 'Deleting a playlist');
+}
+
 /** One playlist with its entries, as the library loader reads them. */
 export async function loadPlaylist(api: JellyfinApi, playlistId: string): Promise<JellyfinPlaylist> {
     const user = encodeURIComponent(api.userId);
     const id = encodeURIComponent(playlistId);
     const [itemRes, entriesRes] = await Promise.all([
-        api.request(`/Items/${id}?userId=${user}`),
+        api.request(`/Items/${id}?userId=${user}&Fields=CanDelete`),
         api.request(`/Playlists/${id}/Items?userId=${user}`),
     ]);
     if (!itemRes.ok) throw new JellyfinRequestError(itemRes.status, 'Playlist fetch');

@@ -172,6 +172,7 @@ function makePlaylist(overrides: Partial<PlaylistInfo> = {}): PlaylistInfo {
         id: 'playlist-1',
         name: 'Playlist One',
         entries: [],
+        canDelete: false,
         durationSeconds: 0,
         ...overrides,
     } as PlaylistInfo;

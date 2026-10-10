@@ -1,4 +1,4 @@
-import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchClientSettings, logout, artworkUrl, chaptersVttUrl, useJellyfin, createJellyfinPlaylist, overwriteJellyfinPlaylist } from './api';
+import { fetchFunscript, fetchDoc, docAssetUrl, fetchVersion, fetchClientSettings, logout, artworkUrl, chaptersVttUrl, useJellyfin, createJellyfinPlaylist, overwriteJellyfinPlaylist, deleteJellyfinPlaylist } from './api';
 import { JellyfinRequestError } from './jellyfin/library';
 import { JellyfinConnection } from './jellyfin/connection';
 import { ensureSignedIn, showMissingServerNotice } from './jellyfin/signIn';
@@ -37,7 +37,7 @@ import { bindIntifaceSettings } from './components/settings/intiface';
 import { bindDelaySlider, bindUpdateRateSlider } from './components/settings/haptics';
 import { bindToggle } from './components/settings/toggle';
 import type { TrackInfo, QueueSource, ClientSettings, PlaylistInfo } from '../shared/types';
-import type { QueueSave } from '@/components/videojs/features/queue';
+import { notifyQueueChanged, type QueueSave } from '@/components/videojs/features/queue';
 import type { HapticChannel } from '../shared/haptics';
 
 import '@videojs/html/ui/title';
@@ -183,8 +183,9 @@ class App {
         showToast(`${this.queuedLabel(ids)} will play next`);
       },
       enqueue: (ids) => this.enqueue(ids),
+      deletePlaylist: (id, name) => { void this.deletePlaylist(id, name); },
     });
-    // The heart in each player's control bar asks about the track that player holds.
+    // The heart in each player's top bar asks about the track that player holds.
     setFavoriteTarget({
       isFavorite: (id) => this.library.getTrack(id)?.isFavorite ?? null,
       toggle: (id) => {
@@ -580,6 +581,23 @@ class App {
   private queuedLabel(trackIds: string[]): string {
     if (trackIds.length !== 1) return `${trackIds.length} tracks`;
     return `“${this.library.getTrack(trackIds[0])?.title ?? 'Track'}”`;
+  }
+
+  /** Deletes a playlist from Jellyfin after the user confirms; the queue keeps its entries. */
+  private async deletePlaylist(playlistId: string, name: string): Promise<void> {
+    if (!window.confirm(`Delete the playlist “${name}”? It is removed from Jellyfin, for all apps. The media itself stays.`)) return;
+    try {
+      await deleteJellyfinPlaylist(playlistId);
+    } catch (err) {
+      const refused = err instanceof JellyfinRequestError && (err.status === 401 || err.status === 403);
+      showToast(refused ? `Jellyfin did not let you delete “${name}”` : `Could not delete “${name}”`);
+      console.error('[playlists] delete failed', err);
+      return;
+    }
+    this.library.removePlaylist(playlistId);
+    // A queue started from it keeps playing; the panel just no longer names it.
+    notifyQueueChanged();
+    showToast(`Deleted “${name}”`);
   }
 
   /** Stores the whole queue as a Jellyfin playlist; the queue then counts as that playlist. */

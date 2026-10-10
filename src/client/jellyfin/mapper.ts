@@ -123,6 +123,7 @@ export function toPlaylist(playlist: JellyfinPlaylist, tracksById: Map<string, T
         durationSeconds: entries.reduce((sum, entry) => sum + (tracksById.get(entry.trackId)?.durationSeconds ?? 0), 0),
         entries,
         isFavorite: playlist.item.UserData?.IsFavorite === true,
+        canDelete: playlist.item.CanDelete === true,
     };
 }
 

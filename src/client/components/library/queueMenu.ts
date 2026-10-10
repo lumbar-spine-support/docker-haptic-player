@@ -1,7 +1,9 @@
-/** What the library's queue menus can ask of the playback queue; the app provides it. */
+/** What the library's item menus can ask for; the app provides it. */
 export interface QueueActions {
     playNext(trackIds: string[]): void;
     enqueue(trackIds: string[]): void;
+    /** Asks for confirmation, then deletes the playlist from Jellyfin. */
+    deletePlaylist(playlistId: string, name: string): void;
 }
 
 let actions: QueueActions | null = null;
@@ -14,9 +16,10 @@ export function setQueueActions(next: QueueActions | null): void {
 /**
  * "⋯" dropdown with "Play next" and "Add to queue" for a card, a list row or a
  * row of the album/playlist page. `trackIds` is read on click, so a menu always
- * queues what its item holds at that moment.
+ * queues what its item holds at that moment. Playlists the user may delete also
+ * get "Delete playlist" (`deletablePlaylistId`).
  */
-export function createQueueMenu(trackIds: () => string[], label: string): HTMLElement {
+export function createQueueMenu(trackIds: () => string[], label: string, deletablePlaylistId?: string): HTMLElement {
     const wrapper = document.createElement('div');
     wrapper.className = 'dropdown queue-menu';
     // Cards and rows open their item on click; the menu must not.
@@ -43,6 +46,14 @@ export function createQueueMenu(trackIds: () => string[], label: string): HTMLEl
     };
     menu.appendChild(menuItem('bi-skip-end-fill', 'Play next', choose(() => actions?.playNext(trackIds()))));
     menu.appendChild(menuItem('bi-plus-lg', 'Add to queue', choose(() => actions?.enqueue(trackIds()))));
+    if (deletablePlaylistId) {
+        const divider = document.createElement('li');
+        divider.innerHTML = '<hr class="dropdown-divider">';
+        menu.appendChild(divider);
+        const remove = menuItem('bi-trash3', 'Delete playlist', choose(() => actions?.deletePlaylist(deletablePlaylistId, label)));
+        remove.firstElementChild?.classList.add('text-danger');
+        menu.appendChild(remove);
+    }
     wrapper.appendChild(toggle);
     wrapper.appendChild(menu);
     return wrapper;

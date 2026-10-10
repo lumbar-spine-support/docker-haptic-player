@@ -42,7 +42,7 @@ async function loadFunscripts(api: JellyfinApi): Promise<HappyFunscriptListing> 
 
 async function loadPlaylists(api: JellyfinApi): Promise<JellyfinPlaylist[]> {
     const user = encodeURIComponent(api.userId);
-    const { Items } = await getJson<JellyfinItemsResult>(api, `/Items?userId=${user}&Recursive=true&IncludeItemTypes=Playlist&EnableUserData=true`, 'Playlist listing');
+    const { Items } = await getJson<JellyfinItemsResult>(api, `/Items?userId=${user}&Recursive=true&IncludeItemTypes=Playlist&EnableUserData=true&Fields=CanDelete`, 'Playlist listing');
     return Promise.all(Items.map(async (item) => {
         const { Items: entries } = await getJson<JellyfinItemsResult>(
             api, `/Playlists/${encodeURIComponent(item.Id)}/Items?userId=${user}`, 'Playlist entries');
