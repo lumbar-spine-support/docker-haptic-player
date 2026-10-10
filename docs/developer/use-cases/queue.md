@@ -90,13 +90,13 @@ sequenceDiagram
   participant L as Library
   participant Q as PlaybackQueue
 
-  alt Save as playlist…
+  alt Save as…
     U->>P: name, Save
     P->>A: save({ mode: 'new', name })
     A->>API: createJellyfinPlaylist(name, queue.trackIds)
     API->>J: POST /Playlists { Name, Ids, UserId, IsPublic: false }
-  else Save to "…" (queue came from a playlist, edited)
-    U->>P: Save to "…"
+  else Save (queue came from a playlist, edited)
+    U->>P: Save
     P->>A: save({ mode: 'overwrite' })
     A->>API: overwriteJellyfinPlaylist(playlist, queue.trackIds)
     API->>J: GET /Playlists/{id} (ItemIds) + GET /Playlists/{id}/Users/{me} (CanEdit)

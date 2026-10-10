@@ -193,21 +193,30 @@
       display: none;
     }
 
+    /* Buttons and the name field are all Bootstrap's small size, on one line that
+       never wraps, so opening the name field keeps the row's height. */
     .media-queue-save-actions,
     .media-queue-save-form {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
       gap: var(--media-spacing);
     }
 
-    .media-queue-save-actions .btn {
-      max-width: 100%;
+    .media-queue-save-actions .btn,
+    .media-queue-save-form .btn {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .media-queue-save-form {
+      flex: 1;
+      min-width: 0;
     }
 
     .media-queue-save-form .form-control {
       flex: 1;
-      min-width: 8rem;
+      min-width: 0;
     }
 
     .media-queue-status:empty {

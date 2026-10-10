@@ -98,17 +98,21 @@ class QueuePanelElement extends UIElement {
             <ol class="media-queue-list list-unstyled mb-0" data-part="list"></ol>
             <div class="media-queue-save" data-part="save">
                 <div class="media-queue-save-actions">
-                    <button type="button" class="btn btn-sm btn-primary text-truncate" data-action="overwrite">
-                        <i class="bi bi-floppy me-1" aria-hidden="true"></i><span data-part="overwrite-label"></span>
+                    <button type="button" class="btn btn-sm btn-primary" data-action="overwrite">
+                        <i class="bi bi-floppy me-1" aria-hidden="true"></i>Save
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-action="save-new">Save as playlist…</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-action="save-new"
+                        title="Save the queue as a new playlist">
+                        <i class="bi bi-floppy me-1" aria-hidden="true"></i>Save as…
+                    </button>
+                    <form class="media-queue-save-form" data-part="save-form" hidden>
+                        <input type="text" class="form-control form-control-sm" data-part="name" maxlength="200" required
+                            aria-label="Playlist name" placeholder="Playlist name">
+                        <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-action="cancel"
+                            aria-label="Cancel" title="Cancel"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                    </form>
                 </div>
-                <form class="media-queue-save-form" data-part="save-form" hidden>
-                    <input type="text" class="form-control form-control-sm" data-part="name" maxlength="200" required
-                        aria-label="Playlist name" placeholder="Playlist name">
-                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" data-action="cancel">Cancel</button>
-                </form>
                 <div class="media-queue-status small" data-part="status" role="status"></div>
             </div>`;
         this.#list = this.querySelector('[data-part="list"]');
@@ -122,9 +126,11 @@ class QueuePanelElement extends UIElement {
         const name = this.querySelector<HTMLInputElement>('[data-part="name"]');
         const saveNew = this.querySelector<HTMLElement>('[data-action="save-new"]');
         if (!form || !name || !saveNew) return;
+        // The name field takes the buttons' place in the same row, so the panel keeps its height.
         const showForm = (open: boolean): void => {
             form.hidden = !open;
             saveNew.hidden = open;
+            this.#renderSave(getQueueTarget()?.getState() ?? null);
             if (open) {
                 const source = getQueueTarget()?.getState().sourceName;
                 name.value = source ? `${source} (queue)` : `Queue ${new Date().toLocaleDateString()}`;
@@ -216,11 +222,12 @@ class QueuePanelElement extends UIElement {
         if (section) section.hidden = !state?.items.length;
         const overwrite = this.querySelector<HTMLButtonElement>('[data-action="overwrite"]');
         if (overwrite) {
-            overwrite.hidden = !state?.fromPlaylist;
+            const naming = !this.querySelector<HTMLFormElement>('[data-part="save-form"]')?.hidden;
+            overwrite.hidden = !state?.fromPlaylist || naming;
             overwrite.disabled = this.#saving || !state?.edited;
-            overwrite.title = state?.edited ? '' : 'The queue still matches the playlist';
-            const label = overwrite.querySelector('[data-part="overwrite-label"]');
-            if (label) label.textContent = `Save to “${state?.sourceName ?? ''}”`;
+            const target = `Save to “${state?.sourceName ?? ''}”`;
+            overwrite.title = state?.edited ? target : 'The queue still matches the playlist';
+            overwrite.setAttribute('aria-label', target);
         }
         for (const button of this.querySelectorAll<HTMLButtonElement>('[data-action="save-new"], .media-queue-save-form button[type="submit"]')) {
             button.disabled = this.#saving;
