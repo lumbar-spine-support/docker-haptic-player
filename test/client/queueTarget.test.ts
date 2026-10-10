@@ -16,7 +16,6 @@ function setup() {
     const queue = new PlaybackQueue();
     const calls: string[] = [];
     const controller = {
-        enqueue: (ids: string[]) => calls.push(`enqueue ${ids}`),
         jumpTo: (uid: number) => calls.push(`jump ${uid}`),
         moveUpcoming: (from: number, to: number) => calls.push(`move ${from}->${to}`),
         removeFromQueue: (uid: number) => calls.push(`remove ${uid}`),
@@ -50,14 +49,6 @@ test(`${TAG} publishes a state the panel can render without the library`, () => 
     assert.deepEqual(upcomingOf(state).map((item) => item.trackId), ['gone']);
 });
 
-test(`${TAG} tells where a track stands in the queue`, () => {
-    const { queue, target } = setup();
-    queue.replace(['t1', 't2'], 0, { type: 'single' });
-    assert.equal(target.placeOf('t1'), 'current');
-    assert.equal(target.placeOf('t2'), 'upcoming');
-    assert.equal(target.placeOf('t3'), null);
-});
-
 test(`${TAG} a queue from a playlist can be written back once edited`, async () => {
     const { queue, target, calls } = setup();
     queue.replace(['t1', 't2'], 0, { type: 'playlist', id: 'p1' });
@@ -71,13 +62,12 @@ test(`${TAG} a queue from a playlist can be written back once edited`, async () 
 
 test(`${TAG} every change goes through the controller`, () => {
     const { target, calls } = setup();
-    target.enqueue('t3');
     void target.jumpTo(4);
     target.moveUpcoming(0, 2);
     target.remove(5);
     target.shuffle();
     target.clear();
-    assert.deepEqual(calls, ['enqueue t3', 'jump 4', 'move 0->2', 'remove 5', 'shuffle', 'clear']);
+    assert.deepEqual(calls, ['jump 4', 'move 0->2', 'remove 5', 'shuffle', 'clear']);
 });
 
 test(`${TAG} queue changes reach the player UI`, () => {

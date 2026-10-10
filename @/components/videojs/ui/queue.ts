@@ -1,84 +1,19 @@
 import { UIElement } from '@videojs/html';
-import { applyElementProps, createButton } from '@videojs/core/dom';
-import { TRACK_ID_ATTRIBUTE } from '../features/favorite';
 import { getQueueTarget, subscribeQueue, upcomingOf, type QueueItem, type QueueSave, type QueueState } from '../features/queue';
 import './queue.css';
 
-/**
- * Add-to-queue button.
- *
- * Queues the track its own `<video-player>` holds. Hidden while that player
- * holds the playing track (it is the queue's current entry already); shows a
- * check once the track is up next.
- *
- * https://videojs.org/docs/framework/html/how-to/build-your-own-component
- */
-class QueueAddButtonElement extends UIElement {
-    static readonly tagName = 'media-queue-add-button';
+/** Played entries shown above the current one; older ones stay in the queue but out of the list. */
+const MAX_HISTORY = 10;
 
-    #disconnect: AbortController | null = null;
-    #unsubscribe: (() => void) | null = null;
-    #observer: MutationObserver | null = null;
-    #player: HTMLElement | null = null;
-
-    private get trackId(): string | null {
-        return this.#player?.getAttribute(TRACK_ID_ATTRIBUTE) ?? null;
-    }
-
-    private get place(): 'current' | 'upcoming' | null | undefined {
-        const id = this.trackId;
-        const target = getQueueTarget();
-        return id && target ? target.placeOf(id) : undefined;
-    }
-
-    override connectedCallback(): void {
-        super.connectedCallback();
-        this.#disconnect = new AbortController();
-        this.#player = this.closest<HTMLElement>('video-player');
-        applyElementProps(this, createButton({
-            onActivate: () => this.#activate(),
-            isDisabled: () => this.place !== null,
-        }), { signal: this.#disconnect.signal });
-        this.#unsubscribe = subscribeQueue(() => this.requestUpdate());
-        if (this.#player) {
-            this.#observer = new MutationObserver(() => this.requestUpdate());
-            this.#observer.observe(this.#player, { attributes: true, attributeFilter: [TRACK_ID_ATTRIBUTE] });
-        }
-    }
-
-    override disconnectedCallback(): void {
-        this.#disconnect?.abort();
-        this.#disconnect = null;
-        this.#unsubscribe?.();
-        this.#unsubscribe = null;
-        this.#observer?.disconnect();
-        this.#observer = null;
-        this.#player = null;
-        super.disconnectedCallback();
-    }
-
-    protected override update(changed: Map<string, unknown>): void {
-        super.update(changed);
-        const place = this.place;
-        const queued = place === 'upcoming';
-        this.toggleAttribute('data-hidden', place === undefined || place === 'current');
-        this.setAttribute('aria-disabled', String(queued));
-        this.setAttribute('aria-label', queued ? 'In queue' : 'Add to queue');
-        this.toggleAttribute('data-active', queued);
-        this.querySelector('media-icon')?.setAttribute('name', queued ? 'check' : 'queue-add');
-    }
-
-    #activate(): void {
-        const id = this.trackId;
-        if (id && this.place === null) getQueueTarget()?.enqueue(id);
-    }
-}
+const reducedMotion = (): boolean => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /**
- * Contents of the queue popover: what played, what plays now and what is up
- * next. Upcoming entries can be dragged by their handle (or moved with
- * Alt+↑/↓), removed, shuffled and cleared; any entry can be played. The whole
- * queue can be saved as a Jellyfin playlist, or back to the playlist it came from.
+ * Contents of the queue popover: up to ten played entries, the playing one
+ * and what is up next. The list opens scrolled so the playing entry is on top.
+ * Upcoming entries can be dragged by their handle (or moved with Alt+↑/↓),
+ * removed, shuffled and cleared; any entry can be played. Rows slide to their
+ * new place, so a change is easy to follow. The whole queue can be saved as a
+ * Jellyfin playlist, or back to the playlist it came from.
  *
  * Also hides its popover's trigger while the queue is empty.
  */
@@ -87,22 +22,30 @@ class QueuePanelElement extends UIElement {
 
     #unsubscribe: (() => void) | null = null;
     #resize: ResizeObserver | null = null;
-    #showHistory = false;
+    #popoverAbort: AbortController | null = null;
     /** Re-rendering mid-drag would drop the row being dragged. */
     #dragging = false;
     #saving = false;
+    /** The playing entry last scrolled to the top; a new one (or reopening) scrolls again. */
+    #scrolledTo: number | null = null;
     #list: HTMLOListElement | null = null;
 
     override connectedCallback(): void {
         super.connectedCallback();
         if (!this.#list) this.#build();
         this.#unsubscribe = subscribeQueue(() => this.requestUpdate());
+        const popover = this.closest<HTMLElement & { open?: boolean }>('media-popover');
+        this.#popoverAbort = new AbortController();
+        popover?.addEventListener('open-change', (event) => {
+            if (!(event as CustomEvent<{ open: boolean }>).detail.open) return;
+            this.#scrolledTo = null;
+            this.requestUpdate();
+        }, { signal: this.#popoverAbort.signal });
         // The popover sits in the top layer, so hiding its player (browsing another
         // page) or its trigger (empty queue) would leave it floating; close it instead.
         const trigger = this.#trigger();
         if (trigger) {
             this.#resize = new ResizeObserver(() => {
-                const popover = this.closest<HTMLElement & { open?: boolean }>('media-popover');
                 if (popover?.open && !trigger.offsetWidth) popover.open = false;
             });
             this.#resize.observe(trigger);
@@ -114,6 +57,8 @@ class QueuePanelElement extends UIElement {
         this.#unsubscribe = null;
         this.#resize?.disconnect();
         this.#resize = null;
+        this.#popoverAbort?.abort();
+        this.#popoverAbort = null;
         super.disconnectedCallback();
     }
 
@@ -137,28 +82,30 @@ class QueuePanelElement extends UIElement {
                     <span class="media-queue-title">Queue</span>
                     <span class="media-queue-source" data-part="source"></span>
                 </div>
-                <button type="button" class="media-queue-action" data-action="shuffle" aria-label="Shuffle up next" title="Shuffle up next">
-                    <media-icon family="compat" name="shuffle"></media-icon>
+                <button type="button" class="btn btn-sm btn-link media-queue-icon-button" data-action="shuffle"
+                    aria-label="Shuffle up next" title="Shuffle up next">
+                    <i class="bi bi-shuffle" aria-hidden="true"></i>
                 </button>
-                <button type="button" class="media-queue-action" data-action="clear" aria-label="Clear up next" title="Clear up next">
-                    <media-icon family="compat" name="trash"></media-icon>
+                <button type="button" class="btn btn-sm btn-link media-queue-icon-button" data-action="clear"
+                    aria-label="Clear up next" title="Clear up next">
+                    <i class="bi bi-trash3" aria-hidden="true"></i>
                 </button>
             </div>
-            <ol class="media-queue-list" data-part="list"></ol>
+            <ol class="media-queue-list list-unstyled mb-0" data-part="list"></ol>
             <div class="media-queue-save" data-part="save">
                 <div class="media-queue-save-actions">
-                    <button type="button" class="media-queue-text-button" data-action="overwrite">
-                        <media-icon family="compat" name="save"></media-icon><span data-part="overwrite-label"></span>
+                    <button type="button" class="btn btn-sm btn-primary text-truncate" data-action="overwrite">
+                        <i class="bi bi-floppy me-1" aria-hidden="true"></i><span data-part="overwrite-label"></span>
                     </button>
-                    <button type="button" class="media-queue-text-button" data-action="save-new">Save as playlist…</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-action="save-new">Save as playlist…</button>
                 </div>
                 <form class="media-queue-save-form" data-part="save-form" hidden>
-                    <input type="text" class="media-queue-name" data-part="name" maxlength="200" required
+                    <input type="text" class="form-control form-control-sm" data-part="name" maxlength="200" required
                         aria-label="Playlist name" placeholder="Playlist name">
-                    <button type="submit" class="media-queue-text-button">Save</button>
-                    <button type="button" class="media-queue-text-button" data-action="cancel">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-action="cancel">Cancel</button>
                 </form>
-                <div class="media-queue-status" data-part="status" role="status"></div>
+                <div class="media-queue-status small" data-part="status" role="status"></div>
             </div>`;
         this.#list = this.querySelector('[data-part="list"]');
         this.querySelector('[data-action="shuffle"]')?.addEventListener('click', () => getQueueTarget()?.shuffle());
@@ -169,10 +116,11 @@ class QueuePanelElement extends UIElement {
     #bindSave(): void {
         const form = this.querySelector<HTMLFormElement>('[data-part="save-form"]');
         const name = this.querySelector<HTMLInputElement>('[data-part="name"]');
-        if (!form || !name) return;
+        const saveNew = this.querySelector<HTMLElement>('[data-action="save-new"]');
+        if (!form || !name || !saveNew) return;
         const showForm = (open: boolean): void => {
             form.hidden = !open;
-            this.querySelector<HTMLElement>('[data-action="save-new"]')!.hidden = open;
+            saveNew.hidden = open;
             if (open) {
                 const source = getQueueTarget()?.getState().sourceName;
                 name.value = source ? `${source} (queue)` : `Queue ${new Date().toLocaleDateString()}`;
@@ -180,7 +128,7 @@ class QueuePanelElement extends UIElement {
                 name.focus();
             }
         };
-        this.querySelector('[data-action="save-new"]')?.addEventListener('click', () => showForm(true));
+        saveNew.addEventListener('click', () => showForm(true));
         this.querySelector('[data-action="cancel"]')?.addEventListener('click', () => showForm(false));
         this.querySelector('[data-action="overwrite"]')?.addEventListener('click', () => { void this.#save({ mode: 'overwrite' }); });
         form.addEventListener('submit', (event) => {
@@ -219,7 +167,7 @@ class QueuePanelElement extends UIElement {
         const status = this.querySelector<HTMLElement>('[data-part="status"]');
         if (!status) return;
         status.textContent = text;
-        status.toggleAttribute('data-error', error);
+        status.classList.toggle('text-danger', error);
     }
 
     #render(state: QueueState | null): void {
@@ -228,38 +176,35 @@ class QueuePanelElement extends UIElement {
         const source = this.querySelector('[data-part="source"]');
         if (source) source.textContent = state?.sourceName ? `from ${state.sourceName}` : '';
         const upcoming = state ? upcomingOf(state) : [];
-        for (const button of this.querySelectorAll<HTMLButtonElement>('.media-queue-action')) {
+        for (const button of this.querySelectorAll<HTMLButtonElement>('.media-queue-header button')) {
             button.disabled = button.dataset.action === 'shuffle' ? upcoming.length < 2 : upcoming.length === 0;
         }
         this.#renderSave(state);
 
+        const before = this.#rowTops();
         list.replaceChildren();
         if (!state) return;
-        const history = state.items.slice(0, Math.max(0, state.currentIndex));
-        if (history.length) {
-            const toggle = document.createElement('li');
-            toggle.className = 'media-queue-section';
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'media-queue-history-toggle';
-            button.setAttribute('aria-expanded', String(this.#showHistory));
-            button.textContent = this.#showHistory ? 'Hide played' : `${history.length} played`;
-            button.addEventListener('click', () => {
-                this.#showHistory = !this.#showHistory;
-                this.requestUpdate();
-            });
-            toggle.appendChild(button);
-            list.appendChild(toggle);
-            if (this.#showHistory) for (const item of history) list.appendChild(this.#row(item, 'played'));
-        }
+        const start = Math.max(0, state.currentIndex - MAX_HISTORY);
+        for (const item of state.items.slice(start, Math.max(0, state.currentIndex))) list.appendChild(this.#row(item, 'played'));
         const current = state.items[state.currentIndex];
         if (current) list.appendChild(this.#row(current, 'current'));
 
         const heading = document.createElement('li');
         heading.className = 'media-queue-section';
-        heading.textContent = upcoming.length ? 'Up next' : 'Nothing up next. Add media with ＋ or the ⋯ menu in the library.';
+        heading.textContent = upcoming.length ? 'Up next' : 'Nothing up next. Add media with the ⋯ menu in the library.';
         list.appendChild(heading);
         upcoming.forEach((item, index) => list.appendChild(this.#row(item, 'upcoming', index)));
+
+        // The list is only as tall as the playing entry and what follows (the popover's
+        // max-height still caps it), so the played entries are always above the fold.
+        const currentRow = list.querySelector<HTMLElement>('.media-queue-row[data-kind="current"]');
+        list.style.maxHeight = currentRow ? `${list.scrollHeight - currentRow.offsetTop}px` : '';
+        if (current && currentRow && this.#scrolledTo !== current.uid) {
+            this.#scrolledTo = current.uid;
+            list.scrollTop = currentRow.offsetTop;
+        } else {
+            this.#slideFrom(before);
+        }
     }
 
     #renderSave(state: QueueState | null): void {
@@ -282,14 +227,15 @@ class QueuePanelElement extends UIElement {
         const row = document.createElement('li');
         row.className = 'media-queue-row';
         row.dataset.kind = kind;
+        row.dataset.uid = String(item.uid);
         if (kind === 'current') row.setAttribute('aria-current', 'true');
 
         if (kind === 'upcoming') {
             const handle = document.createElement('button');
             handle.type = 'button';
-            handle.className = 'media-queue-handle';
+            handle.className = 'btn btn-sm btn-link media-queue-icon-button media-queue-handle';
             handle.setAttribute('aria-label', `Move ${item.title} (Alt+Arrow keys)`);
-            handle.innerHTML = '<media-icon family="compat" name="grip"></media-icon>';
+            handle.innerHTML = '<i class="bi bi-grip-vertical" aria-hidden="true"></i>';
             handle.addEventListener('pointerdown', (event) => this.#startDrag(event, row, index));
             row.addEventListener('keydown', (event) => {
                 if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
@@ -323,9 +269,9 @@ class QueuePanelElement extends UIElement {
         if (kind === 'upcoming') {
             const remove = document.createElement('button');
             remove.type = 'button';
-            remove.className = 'media-queue-action';
+            remove.className = 'btn btn-sm btn-link media-queue-icon-button';
             remove.setAttribute('aria-label', `Remove ${item.title} from the queue`);
-            remove.innerHTML = '<media-icon family="compat" name="close"></media-icon>';
+            remove.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
             remove.addEventListener('click', () => getQueueTarget()?.remove(item.uid));
             row.appendChild(remove);
         }
@@ -336,7 +282,41 @@ class QueuePanelElement extends UIElement {
         return [...(this.#list?.querySelectorAll<HTMLElement>('.media-queue-row[data-kind="upcoming"]') ?? [])];
     }
 
-    /** Pointer drag on a row's handle: the row follows the pointer through the DOM; the queue changes on release. */
+    /** Where each row is on screen now, by entry id (transforms included, so mid-slide positions count). */
+    #rowTops(): Map<string, number> {
+        const tops = new Map<string, number>();
+        for (const row of this.#list?.querySelectorAll<HTMLElement>('.media-queue-row') ?? []) {
+            tops.set(row.dataset.uid ?? '', row.getBoundingClientRect().top);
+        }
+        return tops;
+    }
+
+    /** FLIP: rows that moved start where they were and slide to their new place. */
+    #slideFrom(before: Map<string, number>): void {
+        if (!before.size || reducedMotion()) return;
+        const moved: HTMLElement[] = [];
+        for (const row of this.#list?.querySelectorAll<HTMLElement>('.media-queue-row') ?? []) {
+            const old = before.get(row.dataset.uid ?? '');
+            if (old === undefined) continue;
+            const delta = old - row.getBoundingClientRect().top;
+            if (Math.abs(delta) < 1) continue;
+            row.style.transition = 'none';
+            row.style.transform = `translateY(${delta}px)`;
+            moved.push(row);
+        }
+        if (!moved.length) return;
+        void this.#list?.offsetHeight;
+        for (const row of moved) {
+            row.style.transition = '';
+            row.style.transform = '';
+        }
+    }
+
+    /**
+     * Pointer drag on a row's handle. The row follows the pointer and the rows it
+     * passes slide out of its way; nothing leaves the DOM, so pointer capture holds
+     * for the whole gesture and a row can travel any distance. The queue changes on release.
+     */
     #startDrag(event: PointerEvent, row: HTMLElement, from: number): void {
         const list = this.#list;
         if (!list || event.button !== 0) return;
@@ -345,44 +325,69 @@ class QueuePanelElement extends UIElement {
         handle.setPointerCapture(event.pointerId);
         this.#dragging = true;
         row.dataset.dragging = '';
+
+        const rows = this.#upcomingRows();
+        const rects = rows.map((other) => other.getBoundingClientRect());
+        const step = rects.length > 1 ? rects[1].top - rects[0].top : rects[0].height;
+        const startY = event.clientY;
+        const startScroll = list.scrollTop;
+        let to = from;
+        let pointerY = startY;
+        let scrollTimer: ReturnType<typeof setInterval> | null = null;
         const abort = new AbortController();
 
-        handle.addEventListener('pointermove', (move) => {
-            const y = move.clientY;
-            const bounds = list.getBoundingClientRect();
-            if (y < bounds.top + 24) list.scrollTop -= 8;
-            else if (y > bounds.bottom - 24) list.scrollTop += 8;
-            const others = this.#upcomingRows().filter((other) => other !== row);
-            const before = others.find((other) => {
-                const rect = other.getBoundingClientRect();
-                return y < rect.top + rect.height / 2;
+        const place = (): void => {
+            const offset = pointerY - startY + (list.scrollTop - startScroll);
+            row.style.transform = `translateY(${offset}px)`;
+            const centre = rects[from].top + rects[from].height / 2 + offset;
+            to = from;
+            while (to < rows.length - 1 && centre > rects[to + 1].top + rects[to + 1].height / 2) to++;
+            while (to > 0 && centre < rects[to - 1].top + rects[to - 1].height / 2) to--;
+            rows.forEach((other, i) => {
+                if (other === row) return;
+                const shift = from < to && i > from && i <= to ? -step : to < from && i >= to && i < from ? step : 0;
+                other.style.transform = shift ? `translateY(${shift}px)` : '';
             });
-            if (before) {
-                if (row.nextElementSibling !== before) list.insertBefore(row, before);
-            } else if (list.lastElementChild !== row) {
-                list.appendChild(row);
+        };
+        // Near the list's edges it scrolls, so a row can reach entries that are out of view.
+        const edgeScroll = (): void => {
+            const bounds = list.getBoundingClientRect();
+            const speed = pointerY < bounds.top + 32 ? -8 : pointerY > bounds.bottom - 32 ? 8 : 0;
+            if (speed && !scrollTimer) {
+                scrollTimer = setInterval(() => {
+                    list.scrollTop += pointerY < list.getBoundingClientRect().top + 32 ? -8 : 8;
+                    place();
+                }, 16);
+            } else if (!speed && scrollTimer) {
+                clearInterval(scrollTimer);
+                scrollTimer = null;
             }
+        };
+
+        handle.addEventListener('pointermove', (move) => {
+            pointerY = move.clientY;
+            place();
+            edgeScroll();
         }, { signal: abort.signal });
 
         const finish = (): void => {
             abort.abort();
+            if (scrollTimer) clearInterval(scrollTimer);
             delete row.dataset.dragging;
             this.#dragging = false;
-            const to = this.#upcomingRows().indexOf(row);
-            if (to >= 0 && to !== from) getQueueTarget()?.moveUpcoming(from, to);
-            else this.requestUpdate();
+            // The rows already show the new order; re-rendering from there slides nothing.
+            if (to !== from) getQueueTarget()?.moveUpcoming(from, to);
+            else this.#render(getQueueTarget()?.getState() ?? null);
         };
         handle.addEventListener('pointerup', finish, { signal: abort.signal });
         handle.addEventListener('pointercancel', finish, { signal: abort.signal });
     }
 }
 
-customElements.define(QueueAddButtonElement.tagName, QueueAddButtonElement);
 customElements.define(QueuePanelElement.tagName, QueuePanelElement);
 
 declare global {
     interface HTMLElementTagNameMap {
-        'media-queue-add-button': QueueAddButtonElement;
         'media-queue-panel': QueuePanelElement;
     }
 }

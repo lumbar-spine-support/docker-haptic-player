@@ -161,10 +161,11 @@ Rules:
 UI placement: the queue lives in the **Video.js player**, not the footer, so it
 is there on the file page, in fullscreen and on phones. The app publishes one
 `QueueTarget` (`@/components/videojs/features/queue.ts`, via
-`player/queueTarget.ts`); `<media-queue-panel>` (in a `media-popover`) and
-`<media-queue-add-button>` in both slots read it. The footer stays the way back
-to the playing file plus play/pause and mute. The library adds through
-`components/library/queueMenu.ts` ("Play next" / "Add to queue").
+`player/queueTarget.ts`); the `<media-queue-panel>` (in a `media-popover`) of
+both slots reads it. The footer stays the way back to the playing file plus
+play/pause and mute. Tracks are only added from the library, through
+`components/library/queueMenu.ts` ("Play next" / "Add to queue"; playlists the
+user may delete, `PlaylistInfo.canDelete`, also get "Delete playlist").
 
 Saving: the whole queue (history included) can be stored as a private Jellyfin
 playlist, or written back to the playlist it came from

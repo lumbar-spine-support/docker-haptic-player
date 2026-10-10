@@ -39,7 +39,7 @@ sequenceDiagram
   participant A as App
   participant PC as PlaybackController
   participant Q as PlaybackQueue
-  participant UI as queue panel / + button
+  participant UI as queue panel
 
   U->>M: ⋯ → Add to queue
   M->>A: QueueActions.enqueue([id])
@@ -49,11 +49,11 @@ sequenceDiagram
   A->>A: showToast("… added to queue · n up next")
 ```
 
-"Play next" is the same with `insertNext()`. The **+** in the player of a browsed (not playing) file goes through `QueueTarget.enqueue()` instead of the menu; it reads the track from its own `<video-player>`'s `data-track-id` and shows a check while `placeOf(id)` is `upcoming`.
+"Play next" is the same with `insertNext()`. Adding happens only in the library; the player has no add button. Playlists with `PlaylistInfo.canDelete` (Jellyfin's `CanDelete`, requested with `Fields=CanDelete`) also get "Delete playlist": `App.deletePlaylist()` confirms, calls `DELETE /Items/{id}` (`jellyfin/playlists.ts`), drops it from `Library` and tells the queue panel, which then no longer names it as the source. A refused delete (401/403) only shows a toast.
 
 ## 3. Reorder in the player
 
-The queue button and `<media-queue-panel>` are part of the Video.js skin, so every player slot has them; the panel opens in a `media-popover` (top layer, works in fullscreen) and closes itself when its player is hidden.
+The queue button and `<media-queue-panel>` are part of the Video.js skin, so every player slot has them; the panel opens in a `media-popover` inside the player (so it works in fullscreen; `boundary="viewport"` lets it grow past a small player) and closes itself when its player is hidden. It opens scrolled so the playing entry is on top, with up to ten played entries above it.
 
 ```mermaid
 sequenceDiagram
@@ -65,13 +65,15 @@ sequenceDiagram
   participant Q as PlaybackQueue
 
   U->>P: drag an entry by its handle (or Alt+↑/↓)
-  P->>P: the row follows the pointer in the DOM; no re-render while dragging
+  P->>P: the row follows the pointer (transform), the rows it passes slide aside;<br/>nothing leaves the DOM, so pointer capture holds; no re-render while dragging
   U->>P: release
   P->>T: moveUpcoming(from, to)
   T->>PC: moveUpcoming(from, to)
   PC->>Q: moveUpcoming(from, to) → edited = true
   Q-->>P: onChange → render from getState()
 ```
+
+After any change the panel re-renders and animates rows from their old position (FLIP: measure, rebuild, translate back, transition to zero), so a shuffle or removal is easy to follow.
 
 Clicking an entry calls `jumpTo(uid)`: entries are addressed by `uid`, never by track id, so a track queued twice is unambiguous.
 

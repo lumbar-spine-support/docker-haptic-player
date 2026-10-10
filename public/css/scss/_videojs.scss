@@ -53,6 +53,11 @@
      transition: opacity 150ms ease-out;
  }
 
+ /* Title, artist and year keep the right half free for the top bar's buttons. */
+ .player-meta > * {
+     max-width: 50%;
+ }
+
  media-controls[data-visible]~.player-meta {
      opacity: 1;
  }

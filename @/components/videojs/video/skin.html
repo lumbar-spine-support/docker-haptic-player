@@ -25,6 +25,15 @@
         <media-controls-content class="video-controls-content">
             <media-tooltip-group>
                 <media-controls-group class="video-controls-top">
+                    <media-favorite-button class="media-button media-favorite-button" id="vjs-favorite-trigger">
+                        <media-icon family="compat" name="favorite-off"
+                            class="media-button-icon media-favorite-button-icon">
+                        </media-icon>
+                    </media-favorite-button>
+                    <media-tooltip trigger="vjs-favorite-trigger" side="top"
+                        class="media-popup media-popup-safe-area media-popup-transition media-tooltip-popup media-tooltip-screen-popup">
+                        Favorite
+                    </media-tooltip>
                     <media-airplay-button class="media-button media-airplay-button" id="vjs-SSYvGroJ-0-trigger">
                         <media-icon family="compat" name="airplay-enter"
                             class="media-button-icon media-airplay-button-enter-icon">
@@ -301,24 +310,6 @@
                             <media-tooltip trigger="vjs-loop-trigger" side="top"
                                 class="media-popup media-popup-safe-area media-popup-transition media-tooltip-popup">
                                 Repeat
-                            </media-tooltip>
-                            <media-queue-add-button class="media-button media-queue-add-button" id="vjs-queue-add-trigger">
-                                <media-icon family="compat" name="queue-add"
-                                    class="media-button-icon media-queue-add-button-icon">
-                                </media-icon>
-                            </media-queue-add-button>
-                            <media-tooltip trigger="vjs-queue-add-trigger" side="top"
-                                class="media-popup media-popup-safe-area media-popup-transition media-tooltip-popup">
-                                Add to queue
-                            </media-tooltip>
-                            <media-favorite-button class="media-button media-favorite-button" id="vjs-favorite-trigger">
-                                <media-icon family="compat" name="favorite-off"
-                                    class="media-button-icon media-favorite-button-icon">
-                                </media-icon>
-                            </media-favorite-button>
-                            <media-tooltip trigger="vjs-favorite-trigger" side="top"
-                                class="media-popup media-popup-safe-area media-popup-transition media-tooltip-popup">
-                                Favorite
                             </media-tooltip>
                             <button commandfor="vjs-queue-popup" class="media-button media-queue-button"
                                 id="vjs-queue-trigger" aria-label="Queue" data-hidden>

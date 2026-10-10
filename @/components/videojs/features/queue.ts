@@ -2,8 +2,8 @@
  * The playback queue exposed to the player UI.
  *
  * Like skipping, the queue is an app concern shared by both player slots, not
- * a media one. The app publishes one target here; the queue panel and the
- * add-to-queue button of every `<video-player>` subscribe to it.
+ * a media one. The app publishes one target here; the queue panel of every
+ * `<video-player>` subscribes to it.
  */
 export interface QueueItem {
     /** Id of the queue entry; the same track can be queued twice. */
@@ -30,9 +30,6 @@ export type QueueSave = { mode: 'overwrite' } | { mode: 'new'; name: string };
 
 export interface QueueTarget {
     getState(): QueueState;
-    /** Where a track stands in the queue: playing now, still to come, or not queued. */
-    placeOf(trackId: string): 'current' | 'upcoming' | null;
-    enqueue(trackId: string): void;
     jumpTo(uid: number): void | Promise<void>;
     /** Reorders the upcoming part; indices are relative to it. */
     moveUpcoming(from: number, to: number): void;

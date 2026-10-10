@@ -4,7 +4,7 @@ import type { PlaybackQueue } from './queue';
 import { notifyQueueChanged, setQueueTarget, type QueueSave, type QueueState, type QueueTarget } from '@/components/videojs/features/queue';
 
 /**
- * Publishes the queue to the player UI (queue panel, add-to-queue button):
+ * Publishes the queue to the player UI (the queue panel):
  * reads come from the queue and the library, every change goes through the
  * controller; saving as a playlist is the app's (it talks to Jellyfin).
  */
@@ -36,11 +36,6 @@ export function publishQueue(
                 edited: queue.edited,
             };
         },
-        placeOf(trackId) {
-            if (queue.currentId === trackId) return 'current';
-            return queue.isUpcoming(trackId) ? 'upcoming' : null;
-        },
-        enqueue: (trackId) => controller.enqueue([trackId]),
         jumpTo: (uid) => controller.jumpTo(uid),
         moveUpcoming: (from, to) => controller.moveUpcoming(from, to),
         remove: (uid) => controller.removeFromQueue(uid),

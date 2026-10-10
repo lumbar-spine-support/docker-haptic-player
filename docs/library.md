@@ -64,7 +64,7 @@ Sorting applies to the grid and the list view alike, and all media types are sor
 
 ## Favorites
 
-HAPPY uses the favorites of your Jellyfin account, the same ones Jellyfin's own apps show with a heart. Click the heart on a card, in the list view, in the player's control bar (next to the repeat button) or on a playlist's page to add or remove a favorite; HAPPY saves it in Jellyfin right away.
+HAPPY uses the favorites of your Jellyfin account, the same ones Jellyfin's own apps show with a heart. Click the heart on a card, in the list view, in the player's top bar (next to picture-in-picture and fullscreen) or on a playlist's page to add or remove a favorite; HAPPY saves it in Jellyfin right away.
 
 - Audio files, videos and playlists can be favorites. Albums are grouped by HAPPY, not by Jellyfin, so they have no heart of their own; with the favorites filter on, an album is shown when one of its tracks is a favorite.
 - Favorites you change in another Jellyfin app show up in HAPPY after a page reload.
@@ -74,9 +74,10 @@ HAPPY uses the favorites of your Jellyfin account, the same ones Jellyfin's own 
 
 What plays next is the queue. Playing an album or a playlist (its **Play** or **Shuffle** button, or one of its tracks) fills the queue with it; after that the queue is yours to change. Playing a single file on its own does not throw the queue away: the file plays now and the rest of the queue follows.
 
-- **Add to the queue**: the **⋯** menu on a card, a list row or a row of an album/playlist page has **Play next** and **Add to queue**. Album and playlist pages also have a **+** button that queues all of it. The player of a file that is not playing has a **+** button in its control bar; it turns into a check while the file is queued.
-- **See and change the queue**: the queue button in the player's control bar (next to the settings button) opens the list: what played (collapsed), what plays now and what is up next. Drag an entry by its handle to move it (or use Alt+↑/↓ on the handle), remove it with ×, or click it to play it. The buttons at the top shuffle or clear what is up next.
+- **Add to the queue**: the **⋯** menu on a card, a list row or a row of an album/playlist page has **Play next** and **Add to queue**. Album and playlist pages also have a **+** button that queues all of it.
+- **See and change the queue**: the queue button in the player's control bar (next to the settings button) opens the list with what plays now at the top and what is up next below it; scroll up to see the last ten played. Drag an entry by its handle to any place (or use Alt+↑/↓ on the handle), remove it with ×, or click it to play it. The buttons at the top shuffle or clear what is up next. Entries slide to their new place, so you can follow what moved.
 - **Save the queue**: *Save as playlist…* stores the whole queue, in order, as a new Jellyfin playlist that only you can see. A queue that came from one of your playlists can be written back with *Save to "…"* once you changed it. HAPPY refuses to overwrite a playlist that holds media from libraries HAPPY does not show, or that was changed elsewhere in the meantime, so nothing gets lost; save it as a new playlist instead. Saved playlists appear in the library right away and in Jellyfin's other apps too.
+- **Delete a playlist**: the **⋯** menu of one of your own playlists in the library has *Delete playlist*. After you confirm, the playlist is removed from Jellyfin, for all apps; the media in it stays.
 
 The queue lives in the open browser tab and is gone after a reload; save it as a playlist to keep it. The bar at the bottom of the page shows what is playing while you browse; click it to get back to the player and its queue.
 

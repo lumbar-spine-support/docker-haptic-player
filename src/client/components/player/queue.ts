@@ -62,11 +62,6 @@ export class PlaybackQueue {
         return this.items.slice(this.index + 1);
     }
 
-    /** Whether `trackId` is still to come (the current entry does not count). */
-    isUpcoming(trackId: string): boolean {
-        return this.upcoming.some((item) => item.trackId === trackId);
-    }
-
     step(direction: -1 | 1): string | null {
         const next = this.index + direction;
         if (next < 0 || next >= this.items.length) return null;
