@@ -11,7 +11,8 @@ const reducedMotion = (): boolean => matchMedia('(prefers-reduced-motion: reduce
  * Contents of the queue popover: up to ten played entries, the playing one
  * and what is up next. The list opens scrolled so the playing entry is on top.
  * Upcoming entries can be dragged by their handle (or moved with Alt+↑/↓),
- * removed, shuffled and cleared; any entry can be played. Rows slide to their
+ * removed, shuffled and cleared; any entry can be played. The header also holds
+ * the repeat button (off → queue → current). Rows slide to their
  * new place, so a change is easy to follow. The whole queue can be saved as a
  * Jellyfin playlist, or back to the playlist it came from.
  *
@@ -82,6 +83,9 @@ class QueuePanelElement extends UIElement {
                     <span class="media-queue-title">Queue</span>
                     <span class="media-queue-source" data-part="source"></span>
                 </div>
+                <media-loop-button class="btn btn-sm btn-link media-queue-icon-button media-loop-button">
+                    <media-icon family="compat" name="loop" class="media-loop-button-icon"></media-icon>
+                </media-loop-button>
                 <button type="button" class="btn btn-sm btn-link media-queue-icon-button" data-action="shuffle"
                     aria-label="Shuffle up next" title="Shuffle up next">
                     <i class="bi bi-shuffle" aria-hidden="true"></i>
@@ -176,7 +180,7 @@ class QueuePanelElement extends UIElement {
         const source = this.querySelector('[data-part="source"]');
         if (source) source.textContent = state?.sourceName ? `from ${state.sourceName}` : '';
         const upcoming = state ? upcomingOf(state) : [];
-        for (const button of this.querySelectorAll<HTMLButtonElement>('.media-queue-header button')) {
+        for (const button of this.querySelectorAll<HTMLButtonElement>('.media-queue-header button[data-action]')) {
             button.disabled = button.dataset.action === 'shuffle' ? upcoming.length < 2 : upcoming.length === 0;
         }
         this.#renderSave(state);

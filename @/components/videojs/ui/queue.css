@@ -87,6 +87,16 @@
       text-decoration: none;
     }
 
+    .media-queue-icon-button media-icon {
+      width: 1rem;
+      height: 1rem;
+    }
+
+    /* Repeat on (queue or current) shows in the accent colour. */
+    .media-queue-header .media-loop-button[data-active] {
+      color: var(--bs-primary);
+    }
+
     .media-queue-icon-button:hover:not(:disabled) {
       background-color: color-mix(in srgb, currentColor 12%, transparent);
     }

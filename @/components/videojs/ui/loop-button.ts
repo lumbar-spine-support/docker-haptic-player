@@ -45,6 +45,7 @@ class LoopButtonElement extends UIElement {
         const mode = getRepeatMode();
         this.setAttribute('data-mode', mode);
         this.setAttribute('aria-label', LABELS[mode]);
+        this.title = LABELS[mode];
         this.setAttribute('aria-pressed', String(mode !== 'off'));
         // `data-active` is the attribute the skin stylesheets key their "on" state off.
         this.toggleAttribute('data-active', mode !== 'off');
