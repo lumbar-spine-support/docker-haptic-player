@@ -1,7 +1,7 @@
 name: Build DG-Lab Relay Image (Preview)
 
-# HAPPY itself previews as the plugin build artifact of every test run (jellyfin-plugin-happy);
-# only the relay has an image to preview.
+# HAPPY itself previews through the beta plugin repository (happy-plugin-beta.yml) and the plugin
+# build artifact of every test run; this workflow previews the relay image.
 on:
   push:
     branches:

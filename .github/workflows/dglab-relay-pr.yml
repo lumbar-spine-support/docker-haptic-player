@@ -7,7 +7,7 @@ on:
     paths:
       - "dglab-relay/**"
       - "src/shared/dglab.ts"
-      - ".github/workflows/docker-build-pr.yml"
+      - ".github/workflows/dglab-relay-pr.yml"
   workflow_dispatch: {}
 
 permissions:
