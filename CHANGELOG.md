@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.2.0](https://github.com/lumbar-spine-support/jellyfin-haptic-player/compare/v1.1.0...v1.2.0) (2026-10-10)
+
+
+### Features
+
+* **dglab-relay:** log connection health to diagnose unstable links ([9a24323](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/9a243236b314ebcff74e476992fa79193e4f5092))
+* **dglab:** log every lost relay connection with its close code ([37cb4f9](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/37cb4f926cd43956a0fa1833c3fe393465244f9c))
+* **library:** delete playlists from the ⋯ menu ([ba520b8](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/ba520b81098493c13dcd4aed34533617879a71b7))
+* **library:** play next and add to queue from the library ([a72ce80](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/a72ce800b2ca2bfb81773b461e3c531ee7799eaf))
+* **player:** queue panel and add-to-queue button in the player ([a22f24d](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/a22f24d7e9a97e68358789b5e414655f391a8c53))
+* **player:** repeat button moves into the queue panel ([315c5f6](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/315c5f6dd4bbd3e4cc7d97db0fe4ec73d5f4b238))
+* **player:** rework the queue panel; favorite moves to the top bar ([f80ed19](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/f80ed198678bc37d0018c96c31be5b4e99c91c42))
+* **player:** save the queue as a Jellyfin playlist ([320abe1](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/320abe1d05ff668ae214783a5217ddad0548a57f))
+* **plugin:** mark beta builds in HAPPY's version badge ([b4c432c](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/b4c432cf6497718745e427bab7bc713f918625ea))
+
+
+### Bug Fixes
+
+* **library:** close the queue menu after choosing an entry ([f83d2c9](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/f83d2c9360adcf940facb356347fda0c03b13086))
+* **package:** update Node.js engine requirement to &gt;=22.9 ([8ca5918](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/8ca59180f65895a2aa760046c6e16c8dcc5ea191))
+* **player:** keep the controls awake while the queue popover is open ([42a9bff](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/42a9bff4efcb30960733520a4c98dd82251812f0))
+* **player:** shorter queue save buttons that keep their row's height ([b00caf5](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/b00caf55a201d9cb3f7966a4d6378de356d5c164))
+
 ## [1.1.0](https://github.com/lumbar-spine-support/jellyfin-haptic-player/compare/v1.0.0...v1.1.0) (2026-10-09)
 
 
