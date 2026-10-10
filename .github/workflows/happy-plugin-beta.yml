@@ -115,6 +115,7 @@ jobs:
 
       - name: Add the beta to manifest-beta.json
         env:
+          PLUGIN_REPOSITORY_DEPLOY_KEY: ${{ secrets.PLUGIN_REPOSITORY_DEPLOY_KEY }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           sh scripts/update-plugin-repository.sh "chore: add beta ${VERSION} to the Jellyfin plugin beta manifest" \

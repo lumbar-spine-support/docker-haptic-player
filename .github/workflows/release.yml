@@ -186,6 +186,7 @@ jobs:
           sh scripts/update-plugin-repository.sh "chore: add ${RELEASE_TAG} to the Jellyfin plugin manifests" \
             sh "$RUNNER_TEMP/add-release.sh"
         env:
+          PLUGIN_REPOSITORY_DEPLOY_KEY: ${{ secrets.PLUGIN_REPOSITORY_DEPLOY_KEY }}
           ZIP: ${{ steps.package.outputs.zip }}
           URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.release.outputs.tag_name }}/${{ steps.package.outputs.name }}
 
