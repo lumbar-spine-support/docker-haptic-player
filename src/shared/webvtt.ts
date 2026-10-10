@@ -9,7 +9,8 @@ export function formatVttTimestamp(seconds: number): string {
     return `${pad(Math.floor(totalS / 3600))}:${pad(Math.floor(totalS / 60) % 60)}:${pad(totalS % 60)}.${pad(ms, 3)}`;
 }
 
-const cueText = (text: string): string => text.replace(/\s+/g, ' ').replace(/-->/g, '->').trim();
+/** One-line cue payload; `-->` would read as a cue timing separator (WebVTT, not HTML, so `--!>` is harmless). */
+const cueText = (text: string): string => text.replace(/\s+/g, ' ').split('-->').join('->').trim();
 
 const vttFile = (cues: string[]): string => `WEBVTT\n\n${cues.join('\n\n')}\n`;
 
