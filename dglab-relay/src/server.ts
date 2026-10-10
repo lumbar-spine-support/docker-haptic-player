@@ -2,7 +2,11 @@ import http from 'http';
 import type { Duplex } from 'stream';
 import { DGLAB_AUTH_PROTOCOL_PREFIX, DGLAB_WS_PATH } from '../../src/shared/dglab';
 import type { TokenVerifier } from './jellyfinAuth';
+import { createLogger } from './logger';
+import { remoteAddress } from './peerLink';
 import { DglabRelay } from './relay';
+
+const log = createLogger('dglab:server');
 
 export interface RelayServer {
   server: http.Server;
@@ -44,6 +48,7 @@ export function createRelayServer(verifyToken: TokenVerifier, relay = new DglabR
     // The Host header is untrusted and may be missing, so a fixed base is used.
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (!url.pathname.endsWith(DGLAB_WS_PATH)) {
+      log.debug(`Refused a WebSocket upgrade from ${remoteAddress(req)} on ${url.pathname}`);
       refuse(socket, 404, 'Not Found');
       return;
     }
@@ -54,6 +59,7 @@ export function createRelayServer(verifyToken: TokenVerifier, relay = new DglabR
     void verifyToken(tokenFromProtocols(req.headers['sec-websocket-protocol'])).then((valid) => {
       if (socket.destroyed) return;
       if (!valid) {
+        log.warn(`Refused a HAPPY tab from ${remoteAddress(req)}: its Jellyfin sign-in was missing, expired or could not be checked`);
         refuse(socket, 401, 'Unauthorized');
         return;
       }

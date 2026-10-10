@@ -3,6 +3,7 @@ import type { IncomingMessage } from 'http';
 import type { Duplex } from 'stream';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createLogger } from './logger';
+import { formatDuration, PeerLink, remoteAddress } from './peerLink';
 import { DGLAB_DETACH_GRACE_MS, DGLAB_PROTOCOL } from '../../src/shared/dglab';
 
 const log = createLogger('dglab:relay');
@@ -64,15 +65,18 @@ function clearTimer(timer: NodeJS.Timeout | null): null {
 }
 
 /** Parses frames, answers `ping` and malformed input, and hands `message` frames to `onMessage`. */
-function listen(socket: WebSocket, onMessage: (frame: MessageFrame) => void): void {
+function listen(link: PeerLink, onMessage: (frame: MessageFrame) => void): void {
+  const { socket } = link;
   socket.on('message', (raw) => {
     let frame: MessageFrame;
     try {
       frame = JSON.parse(String(raw));
     } catch {
+      link.received(undefined);
       send(socket, { type: 'error', code: 'bad_request' });
       return;
     }
+    link.received(frame.type);
     switch (frame.type) {
       case 'message':
         onMessage(frame);
@@ -108,7 +112,7 @@ export class DglabRelay {
   private readonly controllerId = crypto.randomUUID();
   private readonly heartbeat: NodeJS.Timeout;
   private readonly wsPing: NodeJS.Timeout;
-  private readonly missedPongs = new WeakMap<WebSocket, number>();
+  private readonly links = new WeakMap<WebSocket, PeerLink>();
   private readonly graceMs: number;
 
   /** Null while the tab is away; the app is kept until the grace period runs out. */
@@ -116,6 +120,7 @@ export class DglabRelay {
   private app: { id: string; socket: WebSocket } | null = null;
   private idleTimer: NodeJS.Timeout | null = null;
   private graceTimer: NodeJS.Timeout | null = null;
+  private detachedAt = 0;
 
   /** Expects controller upgrades already authenticated by the dispatcher; requests with `tid` are apps. */
   constructor(graceMs = DETACH_GRACE_MS, pingMs = WS_PING_INTERVAL_MS) {
@@ -128,12 +133,13 @@ export class DglabRelay {
   handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const tid = url.searchParams.get('tid');
+    const remote = remoteAddress(req);
     this.wss.handleUpgrade(req, socket, head, (ws) => {
       if (tid) {
-        this.attachApp(ws, tid);
+        this.attachApp(ws, tid, remote);
       }
       else {
-        this.attachController(ws);
+        this.attachController(ws, remote);
       }
     });
   }
@@ -164,14 +170,14 @@ export class DglabRelay {
   private startWsPing(intervalMs: number): NodeJS.Timeout {
     const probe = () => {
       for (const ws of [this.controller, this.app?.socket]) {
-        if (!ws || ws.readyState !== WebSocket.OPEN) continue;
-        const missed = this.missedPongs.get(ws) ?? 0;
-        if (missed >= MAX_MISSED_PONGS) {
-          log.debug(`Peer missed ${missed} pongs, terminating`);
+        const link = ws && this.links.get(ws);
+        if (!ws || !link || ws.readyState !== WebSocket.OPEN) continue;
+        if (link.missedPongs >= MAX_MISSED_PONGS) {
+          link.closing(`missed ${link.missedPongs} native pings`);
           ws.terminate();
           continue;
         }
-        this.missedPongs.set(ws, missed + 1);
+        link.pinged();
         ws.ping();
       }
     };
@@ -180,27 +186,53 @@ export class DglabRelay {
     return timer;
   }
 
-  private trackPongs(socket: WebSocket): void {
-    this.missedPongs.set(socket, 0);
-    socket.on('pong', () => this.missedPongs.set(socket, 0));
+  /** Tracks a new peer socket; `onGone` runs once, on close or error. */
+  private track(name: string, socket: WebSocket, remote: string, onGone: () => void): PeerLink {
+    const link = new PeerLink(name, socket, remote);
+    this.links.set(socket, link);
+    socket.on('pong', () => link.ponged());
+    socket.on('close', (code, reason) => {
+      link.closed(code, String(reason));
+      onGone();
+    });
+    socket.on('error', (err) => {
+      link.error(err);
+      onGone();
+    });
+    return link;
+  }
+
+  /** Closes a peer from the relay's side, noting why for the log. */
+  private closePeer(socket: WebSocket, code: number, reason: string): void {
+    this.links.get(socket)?.closing(reason);
+    socket.close(code, reason);
+  }
+
+  /** Relays a frame to a peer, watching for a backlog on the way. */
+  private relayTo(socket: WebSocket | null, frame: unknown): void {
+    send(socket, frame);
+    if (socket) this.links.get(socket)?.sent();
   }
 
   /** Attaches a controller, replacing any previous one. */
-  private attachController(socket: WebSocket): void {
+  private attachController(socket: WebSocket, remote: string): void {
+    if (this.graceTimer) {
+      const away = formatDuration(Date.now() - this.detachedAt);
+      log.info(`Controller from ${remote} back after ${away}${this.app ? ', the app stayed paired' : ''}`);
+    } else {
+      log.info(`Controller connected from ${remote}`);
+    }
     this.graceTimer = clearTimer(this.graceTimer);
     const previous = this.controller;
     this.controller = socket;
-    previous?.close(DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED, 'replaced');
+    if (previous) this.closePeer(previous, DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED, 'replaced');
+
+    const link = this.track('Controller', socket, remote, () => this.detachController(socket));
+    listen(link, (frame) => this.relayFromController(frame.clientId, frame.data));
 
     send(socket, { type: 'hello', clientId: this.controllerId });
     if (this.app) send(socket, { type: 'client_attached', clientId: this.app.id });
     else this.armIdleTimer();
-    log.debug('Controller connected');
-
-    listen(socket, (frame) => this.relayFromController(frame.clientId, frame.data));
-    this.trackPongs(socket);
-    socket.on('close', () => this.detachController(socket));
-    socket.on('error', () => this.detachController(socket));
   }
 
   /** Detaches the controller, starting the grace period for the app. */
@@ -210,9 +242,13 @@ export class DglabRelay {
     this.controller = null;
     this.idleTimer = clearTimer(this.idleTimer);
     clearTimer(this.graceTimer);
-    this.graceTimer = setTimeout(() => this.dropApp(), this.graceMs);
+    this.detachedAt = Date.now();
+    this.graceTimer = setTimeout(() => {
+      if (this.app) log.info(`Controller did not come back within ${formatDuration(this.graceMs)}, dropping the app`);
+      this.dropApp();
+    }, this.graceMs);
     this.graceTimer.unref?.();
-    log.debug('Controller detached, holding its app');
+    if (this.app) log.info(`Controller gone, keeping the app paired for ${formatDuration(this.graceMs)}`);
   }
 
   private armIdleTimer(): void {
@@ -220,15 +256,18 @@ export class DglabRelay {
     this.idleTimer = setTimeout(() => {
       if (this.app) return;
       send(this.controller, { type: 'idle_timeout' });
-      this.controller?.close(DGLAB_CLOSE_CODE.IDLE_TIMEOUT, 'idle_timeout');
+      if (this.controller) this.closePeer(this.controller, DGLAB_CLOSE_CODE.IDLE_TIMEOUT, 'idle_timeout');
     }, IDLE_TIMEOUT_MS);
     this.idleTimer.unref?.();
   }
 
   /** Attaches an app, replacing any previous one. */
-  private attachApp(socket: WebSocket, tid: string): void {
+  private attachApp(socket: WebSocket, tid: string, remote: string): void {
     // Without a connected or detached controller there is nobody to pair with.
     if (tid !== this.controllerId || (!this.controller && !this.graceTimer)) {
+      log.warn(tid !== this.controllerId
+        ? `App from ${remote} presented an unknown pairing id; the relay restarted since pairing, so pair again`
+        : `App from ${remote} found no controller; open HAPPY and connect DG-Lab first`);
       socket.close(DGLAB_CLOSE_CODE.CONTROLLER_NOT_FOUND, 'controller_not_found');
       return;
     }
@@ -236,21 +275,19 @@ export class DglabRelay {
     const previous = this.app;
     const id = crypto.randomUUID();
     this.app = { id, socket };
+    log.info(`App ${id.slice(0, 8)} connected from ${remote}${previous ? ', replacing the previous one' : ''}`);
     if (previous) {
       send(this.controller, { type: 'client_disconnected', clientId: previous.id });
-      previous.socket.close(DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED, 'replaced');
+      this.closePeer(previous.socket, DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED, 'replaced');
     }
     this.idleTimer = clearTimer(this.idleTimer);
+
+    const link = this.track(`App ${id.slice(0, 8)}`, socket, remote, () => this.detachApp(socket));
+    listen(link, (frame) => this.relayTo(this.controller, { type: 'message', clientId: id, data: frame.data }));
 
     send(socket, { type: 'hello', clientId: id });
     send(socket, { type: 'controller_attached', clientId: this.controllerId });
     send(this.controller, { type: 'client_attached', clientId: id });
-    log.debug(`App ${id} attached`);
-
-    listen(socket, (frame) => send(this.controller, { type: 'message', clientId: id, data: frame.data }));
-    this.trackPongs(socket);
-    socket.on('close', () => this.detachApp(socket));
-    socket.on('error', () => this.detachApp(socket));
   }
 
   /** Detaches the app, notifying the controller and freeing the slot. */
@@ -267,7 +304,7 @@ export class DglabRelay {
     this.graceTimer = clearTimer(this.graceTimer);
     const socket = this.app?.socket;
     this.app = null;
-    socket?.close(DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED, 'controller_disconnected');
+    if (socket) this.closePeer(socket, DGLAB_CLOSE_CODE.CONTROLLER_DISCONNECTED, 'controller_disconnected');
   }
 
   /** A `clientId` other than the current app's is stale. */
@@ -276,6 +313,6 @@ export class DglabRelay {
       send(this.controller, { type: 'error', code: 'client_not_found', clientId: target });
       return;
     }
-    send(this.app?.socket ?? null, { type: 'message', clientId: this.controllerId, data });
+    this.relayTo(this.app?.socket ?? null, { type: 'message', clientId: this.controllerId, data });
   }
 }

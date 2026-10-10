@@ -2,8 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import WebSocket from 'ws';
 import { DGLAB_DETACH_GRACE_MS, DGLAB_WS_PATH } from '../../src/shared/dglab';
+import { setLogLevel } from '../src/logger';
 import { DGLAB_CLOSE_CODE, DglabRelay } from '../src/relay';
 import { createRelayServer } from '../src/server';
+
+// Every connection is logged at info; peerLink.test.ts covers the wording.
+setLogLevel('error');
 
 /** The only token the stub Jellyfin verifier accepts. */
 const TEST_JELLYFIN_TOKEN = '0123456789abcdef0123456789abcdef';

@@ -76,8 +76,24 @@ The page is available while DG-Lab is enabled; turn it off with *Show the wavefo
 
 To trace the wire protocol when something misbehaves, set `localStorage['happy-log'] =
 'dglab=debug'` in the browser console and reload, or turn on *Debug output in the browser console* on the
-plugin's settings page for everyone. Warnings and rejected commands are always logged. The relay logs its
-connections when it runs with `LOG_LEVEL=debug`.
+plugin's settings page for everyone. Warnings, rejected commands and every lost relay connection (with its
+close code) are always logged.
+
+The relay logs every connection, disconnect and reconnect at the default `LOG_LEVEL=info`
+(`docker logs happy-dglab-relay`). If the status badge flickers to *Error* or the DG-Lab app reports an
+unstable network, these lines tell you where the trouble is:
+
+| Log line | Meaning |
+| --- | --- |
+| `Controller closed: code 1000 …, reason "ping_timeout"` | The HAPPY tab heard no answer from the relay for 6 s and reconnected. Look at the network between the browser and the relay (Wi-Fi, reverse proxy). |
+| `… code 1006 (abnormal …)` | The connection dropped without a goodbye: a network or reverse proxy cut it, or the browser was suspended. |
+| `… was silent for 7.3 s although it pings every 2 s` | Nothing reached the relay from that peer for that long; its link to the relay stalled. |
+| `… answered a native ping after …` / `… has not answered native pings for …` | Slow or missing round trips between the relay and that peer. |
+| `… is not keeping up: … KiB queued towards it` | The relay cannot send to that peer fast enough (slow link or buffering proxy). |
+| `The relay stalled for up to … ms` | The relay itself froze (CPU limit, paused or swapping container), which delays both peers. |
+| `Controller gone, keeping the app paired …` / `Controller … back after …` | The HAPPY tab disconnected and came back; the DG-Lab app stays paired meanwhile. |
+
+`LOG_LEVEL=debug` adds the round trip time of every native ping (every 10 s per peer).
 
 `happy-log` is a comma-separated list of `namespace=level` pairs (`debug`, `info`, `warn`, `error`,
 `silent`). A namespace also covers its `:`-children, and `*` sets the default, e.g.
