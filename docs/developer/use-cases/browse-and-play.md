@@ -61,7 +61,7 @@ sequenceDiagram
   PS->>PS: promote(slot): pause the old active slot, swap roles
   PS-->>FS: onChange: active slot playing → start()
   PS-->>PC: onChange
-  PC->>PC: active id changed → queue.load(album tracks, id)
+  PC->>PC: active id ≠ queue.currentId → applyStart: album/playlist replaces the queue,<br/>a single track is played now (rest of the queue kept)
   PC-->>A: onActiveTrack(track)
   A->>FS: clearScripts() → stop(), stopAll
   A->>A: set navigator.mediaSession metadata

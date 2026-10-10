@@ -17,6 +17,7 @@ flowchart TD
     Queue["PlaybackQueue"]
     Controller["PlaybackController"]
     Footer["player-footer element"]
+    QueueUI["queue panel + add button<br/>in each video-player"]
   end
 
   subgraph haptics["Haptics"]
@@ -36,7 +37,7 @@ flowchart TD
   App --> Session & Queue & Controller & Registry & BP & Viz & Lib
   Controller --> Session & Queue & Lib
   Footer -. subscribes .-> Session
-  Footer -. "prev/next" .-> Controller
+  QueueUI -. "QueueTarget<br/>(player/queueTarget.ts)" .-> Controller
 
   Registry --> BP & Coyote
   App --> SyncI & SyncD
@@ -206,12 +207,12 @@ Everything that changes the active track goes through one path:
 flowchart LR
   subgraph triggers["Triggers"]
     Play["user presses play<br/>on the focused player"]
-    Step["footer prev/next,<br/>hotkeys"]
+    Step["player prev/next,<br/>queue panel jump"]
     Ended["track ended<br/>+ autoplay"]
-    Detail["album/playlist<br/>Play button"]
+    Detail["album/playlist<br/>Play / Shuffle"]
   end
   Play --> Promote["PlaybackSession.promote(slot)<br/>only if it was not active yet"]
-  Step & Ended & Detail --> Activate["PlaybackController.activate(id)<br/>queue.load + session.start<br/>loadSlot + store.play()"]
+  Step & Ended & Detail --> Activate["PlaybackController<br/>activate / step / jumpTo / playCollection<br/>queue updated first, then session.start"]
   Activate --> Promote
   Activate --> Emit
   Promote --> Emit["session emits onChange"]

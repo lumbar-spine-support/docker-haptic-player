@@ -24,7 +24,7 @@ Add your folders as libraries in Jellyfin (*Dashboard → Libraries*). HAPPY sho
 - **Video**: use **Mixed movies and shows** or **Home videos and photos**. No online metadata is needed; turn the metadata downloaders off if Jellyfin should not rename your files.
 - Media plays as the original file, never transcoded. Your browser must be able to decode it (see [Video codecs](#video-codecs)).
 
-Playlists are Jellyfin playlists. Create them in Jellyfin; `.m3u` files in your media folders are not read by HAPPY.
+Playlists are Jellyfin playlists. Create them in Jellyfin, or save a [queue](#queue) from HAPPY; `.m3u` files in your media folders are not read by HAPPY.
 
 ## Tags and descriptions
 
@@ -69,6 +69,16 @@ HAPPY uses the favorites of your Jellyfin account, the same ones Jellyfin's own 
 - Audio files, videos and playlists can be favorites. Albums are grouped by HAPPY, not by Jellyfin, so they have no heart of their own; with the favorites filter on, an album is shown when one of its tracks is a favorite.
 - Favorites you change in another Jellyfin app show up in HAPPY after a page reload.
 - With the favorites filter on, an item you remove from your favorites stays visible until the library is redrawn (for example when you change a filter), so it does not vanish under your mouse.
+
+## Queue
+
+What plays next is the queue. Playing an album or a playlist (its **Play** or **Shuffle** button, or one of its tracks) fills the queue with it; after that the queue is yours to change. Playing a single file on its own does not throw the queue away: the file plays now and the rest of the queue follows.
+
+- **Add to the queue**: the **⋯** menu on a card, a list row or a row of an album/playlist page has **Play next** and **Add to queue**. Album and playlist pages also have a **+** button that queues all of it. The player of a file that is not playing has a **+** button in its control bar; it turns into a check while the file is queued.
+- **See and change the queue**: the queue button in the player's control bar (next to the settings button) opens the list: what played (collapsed), what plays now and what is up next. Drag an entry by its handle to move it (or use Alt+↑/↓ on the handle), remove it with ×, or click it to play it. The buttons at the top shuffle or clear what is up next.
+- **Save the queue**: *Save as playlist…* stores the whole queue, in order, as a new Jellyfin playlist that only you can see. A queue that came from one of your playlists can be written back with *Save to "…"* once you changed it. HAPPY refuses to overwrite a playlist that holds media from libraries HAPPY does not show, or that was changed elsewhere in the meantime, so nothing gets lost; save it as a new playlist instead. Saved playlists appear in the library right away and in Jellyfin's other apps too.
+
+The queue lives in the open browser tab and is gone after a reload; save it as a playlist to keep it. The bar at the bottom of the page shows what is playing while you browse; click it to get back to the player and its queue.
 
 ## Cover art in the grid view
 

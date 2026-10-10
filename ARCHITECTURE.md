@@ -135,6 +135,45 @@ Relevant files:
 - `src/client/components/player/controller.ts`
 - `src/client/components/player/footer.ts`
 
+## Playback queue
+
+`PlaybackQueue` (`src/client/components/player/queue.ts`) is the list the active
+player walks through. Entries before the current one are history, entries after
+it are "up next".
+
+Rules:
+
+- **Only `PlaybackController` changes the queue**, and only on an explicit action
+  (play, step, jump, queue, reorder, remove, shuffle, clear, save). The active
+  track changing never rebuilds it.
+- **Entries have their own id** (`QueueEntry.uid`): a playlist can hold the same
+  track twice, so nothing addresses entries by track id.
+- **Albums and playlists only seed the queue.** Starting one (Play/Shuffle on its
+  page, or a row opened from it) replaces the queue; `source` keeps its name and
+  `edited` tells whether the order still matches it.
+- **A single track never throws the queue away.** Playing it jumps to its next
+  upcoming entry, or inserts it after the current entry (`playNow`).
+- Tracks queued before anything played wait as "up next" (`currentIndex` -1)
+  until a skip or play starts them.
+- History and the current entry are fixed; only upcoming entries move, go away or
+  get shuffled.
+
+UI placement: the queue lives in the **Video.js player**, not the footer, so it
+is there on the file page, in fullscreen and on phones. The app publishes one
+`QueueTarget` (`@/components/videojs/features/queue.ts`, via
+`player/queueTarget.ts`); `<media-queue-panel>` (in a `media-popover`) and
+`<media-queue-add-button>` in both slots read it. The footer stays the way back
+to the playing file plus play/pause and mute. The library adds through
+`components/library/queueMenu.ts` ("Play next" / "Add to queue").
+
+Saving: the whole queue (history included) can be stored as a private Jellyfin
+playlist, or written back to the playlist it came from
+(`src/client/jellyfin/playlists.ts`). Saves always send the full list, because
+Jellyfin's per-entry move/remove calls cannot tell two copies of an item apart.
+Writing back is refused unless the user may edit the playlist and Jellyfin still
+holds exactly the entries HAPPY loaded, since HAPPY drops entries from libraries
+it does not load and overwriting would delete them.
+
 ## State management and synchronization flow
 
 Client state is coordinated by the `App` class in `src/client/index.ts` together
@@ -145,7 +184,7 @@ with `PlaybackSession`, `PlaybackQueue` and `PlaybackController`.
 - `currentTrackId`: file page the user is browsing
 - `PlaybackSession.activeSlot` / `activeTrackId`: slot that owns playback and the footer
 - `PlaybackSession.focusedTrackId`: slot shown on the browsed file page
-- `PlaybackQueue`: ordered track ids plus the album/playlist they came from
+- `PlaybackQueue`: ordered entries (history, current, up next) plus the album/playlist they came from; see [Playback queue](#playback-queue)
 - `pageScripts`: funscripts loaded for the browsed file
 
 ### Player slots
@@ -258,8 +297,10 @@ Media elements cannot send headers, so stream and trickplay sheet URLs carry the
 - trickplay uses the resolution closest to 320 px
 - favorites are Jellyfin's per-user `UserData.IsFavorite` (requested with `EnableUserData=true`) on
   tracks, videos and playlists; client-side albums have none. HAPPY writes them back with
-  `POST`/`DELETE /UserFavoriteItems/{id}` (`setFavorite()`), optimistically, and they are the only
-  thing the client writes to Jellyfin's library data
+  `POST`/`DELETE /UserFavoriteItems/{id}` (`setFavorite()`), optimistically
+- besides favorites, the client only writes playlists, when the user saves the queue
+  (`playlists.ts`: `POST /Playlists` with `IsPublic: false`, `POST /Playlists/{id}` with the full
+  `Ids` list; see [Playback queue](#playback-queue))
 
 ### Generated WebVTT and origins
 
@@ -424,7 +465,8 @@ test/                   Unit tests (client, scripts) and opt-in Jellyfin integra
 
 - `src/client/components/player/session.ts` owns the two Video.js player slots and their active/focus roles
 - `src/client/components/player/queue.ts` holds queue order only; it never drives the session
-- `src/client/components/player/controller.ts` joins session + queue + library and exposes browse/activate/step
+- `src/client/components/player/controller.ts` joins session + queue + library; the only place that starts tracks or changes the queue
+- `src/client/components/player/queueTarget.ts` publishes the queue to the player UI (`@/components/videojs/ui/queue.ts`)
 - `src/client/components/player/footer.ts` is a `UIElement` bound to the active slot's store via `StoreController`
 - `src/client/components/funscriptSync.ts` isolates playback-time → device-command logic
 - `src/client/components/haptic/buttplugClient.ts` isolates Intiface connection and command routing
