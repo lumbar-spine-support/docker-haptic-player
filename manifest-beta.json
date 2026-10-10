@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/lumbar-spine-support/jellyfin-haptic-player/main/jellyfin-plugin/thumb.png",
     "versions": [
       {
+        "version": "1.1.0.3",
+        "changelog": "Beta build 1.1.0.3 from dev (commit 9a24323). Not released yet, may be unstable.\n\nChanges since the last release:\n\n- feat(dglab-relay): log connection health to diagnose unstable links (9a24323)\n- feat(dglab): log every lost relay connection with its close code (37cb4f9)\n- feat(player): repeat button moves into the queue panel (315c5f6)\n- feat(player): rework the queue panel; favorite moves to the top bar (f80ed19)\n- feat(library): delete playlists from the ⋯ menu (ba520b8)\n- ci: push the plugin repository branch with a deploy key (4462f87)\n- docs(installation): explain the beta channel (2872b35)\n- ci: publish dev builds to a beta plugin repository (b34de33)\n- feat(plugin): mark beta builds in HAPPY's version badge (b4c432c)\n- ci: name the DG-Lab relay workflows after the relay (0a4ba07)\n- fix(library): close the queue menu after choosing an entry (f83d2c9)\n- docs: playback queue, queue panel and saving as a playlist (fb4eba7)\n- feat(player): save the queue as a Jellyfin playlist (320abe1)\n- feat(player): queue panel and add-to-queue button in the player (a22f24d)\n- feat(library): play next and add to queue from the library (a72ce80)\n- refactor(player): editable playback queue (8a0a6aa)",
+        "targetAbi": "12.1.0.0",
+        "sourceUrl": "https://github.com/lumbar-spine-support/jellyfin-haptic-player/releases/download/beta/happy_1.1.0.3.zip",
+        "checksum": "fbcd0eba1d3cab8589ee205b232ab5b1",
+        "timestamp": "2026-10-10T10:50:40Z"
+      },
+      {
         "version": "1.1.0.2",
         "changelog": "Beta build 1.1.0.2 from dev (commit f80ed19). Not released yet, may be unstable.\n\nChanges since the last release:\n\n- feat(player): rework the queue panel; favorite moves to the top bar (f80ed19)\n- feat(library): delete playlists from the ⋯ menu (ba520b8)\n- ci: push the plugin repository branch with a deploy key (4462f87)\n- docs(installation): explain the beta channel (2872b35)\n- ci: publish dev builds to a beta plugin repository (b34de33)\n- feat(plugin): mark beta builds in HAPPY's version badge (b4c432c)\n- ci: name the DG-Lab relay workflows after the relay (0a4ba07)\n- fix(library): close the queue menu after choosing an entry (f83d2c9)\n- docs: playback queue, queue panel and saving as a playlist (fb4eba7)\n- feat(player): save the queue as a Jellyfin playlist (320abe1)\n- feat(player): queue panel and add-to-queue button in the player (a22f24d)\n- feat(library): play next and add to queue from the library (a72ce80)\n- refactor(player): editable playback queue (8a0a6aa)",
         "targetAbi": "12.1.0.0",
