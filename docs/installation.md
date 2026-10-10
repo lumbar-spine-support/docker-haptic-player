@@ -27,6 +27,18 @@ Add HAPPY's plugin repository to Jellyfin once. After that Jellyfin installs the
 
 Jellyfin checks its repositories for updates every day (the *Update Plugins* scheduled task) and installs new versions automatically; restart Jellyfin to load an update. You can turn automatic updates off on the plugin's page. Jellyfin only offers plugin versions built for its own version or an older one.
 
+### Beta channel
+
+To try changes before they are released, use the beta repository instead:
+
+- URL: `https://raw.githubusercontent.com/lumbar-spine-support/jellyfin-haptic-player/refs/heads/jellyfin-plugin-repository/manifest-beta.json`
+
+It is the same plugin with the same settings. It offers every stable release plus the latest beta builds, which are made from the development branch after every change. They have a fourth version number, for example `1.1.0.3`, and HAPPY shows **beta** next to its version in the settings panel. Beta builds are tested automatically but not by hand, so expect the occasional bug, and please report it.
+
+- **Switching to beta:** replace the HAPPY repository URL with the beta URL (or add it next to the stable one). Run the *Update Plugins* scheduled task, or wait a day, then restart Jellyfin.
+- **Updates:** a new beta usually appears a few minutes after each change; the next stable release replaces all betas before it.
+- **Back to stable:** switch the repository URL back. Jellyfin never downgrades a plugin, so you stay on the beta until the next stable release replaces it. To go back right away, uninstall HAPPY, restart Jellyfin and install it again from the stable repository; the plugin settings are kept.
+
 ### By hand
 
 1. Download `happy_<version>.zip` from a [HAPPY release](https://github.com/lumbar-spine-support/jellyfin-haptic-player/releases) and unzip it into a new folder `HAPPY_<version>` (it contains `Jellyfin.Plugin.Happy.dll` and `meta.json`). Each CI build also uploads the folder as the `jellyfin-plugin-happy` artifact; to build it yourself, run `sh jellyfin-plugin/package.sh` with the .NET 10 SDK, which writes `jellyfin-plugin/artifacts/HAPPY_<version>/`.
