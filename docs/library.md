@@ -22,6 +22,7 @@ Add your folders as libraries in Jellyfin (*Dashboard → Libraries*). HAPPY sho
 
 - **Audio**: use the **Books** library type. Jellyfin only turns the comment tag of an audio file into its description for audiobooks; in a Music library the description would be missing. Jellyfin does not build albums for audiobooks, so HAPPY groups tracks into albums itself, by album artist and album tag.
 - **Video**: use **Mixed movies and shows** or **Home videos and photos**. No online metadata is needed; turn the metadata downloaders off if Jellyfin should not rename your files.
+  - If your videos carry an artist, prefer **Music Videos**. Jellyfin keeps artists only for audio and music videos; in the other video library types the artist tag is dropped and HAPPY shows *Unknown*. Set the artist in your tagger (e.g. *Artist* or *Album Artist* in Kid3; HAPPY shows the album artist when both are set) or in the NFO (`<artist>`). A library's type cannot be changed later, so create a new library for it.
 - Media plays as the original file, never transcoded. Your browser must be able to decode it (see [Video codecs](#video-codecs)).
 
 Playlists are Jellyfin playlists. Create them in Jellyfin, or save a [queue](#queue) from HAPPY; `.m3u` files in your media folders are not read by HAPPY.
@@ -36,7 +37,7 @@ Playlists are Jellyfin playlists. Create them in Jellyfin, or save a [queue](#qu
 
 Markdown sidecar files (`<name>.md`) are no longer read; move their tags into the genre field (or an NFO for videos) and their text into the comment (audio) or the NFO's `<plot>` (video).
 
-A video NFO looks like this; Jellyfin reads it when NFO is enabled as a metadata reader of the library (the default):
+A video NFO looks like this; Jellyfin reads it when NFO is enabled as a metadata reader of the library (the default). In a Music Videos library, use `<musicvideo>` as the root element and add `<artist>` entries:
 
 ```xml
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
