@@ -1,4 +1,5 @@
-import { UIElement } from '@videojs/html';
+import { PlayerController, UIElement, playerContext } from '@videojs/html';
+import { selectControls } from '@videojs/core/dom';
 import { getQueueTarget, subscribeQueue, upcomingOf, type QueueItem, type QueueSave, type QueueState } from '../features/queue';
 import './queue.css';
 
@@ -16,7 +17,9 @@ const reducedMotion = (): boolean => matchMedia('(prefers-reduced-motion: reduce
  * new place, so a change is easy to follow. The whole queue can be saved as a
  * Jellyfin playlist, or back to the playlist it came from.
  *
- * Also hides its popover's trigger while the queue is empty.
+ * Also hides its popover's trigger while the queue is empty, and keeps the
+ * controls from going idle while the popover is open (as Video.js menus do);
+ * otherwise they would hide mid-edit and take the popover with them.
  */
 class QueuePanelElement extends UIElement {
     static readonly tagName = 'media-queue-panel';
@@ -30,6 +33,8 @@ class QueuePanelElement extends UIElement {
     /** The playing entry last scrolled to the top; a new one (or reopening) scrolls again. */
     #scrolledTo: number | null = null;
     #list: HTMLOListElement | null = null;
+    #controls = new PlayerController(this, playerContext, selectControls);
+    #releaseControlsLock: (() => void) | null = null;
 
     override connectedCallback(): void {
         super.connectedCallback();
@@ -38,7 +43,9 @@ class QueuePanelElement extends UIElement {
         const popover = this.closest<HTMLElement & { open?: boolean }>('media-popover');
         this.#popoverAbort = new AbortController();
         popover?.addEventListener('open-change', (event) => {
-            if (!(event as CustomEvent<{ open: boolean }>).detail.open) return;
+            const open = (event as CustomEvent<{ open: boolean }>).detail.open;
+            this.#lockControls(open);
+            if (!open) return;
             this.#scrolledTo = null;
             this.requestUpdate();
         }, { signal: this.#popoverAbort.signal });
@@ -60,7 +67,17 @@ class QueuePanelElement extends UIElement {
         this.#resize = null;
         this.#popoverAbort?.abort();
         this.#popoverAbort = null;
+        this.#lockControls(false);
         super.disconnectedCallback();
+    }
+
+    #lockControls(lock: boolean): void {
+        if (lock) {
+            this.#releaseControlsLock ??= this.#controls.value?.requestControlsLock() ?? null;
+        } else {
+            this.#releaseControlsLock?.();
+            this.#releaseControlsLock = null;
+        }
     }
 
     protected override update(changed: Map<string, unknown>): void {
