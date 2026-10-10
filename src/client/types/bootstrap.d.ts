@@ -20,5 +20,8 @@ interface Window {
       getInstance(element: Element): BootstrapPopover | null;
       getOrCreateInstance(element: Element, options?: BootstrapPopoverOptions): BootstrapPopover;
     };
+    Dropdown: {
+      getInstance(element: Element): { hide(): void } | null;
+    };
   };
 }

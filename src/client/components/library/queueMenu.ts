@@ -35,8 +35,14 @@ export function createQueueMenu(trackIds: () => string[], label: string): HTMLEl
 
     const menu = document.createElement('ul');
     menu.className = 'dropdown-menu dropdown-menu-end';
-    menu.appendChild(menuItem('bi-skip-end-fill', 'Play next', () => actions?.playNext(trackIds())));
-    menu.appendChild(menuItem('bi-plus-lg', 'Add to queue', () => actions?.enqueue(trackIds())));
+    // The wrapper keeps clicks from the card or row, and so from Bootstrap's
+    // close-on-click handler too: close the menu here.
+    const choose = (action: () => void) => () => {
+        action();
+        window.bootstrap?.Dropdown.getInstance(toggle)?.hide();
+    };
+    menu.appendChild(menuItem('bi-skip-end-fill', 'Play next', choose(() => actions?.playNext(trackIds()))));
+    menu.appendChild(menuItem('bi-plus-lg', 'Add to queue', choose(() => actions?.enqueue(trackIds()))));
     wrapper.appendChild(toggle);
     wrapper.appendChild(menu);
     return wrapper;
