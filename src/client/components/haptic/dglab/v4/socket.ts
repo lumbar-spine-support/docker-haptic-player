@@ -206,6 +206,7 @@ export class DglabV4Socket {
             this.setState('disconnected');
             return;
         }
+        log.warn(`relay connection closed (code ${event.code}${event.reason ? `, ${event.reason}` : ''}), reconnecting`);
         this.setState('error');
         this.scheduleReconnect();
     }
