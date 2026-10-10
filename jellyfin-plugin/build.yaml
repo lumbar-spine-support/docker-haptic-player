@@ -1,7 +1,7 @@
 ---
 name: "HAPPY"
 guid: "98652011-fd1c-4b30-8359-fcae3b45ed37"
-version: "1.2.0.0" # x-release-please-version
+version: "1.2.1.0" # x-release-please-version
 targetAbi: "12.1.0.0"
 framework: "net10.0"
 overview: "Haptic player for Jellyfin: sync toys to funscripts while you watch or listen"
