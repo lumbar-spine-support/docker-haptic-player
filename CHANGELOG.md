@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/lumbar-spine-support/jellyfin-haptic-player/compare/v1.2.0...v1.2.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **dependencies:** update package dependencies and remove duplicates ([84f01c6](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/84f01c62966bd0f9fa7a2a5a70258019029c68c5))
+* **webvtt:** update cueText function to improve cue timing separator handling ([354d9ba](https://github.com/lumbar-spine-support/jellyfin-haptic-player/commit/354d9ba373c6042e2a0643cbbc560199036b0f1c))
+
 ## [1.2.0](https://github.com/lumbar-spine-support/jellyfin-haptic-player/compare/v1.1.0...v1.2.0) (2026-10-10)
 
 
